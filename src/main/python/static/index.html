@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cruise Employee English Assessment Platform</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; background: #1e3a8a; color: white; padding: 20px; border-radius: 8px; }
+        .division-card { background: #f3f4f6; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .module-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .module-item { background: #dbeafe; padding: 10px; border-radius: 4px; text-align: center; }
+        .btn { background: #1e3a8a; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚢 Cruise Employee English Assessment Platform</h1>
+        <p>AI-powered English proficiency testing for cruise ship employees</p>
+    </div>
+
+    <div class="division-card">
+        <h2>🏨 Hotel Operations</h2>
+        <p>8 Departments: Guest Services, Housekeeping, Restaurant Services, Culinary Arts, Beverage Operations, Auxiliary Services, Laundry, Shore Excursions</p>
+    </div>
+
+    <div class="division-card">
+        <h2>⚓ Marine Operations</h2>
+        <p>3 Departments: Deck Department, Engine Department, Security Services</p>
+    </div>
+
+    <div class="division-card">
+        <h2>🎰 Casino Operations</h2>
+        <p>3 Departments: Gaming Floor, Cashier Services, VIP Services</p>
+    </div>
+
+    <div class="division-card">
+        <h2>📋 Assessment Modules (Total: 100 Points)</h2>
+        <div class="module-list">
+            <div class="module-item">
+                <strong>🎧 Listening</strong><br>
+                16 Points<br>
+                AI-generated dialogues
+            </div>
+            <div class="module-item">
+                <strong>⏰ Time & Numbers</strong><br>
+                16 Points<br>
+                Fill-in-the-blank
+            </div>
+            <div class="module-item">
+                <strong>📝 Grammar</strong><br>
+                16 Points<br>
+                Multiple choice
+            </div>
+            <div class="module-item">
+                <strong>📚 Vocabulary</strong><br>
+                16 Points<br>
+                Category matching
+            </div>
+            <div class="module-item">
+                <strong>📖 Reading</strong><br>
+                16 Points<br>
+                Title selection
+            </div>
+            <div class="module-item">
+                <strong>🗣️ Speaking</strong><br>
+                20 Points<br>
+                AI-analyzed responses
+            </div>
+        </div>
+    </div>
+
+    <div class="division-card">
+        <h2>🚀 Quick Start</h2>
+        <p><strong>API Endpoints:</strong></p>
+        <ul>
+            <li>POST /api/v1/assessment/register - Register candidate</li>
+            <li>POST /api/v1/assessment/create - Create assessment</li>
+            <li>POST /api/v1/assessment/{id}/start - Start assessment</li>
+            <li>GET /health - Health check</li>
+            <li>GET / - This page</li>
+        </ul>
+        <button class="btn" onclick="window.open('/docs', '_blank')">📖 View API Documentation</button>
+    </div>
+
+    <div class="division-card">
+        <h2>✅ Features Implemented</h2>
+        <ul>
+            <li>✅ Complete FastAPI backend with async/await</li>
+            <li>✅ SQLAlchemy models for all data structures</li>
+            <li>✅ 630+ division-specific questions across 6 modules</li>
+            <li>✅ AI speech analysis and transcription</li>
+            <li>✅ Comprehensive scoring engine (70+ pass, safety 80%, speaking 12+)</li>
+            <li>✅ Real-time assessment flow with session management</li>
+            <li>✅ Anti-cheating measures and progress tracking</li>
+            <li>✅ GitHub integration with auto-backup</li>
+        </ul>
+    </div>
+</body>
+</html>
