@@ -249,19 +249,16 @@ def home():
 
             .hero-background {
                 width: 100%;
-                height: 50vh;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                overflow: hidden;
-                position: relative;
+                background: #f5f7fa;
             }
 
             .hero-background img {
                 width: 100%;
-                height: 100%;
-                object-fit: cover;
-                object-position: center;
+                height: auto;
+                display: block;
             }
 
             .main-content {
@@ -271,7 +268,7 @@ def home():
                 grid-template-columns: 1fr 1fr;
                 gap: 40px;
                 align-items: start;
-                padding: 60px 80px;
+                padding: 0 80px 60px 80px;
                 box-sizing: border-box;
             }
 
