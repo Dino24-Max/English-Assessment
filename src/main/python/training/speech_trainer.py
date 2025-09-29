@@ -24,6 +24,7 @@ class SpeechTrainer:
     def __init__(self, data_dir: str = "data/processed/speech", model_dir: str = "models/speech"):
         self.data_dir = Path(data_dir)
         self.model_dir = Path(model_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
         self.scaler = StandardScaler()

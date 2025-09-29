@@ -106,10 +106,12 @@ class TestInferenceServiceWithMockModel:
         # Mock model and scaler
         class MockModel:
             def predict(self, X):
-                return np.array([15])
+                # Return one prediction per input row
+                return np.array([15] * len(X))
 
             def predict_proba(self, X):
-                return np.array([[0.1, 0.2, 0.7]])
+                # Return one probability array per input row
+                return np.array([[0.1, 0.2, 0.7]] * len(X))
 
         class MockScaler:
             def transform(self, X):

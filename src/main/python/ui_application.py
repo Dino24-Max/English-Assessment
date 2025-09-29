@@ -2282,7 +2282,7 @@ def generate_module_results(module_scores):
     return html
 
 if __name__ == "__main__":
-    print("Starting Dark Assessment...")
-    print("Black background with Apple-style blue/orange accents")
-    print("URL: http://127.0.0.1:8011")
-    uvicorn.run(app, host="127.0.0.1", port=8011)
+    print("Starting Cruise English Assessment Platform...")
+    print("Premium dark interface with Apple-style design")
+    print("URL: http://127.0.0.1:8080")
+    uvicorn.run(app, host="127.0.0.1", port=8080)
