@@ -225,7 +225,7 @@ def home():
 
             body {
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: #ffffff;
+                background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 50%, #fef5f5 100%);
                 min-height: 100vh;
                 overflow-x: hidden;
                 color: #000000;
@@ -247,8 +247,15 @@ def home():
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: radial-gradient(circle at 30% 40%, rgba(0, 122, 255, 0.3) 0%, transparent 50%),
-                           radial-gradient(circle at 70% 80%, rgba(255, 0, 0, 0.25) 0%, transparent 50%);
+                background: radial-gradient(circle at 20% 30%, rgba(0, 122, 255, 0.15) 0%, transparent 40%),
+                           radial-gradient(circle at 80% 70%, rgba(255, 0, 0, 0.12) 0%, transparent 40%),
+                           radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.08) 0%, transparent 35%);
+                animation: gradient-shift 15s ease infinite;
+            }
+
+            @keyframes gradient-shift {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.8; }
             }
 
             .main-content {
@@ -269,10 +276,13 @@ def home():
             .hero-title {
                 font-size: 4rem;
                 font-weight: 800;
-                color: #1a1a1a;
+                background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
                 line-height: 1.1;
                 margin-bottom: 24px;
-                text-shadow: 0 4px 20px rgba(0, 122, 255, 0.2);
+                filter: drop-shadow(0 2px 8px rgba(0, 122, 255, 0.15));
             }
 
             .hero-subtitle {
@@ -291,10 +301,10 @@ def home():
             }
 
             .stat-card {
-                background: rgba(255,255,255,0.8);
+                background: rgba(255,255,255,0.95);
                 backdrop-filter: blur(20px);
-                border: 1px solid rgba(0, 122, 255, 0.3);
-                border-radius: 20px;
+                border: 2px solid rgba(0, 122, 255, 0.2);
+                border-radius: 24px;
                 padding: 30px 25px;
                 text-align: center;
                 transition: all 0.3s ease;
@@ -313,15 +323,18 @@ def home():
             }
 
             .stat-card:hover {
-                transform: translateY(-5px);
-                border-color: rgba(0, 122, 255, 0.4);
-                box-shadow: 0 10px 30px rgba(0, 122, 255, 0.2);
+                transform: translateY(-8px) scale(1.02);
+                border-color: rgba(0, 122, 255, 0.5);
+                box-shadow: 0 15px 40px rgba(0, 122, 255, 0.25), 0 0 0 1px rgba(255, 0, 0, 0.1);
             }
 
             .stat-number {
                 font-size: 3rem;
-                font-weight: 700;
-                color: #007aff;
+                font-weight: 800;
+                background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
                 display: block;
                 margin-bottom: 8px;
             }
@@ -337,20 +350,20 @@ def home():
             }
 
             .start-btn {
-                background: linear-gradient(45deg, #007aff, #ff0000);
+                background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 color: white;
                 border: none;
                 border-radius: 60px;
-                padding: 20px 50px;
+                padding: 22px 55px;
                 font-size: 1.3rem;
                 font-weight: 700;
                 cursor: pointer;
                 transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 text-decoration: none;
                 display: inline-block;
-                box-shadow: 0 15px 35px rgba(0, 122, 255, 0.4), 0 0 50px rgba(0, 122, 255, 0.2);
+                box-shadow: 0 15px 40px rgba(0, 122, 255, 0.3), 0 5px 15px rgba(255, 0, 0, 0.2);
                 text-transform: uppercase;
-                letter-spacing: 1px;
+                letter-spacing: 1.5px;
                 position: relative;
                 overflow: hidden;
             }
@@ -367,8 +380,8 @@ def home():
             }
 
             .start-btn:hover {
-                transform: translateY(-3px) scale(1.05);
-                box-shadow: 0 25px 50px rgba(0, 122, 255, 0.6), 0 0 80px rgba(0, 122, 255, 0.4);
+                transform: translateY(-5px) scale(1.08);
+                box-shadow: 0 30px 60px rgba(0, 122, 255, 0.4), 0 10px 25px rgba(255, 0, 0, 0.3);
             }
 
             .start-btn:hover::before {
@@ -376,14 +389,20 @@ def home():
             }
 
             .right-section {
-                background: rgba(255, 255, 255, 0.9);
+                background: rgba(255, 255, 255, 0.95);
                 backdrop-filter: blur(30px);
-                border: 1px solid rgba(0, 122, 255, 0.3);
+                border: 2px solid rgba(0, 122, 255, 0.2);
                 border-radius: 32px;
                 padding: 50px 45px;
-                box-shadow: 0 30px 80px rgba(0,0,0,0.1);
+                box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 0 0 1px rgba(0, 122, 255, 0.05);
                 position: relative;
                 overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .right-section:hover {
+                box-shadow: 0 25px 70px rgba(0,0,0,0.12), 0 0 0 1px rgba(0, 122, 255, 0.1);
+                transform: translateY(-2px);
             }
 
             .right-section::before {
@@ -427,13 +446,14 @@ def home():
             }
 
             .module-card {
-                background: rgba(0, 0, 0, 0.03);
-                border: 1px solid rgba(0, 0, 0, 0.1);
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 250, 255, 0.9) 100%);
+                border: 2px solid rgba(0, 122, 255, 0.15);
                 border-radius: 20px;
                 padding: 25px 20px;
-                transition: all 0.3s ease;
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 position: relative;
                 overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             }
 
             .module-card::before {
@@ -450,8 +470,8 @@ def home():
             }
 
             .module-card:hover {
-                transform: translateY(-8px);
-                box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3);
+                transform: translateY(-10px) scale(1.03);
+                box-shadow: 0 25px 50px rgba(0, 122, 255, 0.2), 0 0 0 1px rgba(255, 0, 0, 0.1);
                 border-color: rgba(0, 122, 255, 0.4);
             }
 
