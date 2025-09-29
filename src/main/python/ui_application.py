@@ -255,7 +255,7 @@ def home():
                 top: 0;
                 left: 0;
                 right: 0;
-                height: 40%;
+                height: 55%;
                 overflow: hidden;
                 z-index: 0;
             }
@@ -276,7 +276,7 @@ def home():
                 align-items: start;
                 z-index: 1;
                 position: relative;
-                margin-top: 180px;
+                margin-top: 80px;
             }
 
             @media (min-width: 1920px) {
