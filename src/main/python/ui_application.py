@@ -6,18 +6,10 @@ Inspired by Apple Events aesthetic
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 import uvicorn
 import json
-import os
-from pathlib import Path
 
-app = FastAPI(title="Cruise English Assessment")
-
-# Mount static files
-static_dir = Path(__file__).parent / "static"
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+app = FastAPI(title="Dark Assessment")
 
 # Complete questions data - 21 questions across 6 modules
 QUESTIONS = {
@@ -233,11 +225,10 @@ def home():
 
             body {
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: #f5f7fa;
-                margin: 0;
-                padding: 0;
+                background: #000000;
+                min-height: 100vh;
                 overflow-x: hidden;
-                color: #1a1a1a;
+                color: #ffffff;
             }
 
             .hero-container {
@@ -255,57 +246,38 @@ def home():
                 top: 0;
                 left: 0;
                 right: 0;
-                height: 55%;
-                overflow: hidden;
-                z-index: 0;
-            }
-
-            .hero-background img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                object-position: center top;
+                bottom: 0;
+                background: radial-gradient(circle at 30% 40%, rgba(0, 122, 255, 0.4) 0%, transparent 50%),
+                           radial-gradient(circle at 70% 80%, rgba(255, 149, 0, 0.3) 0%, transparent 50%);
             }
 
             .main-content {
-                width: 100%;
                 max-width: 1400px;
+                width: 100%;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 40px;
-                align-items: start;
+                gap: 60px;
+                align-items: center;
                 z-index: 1;
                 position: relative;
-                margin-top: 80px;
-            }
-
-            @media (min-width: 1920px) {
-                .main-content {
-                    max-width: 1920px;
-                    margin: 0 auto;
-                }
             }
 
             .left-section {
                 padding: 60px 40px;
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(10px);
-                border-radius: 24px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
             }
 
             .hero-title {
                 font-size: 4rem;
                 font-weight: 800;
-                color: #1a1a1a;
+                color: white;
                 line-height: 1.1;
                 margin-bottom: 24px;
-                text-shadow: none;
+                text-shadow: 0 4px 20px rgba(0, 122, 255, 0.3);
             }
 
             .hero-subtitle {
                 font-size: 1.4rem;
-                color: #4a5568;
+                color: rgba(255,255,255,0.8);
                 margin-bottom: 40px;
                 line-height: 1.6;
                 font-weight: 400;
@@ -319,32 +291,44 @@ def home():
             }
 
             .stat-card {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border: none;
+                background: rgba(255,255,255,0.05);
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(0, 122, 255, 0.2);
                 border-radius: 20px;
                 padding: 30px 25px;
                 text-align: center;
                 transition: all 0.3s ease;
                 position: relative;
-                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            }
+
+            .stat-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, #007aff, #ff9500);
+                border-radius: 2px 2px 0 0;
             }
 
             .stat-card:hover {
-                transform: translateY(-8px);
-                box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+                transform: translateY(-5px);
+                border-color: rgba(0, 122, 255, 0.4);
+                box-shadow: 0 10px 30px rgba(0, 122, 255, 0.2);
             }
 
             .stat-number {
                 font-size: 3rem;
                 font-weight: 700;
-                color: #ffffff;
+                color: #007aff;
                 display: block;
                 margin-bottom: 8px;
             }
 
             .stat-label {
                 font-size: 1rem;
-                color: rgba(255,255,255,0.95);
+                color: rgba(255,255,255,0.7);
                 font-weight: 500;
             }
 
@@ -353,7 +337,7 @@ def home():
             }
 
             .start-btn {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(45deg, #007aff, #ff9500);
                 color: white;
                 border: none;
                 border-radius: 60px;
@@ -364,25 +348,40 @@ def home():
                 transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 text-decoration: none;
                 display: inline-block;
-                box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+                box-shadow: 0 15px 35px rgba(0, 122, 255, 0.4), 0 0 50px rgba(0, 122, 255, 0.2);
                 text-transform: uppercase;
                 letter-spacing: 1px;
                 position: relative;
                 overflow: hidden;
             }
 
+            .start-btn::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                transition: left 0.5s;
+            }
+
             .start-btn:hover {
                 transform: translateY(-3px) scale(1.05);
-                box-shadow: 0 25px 50px rgba(102, 126, 234, 0.5);
+                box-shadow: 0 25px 50px rgba(0, 122, 255, 0.6), 0 0 80px rgba(0, 122, 255, 0.4);
+            }
+
+            .start-btn:hover::before {
+                left: 100%;
             }
 
             .right-section {
-                background: rgba(255, 255, 255, 0.95);
+                background: rgba(20, 20, 20, 0.8);
                 backdrop-filter: blur(30px);
-                border: 1px solid rgba(0, 0, 0, 0.05);
+                border: 1px solid rgba(0, 122, 255, 0.2);
                 border-radius: 32px;
                 padding: 50px 45px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 30px 80px rgba(0,0,0,0.5);
                 position: relative;
                 overflow: hidden;
             }
@@ -394,13 +393,14 @@ def home():
                 left: 0;
                 right: 0;
                 height: 4px;
-                background: linear-gradient(90deg, #667eea, #764ba2);
+                background: linear-gradient(90deg, #007aff, #ff9500);
+                box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
             }
 
             .modules-title {
                 font-size: 2rem;
                 font-weight: 700;
-                color: #1a1a1a;
+                color: #ffffff;
                 margin-bottom: 40px;
                 text-align: center;
                 position: relative;
@@ -414,8 +414,9 @@ def home():
                 transform: translateX(-50%);
                 width: 80px;
                 height: 3px;
-                background: linear-gradient(90deg, #667eea, #764ba2);
+                background: linear-gradient(90deg, #007aff, #ff9500);
                 border-radius: 2px;
+                box-shadow: 0 0 15px rgba(0, 122, 255, 0.5);
             }
 
             .modules-grid {
@@ -426,18 +427,36 @@ def home():
             }
 
             .module-card {
-                background: #f8f9fa;
-                border: 2px solid #e9ecef;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 20px;
                 padding: 25px 20px;
                 transition: all 0.3s ease;
                 position: relative;
+                overflow: hidden;
+            }
+
+            .module-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, #007aff, #ff9500);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                border-radius: 18px;
             }
 
             .module-card:hover {
-                transform: translateY(-5px);
-                border-color: #667eea;
-                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+                transform: translateY(-8px);
+                box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3);
+                border-color: rgba(0, 122, 255, 0.4);
+            }
+
+            .module-card:hover::before {
+                opacity: 0.1;
             }
 
             .module-icon {
@@ -449,27 +468,31 @@ def home():
             .module-name {
                 font-size: 1.1rem;
                 font-weight: 600;
-                color: #2d3748;
+                color: #ffffff;
                 margin-bottom: 8px;
+                position: relative;
+                z-index: 1;
             }
 
             .module-count {
                 font-size: 0.95rem;
-                color: #718096;
+                color: rgba(255, 255, 255, 0.6);
+                position: relative;
+                z-index: 1;
             }
 
             .assessment-info {
-                background: #f8f9fa;
+                background: rgba(0, 122, 255, 0.1);
                 border-radius: 20px;
                 padding: 30px;
                 margin-bottom: 30px;
-                border: 2px solid #e9ecef;
+                border: 1px solid rgba(0, 122, 255, 0.2);
             }
 
             .info-title {
                 font-size: 1.2rem;
                 font-weight: 600;
-                color: #667eea;
+                color: #007aff;
                 margin-bottom: 15px;
             }
 
@@ -484,12 +507,12 @@ def home():
                 align-items: center;
                 margin-bottom: 12px;
                 font-size: 0.95rem;
-                color: #4a5568;
+                color: rgba(255, 255, 255, 0.8);
             }
 
             .info-item::before {
                 content: '✓';
-                background: linear-gradient(135deg, #667eea, #764ba2);
+                background: linear-gradient(45deg, #007aff, #ff9500);
                 color: white;
                 border-radius: 50%;
                 width: 20px;
@@ -500,10 +523,11 @@ def home():
                 margin-right: 12px;
                 font-size: 12px;
                 font-weight: bold;
+                box-shadow: 0 0 10px rgba(0, 122, 255, 0.3);
             }
 
             .secondary-btn {
-                background: linear-gradient(135deg, #667eea, #764ba2);
+                background: linear-gradient(135deg, #007aff, #ff9500);
                 color: white;
                 border: none;
                 border-radius: 50px;
@@ -516,12 +540,12 @@ def home():
                 display: inline-block;
                 width: 100%;
                 text-align: center;
-                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+                box-shadow: 0 10px 30px rgba(0, 122, 255, 0.3), 0 0 30px rgba(0, 122, 255, 0.1);
             }
 
             .secondary-btn:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+                box-shadow: 0 15px 40px rgba(0, 122, 255, 0.4), 0 0 50px rgba(0, 122, 255, 0.2);
             }
 
             @media (max-width: 1200px) {
@@ -566,9 +590,7 @@ def home():
     </head>
     <body>
         <div class="hero-container">
-            <div class="hero-background">
-                <img src="/static/images/cruise-background.png" alt="Cruise Ship">
-            </div>
+            <div class="hero-background"></div>
 
             <div class="main-content">
                 <div class="left-section">
