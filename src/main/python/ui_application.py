@@ -6,10 +6,18 @@ Inspired by Apple Events aesthetic
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import json
+import os
+from pathlib import Path
 
-app = FastAPI(title="Dark Assessment")
+app = FastAPI(title="Cruise English Assessment")
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Complete questions data - 21 questions across 6 modules
 QUESTIONS = {
@@ -247,8 +255,23 @@ def home():
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: radial-gradient(circle at 30% 40%, rgba(0, 122, 255, 0.4) 0%, transparent 50%),
-                           radial-gradient(circle at 70% 80%, rgba(255, 149, 0, 0.3) 0%, transparent 50%);
+                background-image: url('/static/images/cruise-background.png');
+                background-size: cover;
+                background-position: center top;
+                background-repeat: no-repeat;
+            }
+
+            .hero-background::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(to bottom,
+                    rgba(0, 0, 0, 0.3) 0%,
+                    rgba(0, 0, 0, 0.6) 50%,
+                    rgba(0, 0, 0, 0.85) 100%);
             }
 
             .main-content {
@@ -264,6 +287,9 @@ def home():
 
             .left-section {
                 padding: 60px 40px;
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(10px);
+                border-radius: 24px;
             }
 
             .hero-title {
@@ -272,15 +298,19 @@ def home():
                 color: white;
                 line-height: 1.1;
                 margin-bottom: 24px;
-                text-shadow: 0 4px 20px rgba(0, 122, 255, 0.3);
+                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8),
+                             0 4px 20px rgba(0, 122, 255, 0.4),
+                             0 0 40px rgba(0, 0, 0, 0.5);
             }
 
             .hero-subtitle {
                 font-size: 1.4rem;
-                color: rgba(255,255,255,0.8);
+                color: rgba(255,255,255,0.95);
                 margin-bottom: 40px;
                 line-height: 1.6;
                 font-weight: 400;
+                text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8),
+                             0 0 20px rgba(0, 0, 0, 0.6);
             }
 
             .hero-stats {
@@ -291,14 +321,15 @@ def home():
             }
 
             .stat-card {
-                background: rgba(255,255,255,0.05);
+                background: rgba(0, 0, 0, 0.6);
                 backdrop-filter: blur(20px);
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                border: 1px solid rgba(0, 122, 255, 0.3);
                 border-radius: 20px;
                 padding: 30px 25px;
                 text-align: center;
                 transition: all 0.3s ease;
                 position: relative;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             }
 
             .stat-card::before {
@@ -321,15 +352,18 @@ def home():
             .stat-number {
                 font-size: 3rem;
                 font-weight: 700;
-                color: #007aff;
+                color: #00d4ff;
                 display: block;
                 margin-bottom: 8px;
+                text-shadow: 0 2px 10px rgba(0, 212, 255, 0.5),
+                             0 0 20px rgba(0, 212, 255, 0.3);
             }
 
             .stat-label {
                 font-size: 1rem;
-                color: rgba(255,255,255,0.7);
+                color: rgba(255,255,255,0.95);
                 font-weight: 500;
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
             }
 
             .cta-section {
@@ -376,12 +410,13 @@ def home():
             }
 
             .right-section {
-                background: rgba(20, 20, 20, 0.8);
+                background: rgba(0, 0, 0, 0.7);
                 backdrop-filter: blur(30px);
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                border: 1px solid rgba(0, 122, 255, 0.3);
                 border-radius: 32px;
                 padding: 50px 45px;
-                box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+                box-shadow: 0 30px 80px rgba(0,0,0,0.7),
+                            0 0 50px rgba(0, 0, 0, 0.5);
                 position: relative;
                 overflow: hidden;
             }
@@ -404,6 +439,8 @@ def home():
                 margin-bottom: 40px;
                 text-align: center;
                 position: relative;
+                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8),
+                             0 0 30px rgba(0, 122, 255, 0.3);
             }
 
             .modules-title::after {
@@ -427,13 +464,14 @@ def home():
             }
 
             .module-card {
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.5);
+                border: 1px solid rgba(0, 122, 255, 0.2);
                 border-radius: 20px;
                 padding: 25px 20px;
                 transition: all 0.3s ease;
                 position: relative;
                 overflow: hidden;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
             }
 
             .module-card::before {
@@ -472,28 +510,32 @@ def home():
                 margin-bottom: 8px;
                 position: relative;
                 z-index: 1;
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
             }
 
             .module-count {
                 font-size: 0.95rem;
-                color: rgba(255, 255, 255, 0.6);
+                color: rgba(255, 255, 255, 0.85);
                 position: relative;
                 z-index: 1;
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
             }
 
             .assessment-info {
-                background: rgba(0, 122, 255, 0.1);
+                background: rgba(0, 0, 0, 0.5);
                 border-radius: 20px;
                 padding: 30px;
                 margin-bottom: 30px;
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                border: 1px solid rgba(0, 122, 255, 0.3);
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
             }
 
             .info-title {
                 font-size: 1.2rem;
                 font-weight: 600;
-                color: #007aff;
+                color: #00d4ff;
                 margin-bottom: 15px;
+                text-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
             }
 
             .info-list {
@@ -507,7 +549,8 @@ def home():
                 align-items: center;
                 margin-bottom: 12px;
                 font-size: 0.95rem;
-                color: rgba(255, 255, 255, 0.8);
+                color: rgba(255, 255, 255, 0.95);
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
             }
 
             .info-item::before {
