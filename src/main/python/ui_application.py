@@ -6,10 +6,18 @@ Inspired by Apple Events aesthetic
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import json
+from pathlib import Path
 
-app = FastAPI(title="Dark Assessment")
+app = FastAPI(title="CCL English Assessment")
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+static_dir.mkdir(parents=True, exist_ok=True)
+(static_dir / "images").mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Complete questions data - 21 questions across 6 modules
 QUESTIONS = {
@@ -214,7 +222,7 @@ def home():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Cruise English Assessment Platform</title>
+        <title>CCL English Assessment Platform</title>
         <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
             * {
@@ -225,10 +233,24 @@ def home():
 
             body {
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 50%, #fef5f5 100%);
+                background: url('/static/images/homepage-background.png') center center / cover no-repeat fixed;
                 min-height: 100vh;
                 overflow-x: hidden;
                 color: #000000;
+                position: relative;
+            }
+
+            body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.75);
+                backdrop-filter: blur(8px) saturate(120%);
+                -webkit-backdrop-filter: blur(8px) saturate(120%);
+                z-index: 0;
             }
 
             .hero-container {
@@ -239,56 +261,44 @@ def home():
                 align-items: center;
                 justify-content: center;
                 padding: 40px;
+                z-index: 1;
             }
 
             .hero-background {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: radial-gradient(circle at 20% 30%, rgba(0, 122, 255, 0.15) 0%, transparent 40%),
-                           radial-gradient(circle at 80% 70%, rgba(255, 0, 0, 0.12) 0%, transparent 40%),
-                           radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.08) 0%, transparent 35%);
-                animation: gradient-shift 15s ease infinite;
-            }
-
-            @keyframes gradient-shift {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.8; }
+                display: none;
             }
 
             .main-content {
-                max-width: 1600px;
+                max-width: 2300px;
                 width: 100%;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 80px;
+                gap: 100px;
                 align-items: center;
                 z-index: 1;
                 position: relative;
-                transform: scale(1.15);
             }
 
             .left-section {
-                padding: 60px 40px;
+                padding: 80px 60px;
             }
 
             .hero-title {
-                font-size: 4.5rem;
+                font-size: 5.5rem;
                 font-weight: 800;
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 line-height: 1.1;
-                margin-bottom: 30px;
-                filter: drop-shadow(0 2px 8px rgba(0, 122, 255, 0.15));
+                margin-bottom: 40px;
+                filter: drop-shadow(0 3px 12px rgba(0, 122, 255, 0.2));
+                letter-spacing: -1px;
             }
 
             .hero-subtitle {
-                font-size: 1.6rem;
-                color: rgba(0,0,0,0.7);
+                font-size: 1.9rem;
+                color: rgba(0,0,0,0.75);
                 margin-bottom: 40px;
                 line-height: 1.6;
                 font-weight: 400;
@@ -302,14 +312,15 @@ def home():
             }
 
             .stat-card {
-                background: rgba(255,255,255,0.95);
-                backdrop-filter: blur(20px);
-                border: 2px solid rgba(0, 122, 255, 0.2);
-                border-radius: 24px;
-                padding: 30px 25px;
+                background: rgba(255,255,255,0.9);
+                backdrop-filter: blur(25px);
+                border: 2px solid rgba(0, 122, 255, 0.25);
+                border-radius: 28px;
+                padding: 45px 35px;
                 text-align: center;
                 transition: all 0.3s ease;
                 position: relative;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             }
 
             .stat-card::before {
@@ -330,20 +341,20 @@ def home():
             }
 
             .stat-number {
-                font-size: 3rem;
+                font-size: 4.2rem;
                 font-weight: 800;
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 display: block;
-                margin-bottom: 8px;
+                margin-bottom: 12px;
             }
 
             .stat-label {
-                font-size: 1rem;
-                color: rgba(0,0,0,0.6);
-                font-weight: 500;
+                font-size: 1.3rem;
+                color: rgba(0,0,0,0.65);
+                font-weight: 600;
             }
 
             .cta-section {
@@ -354,17 +365,17 @@ def home():
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 color: white;
                 border: none;
-                border-radius: 60px;
-                padding: 22px 55px;
-                font-size: 1.3rem;
+                border-radius: 70px;
+                padding: 28px 70px;
+                font-size: 1.6rem;
                 font-weight: 700;
                 cursor: pointer;
                 transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 text-decoration: none;
                 display: inline-block;
-                box-shadow: 0 15px 40px rgba(0, 122, 255, 0.3), 0 5px 15px rgba(255, 0, 0, 0.2);
+                box-shadow: 0 20px 50px rgba(0, 122, 255, 0.35), 0 8px 20px rgba(255, 0, 0, 0.25);
                 text-transform: uppercase;
-                letter-spacing: 1.5px;
+                letter-spacing: 2px;
                 position: relative;
                 overflow: hidden;
             }
@@ -390,12 +401,12 @@ def home():
             }
 
             .right-section {
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(30px);
-                border: 2px solid rgba(0, 122, 255, 0.2);
-                border-radius: 32px;
-                padding: 50px 45px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 0 0 1px rgba(0, 122, 255, 0.05);
+                background: rgba(255, 255, 255, 0.92);
+                backdrop-filter: blur(35px);
+                border: 3px solid rgba(0, 122, 255, 0.25);
+                border-radius: 40px;
+                padding: 70px 60px;
+                box-shadow: 0 25px 70px rgba(0,0,0,0.1), 0 0 0 1px rgba(0, 122, 255, 0.08);
                 position: relative;
                 overflow: hidden;
                 transition: all 0.3s ease;
@@ -418,12 +429,13 @@ def home():
             }
 
             .modules-title {
-                font-size: 2rem;
-                font-weight: 700;
+                font-size: 2.8rem;
+                font-weight: 800;
                 color: #1a1a1a;
-                margin-bottom: 40px;
+                margin-bottom: 50px;
                 text-align: center;
                 position: relative;
+                letter-spacing: -0.5px;
             }
 
             .modules-title::after {
@@ -442,19 +454,19 @@ def home():
             .modules-grid {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
-                gap: 25px;
-                margin-bottom: 40px;
+                gap: 35px;
+                margin-bottom: 50px;
             }
 
             .module-card {
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(247, 250, 255, 0.9) 100%);
-                border: 2px solid rgba(0, 122, 255, 0.15);
-                border-radius: 20px;
-                padding: 25px 20px;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(247, 250, 255, 0.95) 100%);
+                border: 2px solid rgba(0, 122, 255, 0.2);
+                border-radius: 24px;
+                padding: 35px 28px;
                 transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 position: relative;
                 overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
             }
 
             .module-card::before {
@@ -481,25 +493,26 @@ def home():
             }
 
             .module-icon {
-                font-size: 2.5rem;
-                margin-bottom: 15px;
+                font-size: 3.2rem;
+                margin-bottom: 18px;
                 display: block;
             }
 
             .module-name {
-                font-size: 1.1rem;
-                font-weight: 600;
+                font-size: 1.5rem;
+                font-weight: 700;
                 color: #1a1a1a;
-                margin-bottom: 8px;
+                margin-bottom: 10px;
                 position: relative;
                 z-index: 1;
             }
 
             .module-count {
-                font-size: 0.95rem;
-                color: rgba(0, 0, 0, 0.6);
+                font-size: 1.15rem;
+                color: rgba(0, 0, 0, 0.65);
                 position: relative;
                 z-index: 1;
+                font-weight: 500;
             }
 
             .assessment-info {
@@ -615,7 +628,7 @@ def home():
 
             <div class="main-content">
                 <div class="left-section">
-                    <h1 class="hero-title">Cruise English Assessment Platform</h1>
+                    <h1 class="hero-title">CCL English Assessment Platform</h1>
                     <p class="hero-subtitle">Professional English evaluation designed specifically for cruise ship hospitality staff. Test your skills across 6 comprehensive modules.</p>
 
                     <div class="hero-stats">
@@ -2303,7 +2316,7 @@ def generate_module_results(module_scores):
     return html
 
 if __name__ == "__main__":
-    print("Starting Cruise English Assessment Platform...")
+    print("Starting CCL English Assessment Platform...")
     print("Premium dark interface with Apple-style design")
     print("URL: http://127.0.0.1:8080")
     uvicorn.run(app, host="127.0.0.1", port=8080)
