@@ -242,34 +242,41 @@ def home():
 
             .hero-container {
                 width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .hero-background {
-                width: 100%;
+                min-height: 100vh;
+                position: relative;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: #f5f7fa;
+                padding: 40px;
+            }
+
+            .hero-background {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 40%;
+                overflow: hidden;
+                z-index: 0;
             }
 
             .hero-background img {
                 width: 100%;
-                height: auto;
-                display: block;
+                height: 100%;
+                object-fit: cover;
+                object-position: center top;
             }
 
             .main-content {
                 width: 100%;
-                max-width: 1920px;
+                max-width: 1400px;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 40px;
                 align-items: start;
-                padding: 0 80px 60px 80px;
-                box-sizing: border-box;
+                z-index: 1;
+                position: relative;
+                margin-top: 180px;
             }
 
             @media (min-width: 1920px) {
