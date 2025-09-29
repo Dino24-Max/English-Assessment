@@ -247,6 +247,7 @@ def home():
                 align-items: flex-end;
                 justify-content: center;
                 padding: 40px 40px 60px 40px;
+                padding-top: 320px;
             }
 
             .hero-background {
@@ -254,7 +255,7 @@ def home():
                 top: 0;
                 left: 0;
                 right: 0;
-                height: 35%;
+                height: 280px;
                 background-image: url('/static/images/cruise-background.png');
                 background-size: contain;
                 background-position: center top;
