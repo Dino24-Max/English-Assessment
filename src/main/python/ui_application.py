@@ -233,41 +233,53 @@ def home():
 
             body {
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: transparent;
-                min-height: 100vh;
+                background: #f5f7fa;
+                margin: 0;
+                padding: 0;
                 overflow-x: hidden;
                 color: #1a1a1a;
             }
 
             .hero-container {
                 width: 100%;
-                min-height: 100vh;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                justify-content: flex-start;
-                padding: 40px;
             }
 
             .hero-background {
                 width: 100%;
-                max-width: 800px;
-                margin-bottom: 40px;
+                height: 50vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                position: relative;
             }
 
             .hero-background img {
                 width: 100%;
-                height: auto;
-                display: block;
+                height: 100%;
+                object-fit: cover;
+                object-position: center;
             }
 
             .main-content {
-                max-width: 1400px;
                 width: 100%;
+                max-width: 1920px;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 40px;
                 align-items: start;
+                padding: 60px 80px;
+                box-sizing: border-box;
+            }
+
+            @media (min-width: 1920px) {
+                .main-content {
+                    max-width: 1920px;
+                    margin: 0 auto;
+                }
             }
 
             .left-section {
