@@ -259,14 +259,15 @@ def home():
             }
 
             .main-content {
-                max-width: 1400px;
+                max-width: 1600px;
                 width: 100%;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 60px;
+                gap: 80px;
                 align-items: center;
                 z-index: 1;
                 position: relative;
+                transform: scale(1.15);
             }
 
             .left-section {
@@ -274,19 +275,19 @@ def home():
             }
 
             .hero-title {
-                font-size: 4rem;
+                font-size: 4.5rem;
                 font-weight: 800;
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 line-height: 1.1;
-                margin-bottom: 24px;
+                margin-bottom: 30px;
                 filter: drop-shadow(0 2px 8px rgba(0, 122, 255, 0.15));
             }
 
             .hero-subtitle {
-                font-size: 1.4rem;
+                font-size: 1.6rem;
                 color: rgba(0,0,0,0.7);
                 margin-bottom: 40px;
                 line-height: 1.6;
@@ -1059,13 +1060,13 @@ def show_question(q_num: int):
 
             body {{
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: #000000;
+                background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 50%, #fef5f5 100%);
                 min-height: 100vh;
-                color: #ffffff;
+                color: #000000;
             }}
 
             .header {{
-                background: rgba(20, 20, 20, 0.95);
+                background: rgba(255, 255, 255, 0.95);
                 backdrop-filter: blur(20px);
                 border-bottom: 1px solid rgba(0, 122, 255, 0.2);
                 padding: 20px 40px;
@@ -1090,7 +1091,7 @@ def show_question(q_num: int):
 
             .question-number {{
                 font-size: 1.1rem;
-                color: rgba(255, 255, 255, 0.6);
+                color: rgba(0, 0, 0, 0.6);
                 font-weight: 500;
             }}
 
@@ -1113,7 +1114,7 @@ def show_question(q_num: int):
             }}
 
             .progress-bar {{
-                background: rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.1);
                 height: 8px;
                 border-radius: 4px;
                 overflow: hidden;
@@ -1148,7 +1149,7 @@ def show_question(q_num: int):
 
             .progress-text {{
                 font-size: 0.9rem;
-                color: rgba(255, 255, 255, 0.6);
+                color: rgba(0, 0, 0, 0.6);
                 margin-top: 5px;
                 text-align: center;
             }}
@@ -1160,12 +1161,12 @@ def show_question(q_num: int):
             }}
 
             .content-main {{
-                background: rgba(20, 20, 20, 0.8);
+                background: rgba(255, 255, 255, 0.95);
                 backdrop-filter: blur(30px);
                 border-radius: 32px;
                 padding: 50px;
-                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+                border: 2px solid rgba(0, 122, 255, 0.2);
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 60px;
@@ -1287,7 +1288,7 @@ def show_question(q_num: int):
 
             .grammar-instruction {{
                 font-size: 1.1rem;
-                color: rgba(255, 255, 255, 0.8);
+                color: rgba(0, 0, 0, 0.8);
                 line-height: 1.5;
             }}
 
@@ -1300,11 +1301,11 @@ def show_question(q_num: int):
             .question-text {{
                 font-size: 1.8rem;
                 font-weight: 600;
-                color: #ffffff;
+                color: #1a1a1a;
                 line-height: 1.4;
                 text-align: center;
                 padding: 30px;
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 border-radius: 20px;
                 border-left: 5px solid #007aff;
                 border: 1px solid rgba(0, 122, 255, 0.2);
@@ -1316,7 +1317,7 @@ def show_question(q_num: int):
             }}
 
             .option {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 border: 2px solid rgba(255, 255, 255, 0.1);
                 border-radius: 20px;
                 padding: 25px 30px;
@@ -1326,7 +1327,7 @@ def show_question(q_num: int):
                 font-weight: 500;
                 position: relative;
                 overflow: hidden;
-                color: #ffffff;
+                color: #1a1a1a;
             }}
 
             .option::before {{
@@ -1371,14 +1372,14 @@ def show_question(q_num: int):
                 width: 100%;
                 max-width: 500px;
                 padding: 25px 30px;
-                border: 2px solid rgba(255, 255, 255, 0.2);
+                border: 2px solid rgba(0, 122, 255, 0.2);
                 border-radius: 20px;
                 font-size: 1.3rem;
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 transition: all 0.3s ease;
                 text-align: center;
                 font-weight: 500;
-                color: #ffffff;
+                color: #1a1a1a;
             }}
 
             .text-input:focus {{
@@ -1409,13 +1410,13 @@ def show_question(q_num: int):
             .vocab-header h3 {{
                 font-size: 2rem;
                 font-weight: 700;
-                color: #ffffff;
+                color: #1a1a1a;
                 margin-bottom: 15px;
             }}
 
             .vocab-instruction {{
                 font-size: 1.3rem;
-                color: rgba(255, 255, 255, 0.8);
+                color: rgba(0, 0, 0, 0.8);
                 margin-bottom: 10px;
                 font-weight: 500;
             }}
@@ -1434,22 +1435,22 @@ def show_question(q_num: int):
             }}
 
             .terms-section, .definitions-section {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 padding: 35px 30px;
                 border-radius: 24px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(0, 122, 255, 0.15);
             }}
 
             .terms-section h4, .definitions-section h4 {{
                 font-size: 1.4rem;
                 margin-bottom: 25px;
-                color: #ffffff;
+                color: #1a1a1a;
                 text-align: center;
                 font-weight: 700;
             }}
 
             .term, .definition {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 padding: 20px 25px;
                 margin: 15px 0;
                 border-radius: 16px;
@@ -1459,7 +1460,7 @@ def show_question(q_num: int):
                 font-size: 1rem;
                 font-weight: 500;
                 position: relative;
-                color: #ffffff;
+                color: #1a1a1a;
             }}
 
             .term:hover, .definition:hover {{
@@ -1523,7 +1524,7 @@ def show_question(q_num: int):
 
             .match-term {{
                 font-weight: 600;
-                color: #ffffff;
+                color: #1a1a1a;
             }}
 
             .match-arrow {{
@@ -1533,7 +1534,7 @@ def show_question(q_num: int):
             }}
 
             .match-def {{
-                color: rgba(255, 255, 255, 0.8);
+                color: rgba(0, 0, 0, 0.8);
             }}
 
             .remove-btn {{
@@ -1586,14 +1587,14 @@ def show_question(q_num: int):
             }}
 
             .passage-text {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 padding: 30px;
                 border-radius: 16px;
                 line-height: 1.7;
                 font-size: 1.1rem;
-                color: #ffffff;
+                color: #1a1a1a;
                 text-align: left;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(0, 122, 255, 0.15);
             }}
 
             .scenario-card {{
@@ -1606,11 +1607,11 @@ def show_question(q_num: int):
             }}
 
             .recording-container {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 border-radius: 24px;
                 padding: 35px;
                 text-align: center;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(0, 122, 255, 0.15);
             }}
 
             .recording-tips {{
@@ -1621,12 +1622,12 @@ def show_question(q_num: int):
             }}
 
             .tip-item {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 padding: 15px 20px;
                 border-radius: 12px;
                 font-size: 0.95rem;
-                color: rgba(255, 255, 255, 0.8);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: rgba(0, 0, 0, 0.8);
+                border: 2px solid rgba(0, 122, 255, 0.15);
             }}
 
             .submit-section {{
@@ -1877,7 +1878,7 @@ def show_results():
                 background: #000000;
                 min-height: 100vh;
                 padding: 40px 20px;
-                color: #ffffff;
+                color: #1a1a1a;
             }}
 
             .container {{
@@ -1970,7 +1971,7 @@ def show_results():
             .breakdown-title {{
                 font-size: 2rem;
                 font-weight: 700;
-                color: #ffffff;
+                color: #1a1a1a;
                 margin-bottom: 40px;
                 text-align: center;
                 position: relative;
@@ -1996,10 +1997,10 @@ def show_results():
             }}
 
             .module-result {{
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 padding: 35px 30px;
                 border-radius: 24px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(0, 122, 255, 0.15);
                 transition: all 0.3s ease;
                 position: relative;
                 overflow: hidden;
@@ -2025,7 +2026,7 @@ def show_results():
             .module-name {{
                 font-size: 1.4rem;
                 font-weight: 700;
-                color: #ffffff;
+                color: #1a1a1a;
                 margin-bottom: 20px;
                 display: flex;
                 align-items: center;
@@ -2116,11 +2117,11 @@ def show_results():
                 display: flex;
                 align-items: center;
                 font-size: 1.1rem;
-                color: #ffffff;
+                color: #1a1a1a;
                 padding: 15px 20px;
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.9);
                 border-radius: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(0, 122, 255, 0.15);
                 transition: all 0.3s ease;
             }}
 
