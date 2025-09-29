@@ -233,7 +233,7 @@ def home():
 
             body {
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: #f0f4f8;
+                background: transparent;
                 min-height: 100vh;
                 overflow-x: hidden;
                 color: #1a1a1a;
@@ -242,25 +242,23 @@ def home():
             .hero-container {
                 width: 100%;
                 min-height: 100vh;
-                position: relative;
                 display: flex;
-                align-items: flex-end;
-                justify-content: center;
-                padding: 40px 40px 60px 40px;
-                padding-top: 320px;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                padding: 40px;
             }
 
             .hero-background {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 280px;
-                background-image: url('/static/images/cruise-background.png');
-                background-size: contain;
-                background-position: center top;
-                background-repeat: no-repeat;
-                z-index: 0;
+                width: 100%;
+                max-width: 800px;
+                margin-bottom: 40px;
+            }
+
+            .hero-background img {
+                width: 100%;
+                height: auto;
+                display: block;
             }
 
             .main-content {
@@ -268,10 +266,8 @@ def home():
                 width: 100%;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 60px;
+                gap: 40px;
                 align-items: start;
-                z-index: 1;
-                position: relative;
             }
 
             .left-section {
@@ -554,7 +550,9 @@ def home():
     </head>
     <body>
         <div class="hero-container">
-            <div class="hero-background"></div>
+            <div class="hero-background">
+                <img src="/static/images/cruise-background.png" alt="Cruise Ship">
+            </div>
 
             <div class="main-content">
                 <div class="left-section">
