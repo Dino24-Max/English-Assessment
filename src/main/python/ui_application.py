@@ -225,10 +225,10 @@ def home():
 
             body {
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: #000000;
+                background: #ffffff;
                 min-height: 100vh;
                 overflow-x: hidden;
-                color: #ffffff;
+                color: #000000;
             }
 
             .hero-container {
@@ -247,8 +247,8 @@ def home():
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: radial-gradient(circle at 30% 40%, rgba(0, 122, 255, 0.4) 0%, transparent 50%),
-                           radial-gradient(circle at 70% 80%, rgba(255, 149, 0, 0.3) 0%, transparent 50%);
+                background: radial-gradient(circle at 30% 40%, rgba(0, 122, 255, 0.3) 0%, transparent 50%),
+                           radial-gradient(circle at 70% 80%, rgba(255, 0, 0, 0.25) 0%, transparent 50%);
             }
 
             .main-content {
@@ -269,15 +269,15 @@ def home():
             .hero-title {
                 font-size: 4rem;
                 font-weight: 800;
-                color: white;
+                color: #1a1a1a;
                 line-height: 1.1;
                 margin-bottom: 24px;
-                text-shadow: 0 4px 20px rgba(0, 122, 255, 0.3);
+                text-shadow: 0 4px 20px rgba(0, 122, 255, 0.2);
             }
 
             .hero-subtitle {
                 font-size: 1.4rem;
-                color: rgba(255,255,255,0.8);
+                color: rgba(0,0,0,0.7);
                 margin-bottom: 40px;
                 line-height: 1.6;
                 font-weight: 400;
@@ -291,9 +291,9 @@ def home():
             }
 
             .stat-card {
-                background: rgba(255,255,255,0.05);
+                background: rgba(255,255,255,0.8);
                 backdrop-filter: blur(20px);
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                border: 1px solid rgba(0, 122, 255, 0.3);
                 border-radius: 20px;
                 padding: 30px 25px;
                 text-align: center;
@@ -308,7 +308,7 @@ def home():
                 left: 0;
                 right: 0;
                 height: 2px;
-                background: linear-gradient(90deg, #007aff, #ff9500);
+                background: linear-gradient(90deg, #007aff, #ff0000);
                 border-radius: 2px 2px 0 0;
             }
 
@@ -328,7 +328,7 @@ def home():
 
             .stat-label {
                 font-size: 1rem;
-                color: rgba(255,255,255,0.7);
+                color: rgba(0,0,0,0.6);
                 font-weight: 500;
             }
 
@@ -337,7 +337,7 @@ def home():
             }
 
             .start-btn {
-                background: linear-gradient(45deg, #007aff, #ff9500);
+                background: linear-gradient(45deg, #007aff, #ff0000);
                 color: white;
                 border: none;
                 border-radius: 60px;
@@ -376,12 +376,12 @@ def home():
             }
 
             .right-section {
-                background: rgba(20, 20, 20, 0.8);
+                background: rgba(255, 255, 255, 0.9);
                 backdrop-filter: blur(30px);
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                border: 1px solid rgba(0, 122, 255, 0.3);
                 border-radius: 32px;
                 padding: 50px 45px;
-                box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+                box-shadow: 0 30px 80px rgba(0,0,0,0.1);
                 position: relative;
                 overflow: hidden;
             }
@@ -393,14 +393,14 @@ def home():
                 left: 0;
                 right: 0;
                 height: 4px;
-                background: linear-gradient(90deg, #007aff, #ff9500);
+                background: linear-gradient(90deg, #007aff, #ff0000);
                 box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
             }
 
             .modules-title {
                 font-size: 2rem;
                 font-weight: 700;
-                color: #ffffff;
+                color: #1a1a1a;
                 margin-bottom: 40px;
                 text-align: center;
                 position: relative;
@@ -414,7 +414,7 @@ def home():
                 transform: translateX(-50%);
                 width: 80px;
                 height: 3px;
-                background: linear-gradient(90deg, #007aff, #ff9500);
+                background: linear-gradient(90deg, #007aff, #ff0000);
                 border-radius: 2px;
                 box-shadow: 0 0 15px rgba(0, 122, 255, 0.5);
             }
@@ -427,8 +427,8 @@ def home():
             }
 
             .module-card {
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.03);
+                border: 1px solid rgba(0, 0, 0, 0.1);
                 border-radius: 20px;
                 padding: 25px 20px;
                 transition: all 0.3s ease;
@@ -443,7 +443,7 @@ def home():
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: linear-gradient(135deg, #007aff, #ff9500);
+                background: linear-gradient(135deg, #007aff, #ff0000);
                 opacity: 0;
                 transition: opacity 0.3s ease;
                 border-radius: 18px;
@@ -468,7 +468,7 @@ def home():
             .module-name {
                 font-size: 1.1rem;
                 font-weight: 600;
-                color: #ffffff;
+                color: #1a1a1a;
                 margin-bottom: 8px;
                 position: relative;
                 z-index: 1;
@@ -476,7 +476,7 @@ def home():
 
             .module-count {
                 font-size: 0.95rem;
-                color: rgba(255, 255, 255, 0.6);
+                color: rgba(0, 0, 0, 0.6);
                 position: relative;
                 z-index: 1;
             }
@@ -507,12 +507,12 @@ def home():
                 align-items: center;
                 margin-bottom: 12px;
                 font-size: 0.95rem;
-                color: rgba(255, 255, 255, 0.8);
+                color: rgba(0, 0, 0, 0.7);
             }
 
             .info-item::before {
                 content: '✓';
-                background: linear-gradient(45deg, #007aff, #ff9500);
+                background: linear-gradient(45deg, #007aff, #ff0000);
                 color: white;
                 border-radius: 50%;
                 width: 20px;
@@ -527,7 +527,7 @@ def home():
             }
 
             .secondary-btn {
-                background: linear-gradient(135deg, #007aff, #ff9500);
+                background: linear-gradient(135deg, #007aff, #ff0000);
                 color: white;
                 border: none;
                 border-radius: 50px;
@@ -1075,7 +1075,7 @@ def show_question(q_num: int):
             }}
 
             .module-badge {{
-                background: linear-gradient(45deg, #007aff, #ff9500);
+                background: linear-gradient(45deg, #007aff, #ff0000);
                 color: white;
                 padding: 8px 20px;
                 border-radius: 25px;
@@ -1101,7 +1101,7 @@ def show_question(q_num: int):
             }}
 
             .progress-fill {{
-                background: linear-gradient(90deg, #007aff, #ff9500);
+                background: linear-gradient(90deg, #007aff, #ff0000);
                 height: 100%;
                 width: {progress}%;
                 border-radius: 4px;
@@ -1331,7 +1331,7 @@ def show_question(q_num: int):
             }}
 
             .option.selected {{
-                background: linear-gradient(135deg, #007aff, #ff9500);
+                background: linear-gradient(135deg, #007aff, #ff0000);
                 color: white;
                 border-color: #007aff;
                 transform: translateY(-5px) scale(1.02);
@@ -1452,7 +1452,7 @@ def show_question(q_num: int):
                 user-select: none;
                 text-align: center;
                 font-weight: 600;
-                background: linear-gradient(135deg, #007aff, #ff9500);
+                background: linear-gradient(135deg, #007aff, #ff0000);
                 color: white;
                 border-color: #007aff;
                 box-shadow: 0 0 20px rgba(0, 122, 255, 0.2);
@@ -1617,7 +1617,7 @@ def show_question(q_num: int):
             }}
 
             .submit-btn {{
-                background: linear-gradient(45deg, #007aff, #ff9500);
+                background: linear-gradient(45deg, #007aff, #ff0000);
                 color: white;
                 border: none;
                 border-radius: 60px;
@@ -1964,7 +1964,7 @@ def show_results():
                 transform: translateX(-50%);
                 width: 100px;
                 height: 4px;
-                background: linear-gradient(90deg, #007aff, #ff9500);
+                background: linear-gradient(90deg, #007aff, #ff0000);
                 border-radius: 2px;
                 box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
             }}
@@ -1992,7 +1992,7 @@ def show_results():
                 left: 0;
                 right: 0;
                 height: 4px;
-                background: linear-gradient(90deg, #007aff, #ff9500);
+                background: linear-gradient(90deg, #007aff, #ff0000);
                 box-shadow: 0 0 20px rgba(0, 122, 255, 0.3);
             }}
 
@@ -2131,7 +2131,7 @@ def show_results():
             }}
 
             .restart-btn {{
-                background: linear-gradient(45deg, #007aff, #ff9500);
+                background: linear-gradient(45deg, #007aff, #ff0000);
                 color: white;
                 border: none;
                 border-radius: 60px;
