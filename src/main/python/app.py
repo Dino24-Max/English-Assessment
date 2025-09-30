@@ -28,10 +28,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Get project root directory
-project_root = Path(__file__).parent.parent.parent
-static_dir = project_root / "static"
-templates_dir = project_root / "templates"
+# Get python source directory (where this file is located)
+python_src_dir = Path(__file__).parent
+static_dir = python_src_dir / "static"
+templates_dir = python_src_dir / "templates"
 
 # Create static directories if they don't exist
 static_dir.mkdir(exist_ok=True)
@@ -61,7 +61,7 @@ async def health_check():
 
 if __name__ == "__main__":
     print("Starting CCL English Assessment Platform...")
-    print(f"Project root: {project_root}")
+    print(f"Python source: {python_src_dir}")
     print(f"Static files: {static_dir}")
     print(f"Templates: {templates_dir}")
     print("Server running at: http://127.0.0.1:8080")
