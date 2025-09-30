@@ -1252,18 +1252,13 @@ def show_question(q_num: int):
             }}
 
             .container {{
-                max-width: 2300px;
-                margin: 0 auto;
-                padding: 0 60px;
-                position: relative;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(1.25);
                 z-index: 1;
-                transform: scale(1.25);
-                transform-origin: center center;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
+                width: 90%;
+                max-width: 2300px;
             }}
 
             .content-main {{
@@ -1850,14 +1845,12 @@ def show_question(q_num: int):
         </div>
 
         <div class="container">
-            <div style="width: 100%; max-width: 1800px;">
-                {content}
+            {content}
 
-                <div class="submit-section">
-                    <button class="submit-btn" id="submitBtn" onclick="submitAnswer({q_num})" disabled>
-                        Continue to Next Question
-                    </button>
-                </div>
+            <div class="submit-section">
+                <button class="submit-btn" id="submitBtn" onclick="submitAnswer({q_num})" disabled>
+                    Continue to Next Question
+                </button>
             </div>
         </div>
 
