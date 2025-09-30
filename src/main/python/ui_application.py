@@ -770,8 +770,6 @@ def home():
                             <li class="info-item">Instant detailed feedback</li>
                         </ul>
                     </div>
-
-                    <a href="/question/1" class="secondary-btn">Start Your Assessment</a>
                 </div>
             </div>
         </div>
@@ -1140,27 +1138,44 @@ def show_question(q_num: int):
 
             body {{
                 font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 50%, #fef5f5 100%);
+                background: url('/static/images/homepage-background.png') center center / cover no-repeat fixed;
                 min-height: 100vh;
+                overflow-x: hidden;
                 color: #000000;
+                position: relative;
+            }}
+
+            body::before {{
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 248, 255, 0.65) 50%, rgba(255, 245, 245, 0.7) 100%);
+                backdrop-filter: blur(5px) saturate(115%) brightness(1.03);
+                -webkit-backdrop-filter: blur(5px) saturate(115%) brightness(1.03);
+                z-index: 0;
             }}
 
             .header {{
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(20px);
-                border-bottom: 1px solid rgba(0, 122, 255, 0.2);
-                padding: 20px 40px;
+                background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 255, 0.94) 100%);
+                backdrop-filter: blur(30px) saturate(120%);
+                border-bottom: 2px solid rgba(0, 122, 255, 0.25);
+                padding: 25px 50px;
                 position: sticky;
                 top: 0;
                 z-index: 100;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             }}
 
             .header-content {{
-                max-width: 1400px;
+                max-width: 2300px;
                 margin: 0 auto;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                transform: scale(1.25);
             }}
 
             .question-info {{
@@ -1170,21 +1185,21 @@ def show_question(q_num: int):
             }}
 
             .question-number {{
-                font-size: 1.1rem;
-                color: rgba(0, 0, 0, 0.6);
-                font-weight: 500;
+                font-size: 1.4rem;
+                color: rgba(0, 0, 0, 0.7);
+                font-weight: 600;
             }}
 
             .module-badge {{
-                background: linear-gradient(45deg, #007aff, #ff0000);
+                background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
                 color: white;
-                padding: 8px 20px;
-                border-radius: 25px;
-                font-size: 0.9rem;
-                font-weight: 600;
+                padding: 10px 25px;
+                border-radius: 30px;
+                font-size: 1.15rem;
+                font-weight: 700;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
-                box-shadow: 0 0 20px rgba(0, 122, 255, 0.4);
+                letter-spacing: 0.8px;
+                box-shadow: 0 0 25px rgba(0, 122, 255, 0.45);
             }}
 
             .progress-section {{
@@ -1235,21 +1250,26 @@ def show_question(q_num: int):
             }}
 
             .container {{
-                max-width: 1400px;
-                margin: 40px auto;
-                padding: 0 40px;
+                max-width: 2300px;
+                margin: 50px auto;
+                padding: 0 60px;
+                position: relative;
+                z-index: 1;
+                transform: scale(1.25);
             }}
 
             .content-main {{
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(30px);
-                border-radius: 32px;
-                padding: 50px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-                border: 2px solid rgba(0, 122, 255, 0.2);
+                background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 255, 0.94) 100%);
+                backdrop-filter: blur(40px) saturate(120%);
+                border-radius: 44px;
+                padding: 70px;
+                box-shadow: 0 28px 75px rgba(0,0,0,0.09),
+                            0 10px 30px rgba(0, 122, 255, 0.12),
+                            inset 0 1px 0 rgba(255, 255, 255, 0.85);
+                border: 3px solid rgba(0, 122, 255, 0.28);
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 60px;
+                gap: 80px;
                 align-items: start;
             }}
 
@@ -1262,31 +1282,31 @@ def show_question(q_num: int):
             }}
 
             .audio-visual, .speaking-visual {{
-                background: linear-gradient(135deg, #007aff 0%, #ff9500 100%);
-                border-radius: 24px;
-                padding: 40px 30px;
+                background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
+                border-radius: 32px;
+                padding: 50px 40px;
                 color: white;
-                margin-bottom: 30px;
-                box-shadow: 0 0 50px rgba(0, 122, 255, 0.3);
+                margin-bottom: 40px;
+                box-shadow: 0 0 60px rgba(0, 122, 255, 0.35);
             }}
 
             .audio-icon, .grammar-icon, .reading-icon, .speaking-icon, .vocab-icon {{
-                font-size: 4rem;
-                margin-bottom: 20px;
+                font-size: 5.5rem;
+                margin-bottom: 25px;
                 display: block;
             }}
 
             .audio-visual h3, .speaking-visual h3 {{
-                font-size: 1.8rem;
-                font-weight: 700;
-                margin-bottom: 15px;
+                font-size: 2.5rem;
+                font-weight: 800;
+                margin-bottom: 20px;
             }}
 
             .audio-instruction, .speaking-instruction {{
-                font-size: 1.1rem;
-                opacity: 0.9;
-                margin-bottom: 25px;
-                line-height: 1.5;
+                font-size: 1.7rem;
+                opacity: 0.95;
+                margin-bottom: 35px;
+                line-height: 1.6;
             }}
 
             .audio-controls, .recording-controls {{
@@ -1294,20 +1314,22 @@ def show_question(q_num: int):
             }}
 
             .audio-btn, .record-btn, .stop-btn {{
-                background: rgba(0, 0, 0, 0.3);
+                background: rgba(255, 255, 255, 0.2);
                 color: white;
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 50px;
-                padding: 15px 35px;
-                font-size: 1.1rem;
-                font-weight: 600;
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                border-radius: 60px;
+                padding: 20px 45px;
+                font-size: 1.6rem;
+                font-weight: 700;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 display: inline-flex;
                 align-items: center;
-                gap: 10px;
-                margin: 0 10px;
-                backdrop-filter: blur(10px);
+                gap: 15px;
+                margin: 0 15px;
+                backdrop-filter: blur(15px);
+                text-transform: uppercase;
+                letter-spacing: 1px;
             }}
 
             .audio-btn:hover, .record-btn:hover, .stop-btn:hover {{
@@ -1379,16 +1401,17 @@ def show_question(q_num: int):
             }}
 
             .question-text {{
-                font-size: 1.8rem;
-                font-weight: 600;
+                font-size: 2.5rem;
+                font-weight: 700;
                 color: #1a1a1a;
-                line-height: 1.4;
+                line-height: 1.5;
                 text-align: center;
-                padding: 30px;
-                background: rgba(255, 255, 255, 0.9);
-                border-radius: 20px;
-                border-left: 5px solid #007aff;
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                padding: 40px;
+                background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 255, 0.94) 100%);
+                border-radius: 28px;
+                border: 2.5px solid rgba(0, 122, 255, 0.3);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07),
+                            inset 0 1px 0 rgba(255, 255, 255, 0.7);
             }}
 
             .options-container {{
@@ -1397,17 +1420,19 @@ def show_question(q_num: int):
             }}
 
             .option {{
-                background: rgba(255, 255, 255, 0.9);
-                border: 2px solid rgba(255, 255, 255, 0.1);
-                border-radius: 20px;
-                padding: 25px 30px;
+                background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 251, 255, 0.94) 100%);
+                border: 2.5px solid rgba(0, 122, 255, 0.25);
+                border-radius: 26px;
+                padding: 35px 40px;
                 cursor: pointer;
-                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                font-size: 1.1rem;
-                font-weight: 500;
+                transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                font-size: 1.7rem;
+                font-weight: 600;
                 position: relative;
                 overflow: hidden;
                 color: #1a1a1a;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07),
+                            inset 0 1px 0 rgba(255, 255, 255, 0.7);
             }}
 
             .option::before {{
@@ -1432,11 +1457,13 @@ def show_question(q_num: int):
             }}
 
             .option.selected {{
-                background: linear-gradient(135deg, #007aff, #ff0000);
+                background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
                 color: white;
-                border-color: #007aff;
-                transform: translateY(-5px) scale(1.02);
-                box-shadow: 0 15px 35px rgba(0, 122, 255, 0.4), 0 0 30px rgba(0, 122, 255, 0.3);
+                border-color: rgba(0, 122, 255, 0.6);
+                transform: translateY(-8px) scale(1.03);
+                box-shadow: 0 20px 50px rgba(0, 122, 255, 0.35),
+                            0 10px 25px rgba(255, 0, 0, 0.2),
+                            0 0 0 1px rgba(255, 255, 255, 0.2) inset;
             }}
 
             .option input {{
@@ -1712,24 +1739,26 @@ def show_question(q_num: int):
 
             .submit-section {{
                 text-align: center;
-                margin-top: 50px;
-                padding-top: 40px;
-                border-top: 1px solid rgba(0, 122, 255, 0.2);
+                margin-top: 80px;
+                padding-top: 60px;
+                border-top: 2px solid rgba(0, 122, 255, 0.25);
             }}
 
             .submit-btn {{
-                background: linear-gradient(45deg, #007aff, #ff0000);
+                background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
                 color: white;
                 border: none;
-                border-radius: 60px;
-                padding: 20px 60px;
-                font-size: 1.3rem;
-                font-weight: 700;
+                border-radius: 90px;
+                padding: 30px 85px;
+                font-size: 2rem;
+                font-weight: 800;
                 cursor: pointer;
-                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                box-shadow: 0 15px 35px rgba(0, 122, 255, 0.3), 0 0 50px rgba(0, 122, 255, 0.2);
+                transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                box-shadow: 0 25px 60px rgba(0, 122, 255, 0.4),
+                            0 12px 28px rgba(255, 0, 0, 0.3),
+                            0 0 0 1px rgba(255, 255, 255, 0.2) inset;
                 text-transform: uppercase;
-                letter-spacing: 1px;
+                letter-spacing: 2px;
             }}
 
             .submit-btn:hover:not(:disabled) {{
