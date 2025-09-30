@@ -247,9 +247,9 @@ def home():
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: rgba(255, 255, 255, 0.75);
-                backdrop-filter: blur(8px) saturate(120%);
-                -webkit-backdrop-filter: blur(8px) saturate(120%);
+                background: rgba(255, 255, 255, 0.65);
+                backdrop-filter: blur(4px) saturate(110%);
+                -webkit-backdrop-filter: blur(4px) saturate(110%);
                 z-index: 0;
             }
 
@@ -277,6 +277,7 @@ def home():
                 align-items: center;
                 z-index: 1;
                 position: relative;
+                transform: scale(1.12);
             }
 
             .left-section {
@@ -284,20 +285,20 @@ def home():
             }
 
             .hero-title {
-                font-size: 5.5rem;
+                font-size: 6rem;
                 font-weight: 800;
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
-                line-height: 1.1;
+                line-height: 1.15;
                 margin-bottom: 40px;
                 filter: drop-shadow(0 3px 12px rgba(0, 122, 255, 0.2));
                 letter-spacing: -1px;
             }
 
             .hero-subtitle {
-                font-size: 1.9rem;
+                font-size: 2rem;
                 color: rgba(0,0,0,0.75);
                 margin-bottom: 40px;
                 line-height: 1.6;
@@ -628,7 +629,7 @@ def home():
 
             <div class="main-content">
                 <div class="left-section">
-                    <h1 class="hero-title">CCL English Assessment Platform</h1>
+                    <h1 class="hero-title">CCL<br>English Assessment Platform</h1>
                     <p class="hero-subtitle">Professional English evaluation designed specifically for cruise ship hospitality staff. Test your skills across 6 comprehensive modules.</p>
 
                     <div class="hero-stats">
