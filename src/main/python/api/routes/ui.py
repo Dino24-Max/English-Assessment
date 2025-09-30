@@ -63,7 +63,7 @@ def get_questions() -> Dict[str, Any]:
 @router.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
     """
-    Homepage - Welcome page and assessment start
+    Homepage - Welcome page directing to operation selection
     """
     try:
         return templates.TemplateResponse(
@@ -89,13 +89,61 @@ async def homepage(request: Request):
         raise HTTPException(status_code=500, detail=f"Error rendering homepage: {str(e)}")
 
 
-@router.get("/question/{question_num}", response_class=HTMLResponse)
-async def question_page(request: Request, question_num: int):
+@router.get("/select-operation", response_class=HTMLResponse)
+async def select_operation_page(request: Request):
     """
-    Question page - Display specific question
+    Operation Selection page - Choose Hotel, Marine, or Casino operations
+    """
+    try:
+        return templates.TemplateResponse(
+            "select_operation.html",
+            {
+                "request": request,
+                "title": "Select Your Operation"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering operation selection: {str(e)}")
+
+
+@router.get("/start-assessment", response_class=HTMLResponse)
+async def start_assessment(request: Request, operation: str):
+    """
+    Start assessment with operation filter
+
+    Args:
+        operation: Operation type (HOTEL, MARINE, or CASINO)
+    """
+    try:
+        # Validate operation
+        valid_operations = ["HOTEL", "MARINE", "CASINO"]
+        operation = operation.upper()
+
+        if operation not in valid_operations:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid operation. Must be one of: {', '.join(valid_operations)}"
+            )
+
+        # Store operation in session or pass to first question
+        # For now, redirect to first question with operation parameter
+        return RedirectResponse(url=f"/question/1?operation={operation}", status_code=303)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error starting assessment: {str(e)}")
+
+
+@router.get("/question/{question_num}", response_class=HTMLResponse)
+async def question_page(request: Request, question_num: int, operation: Optional[str] = None):
+    """
+    Question page - Display specific question filtered by operation
 
     Args:
         question_num: Question number (1-21)
+        operation: Operation type (HOTEL, MARINE, or CASINO) - optional for backward compatibility
     """
     try:
         # Validate question number
@@ -110,6 +158,16 @@ async def question_page(request: Request, question_num: int):
             raise HTTPException(status_code=404, detail=f"Question {question_num} not found in configuration")
 
         question_data = questions[question_key]
+
+        # If operation is specified, validate and store it
+        if operation:
+            operation = operation.upper()
+            valid_operations = ["HOTEL", "MARINE", "CASINO"]
+            if operation not in valid_operations:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid operation. Must be one of: {', '.join(valid_operations)}"
+                )
 
         # Calculate progress
         progress_percent = round((question_num / 21) * 100, 1)
@@ -129,7 +187,8 @@ async def question_page(request: Request, question_num: int):
             "module": question_data.get("module"),
             "is_last_question": is_last_question,
             "next_question": next_question,
-            "previous_question": previous_question
+            "previous_question": previous_question,
+            "operation": operation  # Pass operation to template
         }
 
         # Select template based on module type

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Your Operation - CCL English Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/assessment.css">
+</head>
+<body>
+    <div class="hero-container">
+        <div class="hero-background"></div>
+
+        <div class="main-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="selection-header" style="text-align: center; margin-bottom: 80px;">
+                <h1 class="hero-title" style="margin-bottom: 30px;">Select Your Operation</h1>
+                <p class="hero-subtitle" style="font-size: 2.2rem; max-width: 900px;">
+                    Choose your department category to begin your English Assessment. Questions will be tailored to your operation area.
+                </p>
+            </div>
+
+            <div class="operations-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; max-width: 1800px; width: 100%;">
+                <!-- Hotel Operations Card -->
+                <a href="/start-assessment?operation=HOTEL" class="operation-card" style="text-decoration: none;">
+                    <div class="operation-icon" style="font-size: 8rem; margin-bottom: 30px; display: block; text-align: center;">
+                        🏨
+                    </div>
+                    <h2 class="operation-title" style="font-size: 3rem; font-weight: 800; color: #1a1a1a; margin-bottom: 20px; text-align: center;">
+                        Hotel Operations
+                    </h2>
+                    <p class="operation-description" style="font-size: 1.6rem; color: rgba(0,0,0,0.7); line-height: 1.6; text-align: center; margin-bottom: 25px;">
+                        Front Desk, Housekeeping, F&B Service, Bar, Guest Services, Cabin, Auxiliary, Laundry, Photo, Provisions
+                    </p>
+                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.4rem; color: rgba(0,0,0,0.65);">
+                        <span><strong>10</strong> Departments</span>
+                        <span><strong>21</strong> Questions</span>
+                    </div>
+                </a>
+
+                <!-- Marine Operations Card -->
+                <a href="/start-assessment?operation=MARINE" class="operation-card" style="text-decoration: none;">
+                    <div class="operation-icon" style="font-size: 8rem; margin-bottom: 30px; display: block; text-align: center;">
+                        ⚓
+                    </div>
+                    <h2 class="operation-title" style="font-size: 3rem; font-weight: 800; color: #1a1a1a; margin-bottom: 20px; text-align: center;">
+                        Marine Operations
+                    </h2>
+                    <p class="operation-description" style="font-size: 1.6rem; color: rgba(0,0,0,0.7); line-height: 1.6; text-align: center; margin-bottom: 25px;">
+                        Deck Department, Engine Department, Security Department
+                    </p>
+                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.4rem; color: rgba(0,0,0,0.65);">
+                        <span><strong>3</strong> Departments</span>
+                        <span><strong>21</strong> Questions</span>
+                    </div>
+                </a>
+
+                <!-- Casino Operations Card -->
+                <a href="/start-assessment?operation=CASINO" class="operation-card" style="text-decoration: none;">
+                    <div class="operation-icon" style="font-size: 8rem; margin-bottom: 30px; display: block; text-align: center;">
+                        🎰
+                    </div>
+                    <h2 class="operation-title" style="font-size: 3rem; font-weight: 800; color: #1a1a1a; margin-bottom: 20px; text-align: center;">
+                        Casino Operations
+                    </h2>
+                    <p class="operation-description" style="font-size: 1.6rem; color: rgba(0,0,0,0.7); line-height: 1.6; text-align: center; margin-bottom: 25px;">
+                        Table Games, Slot Machines, Casino Services
+                    </p>
+                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.4rem; color: rgba(0,0,0,0.65);">
+                        <span><strong>3</strong> Departments</span>
+                        <span><strong>21</strong> Questions</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="back-section" style="margin-top: 80px; text-align: center;">
+                <a href="/" class="secondary-btn" style="padding: 25px 60px; font-size: 1.8rem;">
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .operation-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 255, 0.94) 100%);
+            backdrop-filter: blur(40px) saturate(120%);
+            border: 3px solid rgba(0, 122, 255, 0.28);
+            border-radius: 44px;
+            padding: 70px 50px;
+            box-shadow: 0 28px 75px rgba(0,0,0,0.09),
+                        0 10px 30px rgba(0, 122, 255, 0.12),
+                        0 0 0 1px rgba(0, 122, 255, 0.1),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: block;
+        }
+
+        .operation-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
+            box-shadow: 0 0 25px rgba(0, 122, 255, 0.6), 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+
+        .operation-card:hover {
+            transform: translateY(-12px) scale(1.03);
+            box-shadow: 0 35px 85px rgba(0,0,0,0.12),
+                        0 15px 40px rgba(0, 122, 255, 0.18),
+                        0 0 0 1px rgba(0, 122, 255, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border-color: rgba(0, 122, 255, 0.4);
+        }
+
+        .operation-card:hover .operation-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .operation-icon {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .operation-title {
+            transition: all 0.3s ease;
+        }
+
+        .operation-card:hover .operation-title {
+            background: linear-gradient(135deg, #007aff 0%, #5856d6 35%, #ff0000 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        @media (max-width: 1400px) {
+            .operations-grid {
+                grid-template-columns: 1fr !important;
+                gap: 40px !important;
+                max-width: 700px !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .selection-header h1 {
+                font-size: 4rem !important;
+            }
+
+            .selection-header p {
+                font-size: 1.6rem !important;
+            }
+
+            .operation-card {
+                padding: 40px 30px;
+            }
+
+            .operation-icon {
+                font-size: 5rem !important;
+            }
+
+            .operation-title {
+                font-size: 2rem !important;
+            }
+
+            .operation-description {
+                font-size: 1.2rem !important;
+            }
+
+            .operation-stats {
+                font-size: 1.1rem !important;
+            }
+        }
+    </style>
+</body>
+</html>
