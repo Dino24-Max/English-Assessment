@@ -61,16 +61,28 @@ def get_questions() -> Dict[str, Any]:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def homepage(request: Request):
+async def homepage(request: Request, operation: Optional[str] = None):
     """
-    Homepage - Welcome page directing to operation selection
+    Homepage - Welcome page with optional operation parameter
+    If no operation is provided, redirect to operation selection
     """
     try:
+        # If no operation specified, redirect to operation selection
+        if not operation:
+            return RedirectResponse(url="/select-operation", status_code=303)
+
+        # Validate operation
+        operation = operation.upper()
+        valid_operations = ["HOTEL", "MARINE", "CASINO"]
+        if operation not in valid_operations:
+            return RedirectResponse(url="/select-operation", status_code=303)
+
         return templates.TemplateResponse(
-            "index.html",
+            "home.html",
             {
                 "request": request,
                 "title": "Cruise Employee English Assessment",
+                "operation": operation,
                 "total_questions": 21,
                 "total_points": 100,
                 "passing_score": 65,
