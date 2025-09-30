@@ -1163,8 +1163,11 @@ def show_question(q_num: int):
                 backdrop-filter: blur(30px) saturate(120%);
                 border-bottom: 2px solid rgba(0, 122, 255, 0.25);
                 padding: 25px 50px;
-                position: relative;
-                z-index: 100;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             }}
 
@@ -1255,7 +1258,7 @@ def show_question(q_num: int):
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 40px;
+                padding: 120px 40px 40px 40px;
                 z-index: 1;
             }}
 
