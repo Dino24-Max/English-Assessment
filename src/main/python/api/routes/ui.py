@@ -15,10 +15,10 @@ from pathlib import Path
 # Initialize router
 router = APIRouter()
 
-# Get the project root directory
-project_root = Path(__file__).parent.parent.parent.parent.parent
-templates_dir = project_root / "templates"
-data_dir = project_root / "src" / "main" / "python" / "data"
+# Get the python source directory (where app.py is)
+python_src_dir = Path(__file__).parent.parent.parent
+templates_dir = python_src_dir / "templates"
+data_dir = python_src_dir / "data"
 
 # Initialize Jinja2 templates
 templates = Jinja2Templates(directory=str(templates_dir))
