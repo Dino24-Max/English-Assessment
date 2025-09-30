@@ -5,13 +5,14 @@ Handles all assessment-related operations
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
 
 from core.database import get_db
 from core.assessment_engine import AssessmentEngine
-from models.assessment import User, Assessment, DivisionType, AssessmentStatus
+from models.assessment import User, Assessment, DivisionType, AssessmentStatus, AssessmentResponse, Question
 from data.question_bank_loader import QuestionBankLoader
 from services.ai_service import AIService
 from utils.anti_cheating import AntiCheatingService
@@ -345,8 +346,3 @@ async def load_question_bank(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# Import required modules for the endpoints
-from sqlalchemy import select, and_
-from models.assessment import AssessmentResponse, Question
