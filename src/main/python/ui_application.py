@@ -285,20 +285,20 @@ def home():
             }
 
             .hero-title {
-                font-size: 6rem;
+                font-size: 7.5rem;
                 font-weight: 800;
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 line-height: 1.15;
-                margin-bottom: 40px;
-                filter: drop-shadow(0 3px 12px rgba(0, 122, 255, 0.2));
-                letter-spacing: -1px;
+                margin-bottom: 45px;
+                filter: drop-shadow(0 4px 15px rgba(0, 122, 255, 0.25));
+                letter-spacing: -1.5px;
             }
 
             .hero-subtitle {
-                font-size: 2rem;
+                font-size: 2.5rem;
                 color: rgba(0,0,0,0.75);
                 margin-bottom: 40px;
                 line-height: 1.6;
@@ -342,18 +342,18 @@ def home():
             }
 
             .stat-number {
-                font-size: 4.2rem;
+                font-size: 5.5rem;
                 font-weight: 800;
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 display: block;
-                margin-bottom: 12px;
+                margin-bottom: 15px;
             }
 
             .stat-label {
-                font-size: 1.3rem;
+                font-size: 1.7rem;
                 color: rgba(0,0,0,0.65);
                 font-weight: 600;
             }
@@ -366,9 +366,9 @@ def home():
                 background: linear-gradient(135deg, #007aff 0%, #ff0000 100%);
                 color: white;
                 border: none;
-                border-radius: 70px;
-                padding: 28px 70px;
-                font-size: 1.6rem;
+                border-radius: 80px;
+                padding: 32px 85px;
+                font-size: 2rem;
                 font-weight: 700;
                 cursor: pointer;
                 transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -376,7 +376,7 @@ def home():
                 display: inline-block;
                 box-shadow: 0 20px 50px rgba(0, 122, 255, 0.35), 0 8px 20px rgba(255, 0, 0, 0.25);
                 text-transform: uppercase;
-                letter-spacing: 2px;
+                letter-spacing: 2.5px;
                 position: relative;
                 overflow: hidden;
             }
@@ -430,13 +430,13 @@ def home():
             }
 
             .modules-title {
-                font-size: 2.8rem;
+                font-size: 3.5rem;
                 font-weight: 800;
                 color: #1a1a1a;
-                margin-bottom: 50px;
+                margin-bottom: 55px;
                 text-align: center;
                 position: relative;
-                letter-spacing: -0.5px;
+                letter-spacing: -0.8px;
             }
 
             .modules-title::after {
@@ -494,22 +494,22 @@ def home():
             }
 
             .module-icon {
-                font-size: 3.2rem;
-                margin-bottom: 18px;
+                font-size: 4rem;
+                margin-bottom: 22px;
                 display: block;
             }
 
             .module-name {
-                font-size: 1.5rem;
+                font-size: 1.9rem;
                 font-weight: 700;
                 color: #1a1a1a;
-                margin-bottom: 10px;
+                margin-bottom: 12px;
                 position: relative;
                 z-index: 1;
             }
 
             .module-count {
-                font-size: 1.15rem;
+                font-size: 1.45rem;
                 color: rgba(0, 0, 0, 0.65);
                 position: relative;
                 z-index: 1;
