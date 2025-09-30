@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from core.database import engine, Base
-from api.routes import assessment, admin, analytics
+from api.routes import assessment, admin, analytics, ui
 from core.config import settings
 
 
@@ -48,17 +48,25 @@ def create_app() -> FastAPI:
     # Static files
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-    # API routes
+    # UI routes (frontend pages)
+    app.include_router(ui.router, tags=["UI"])
+
+    # API routes (backend endpoints)
     app.include_router(assessment.router, prefix="/api/v1/assessment", tags=["Assessment"])
     app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
     app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 
-    @app.get("/")
-    async def root():
+    @app.get("/api")
+    async def api_root():
         return {
-            "message": "Cruise Employee English Assessment Platform",
+            "message": "Cruise Employee English Assessment Platform API",
             "version": "1.0.0",
-            "status": "operational"
+            "status": "operational",
+            "endpoints": {
+                "assessment": "/api/v1/assessment",
+                "admin": "/api/v1/admin",
+                "analytics": "/api/v1/analytics"
+            }
         }
 
     @app.get("/health")

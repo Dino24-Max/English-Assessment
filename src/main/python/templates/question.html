@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question {{ q_num }} - Dark Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/assessment.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="question-info">
+                <div class="question-number">Question {{ q_num }} of 21</div>
+                <div class="module-badge">{{ module_display }}</div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ progress }}%;"></div>
+                </div>
+                <div class="progress-text">{{ progress|round(1) }}% Complete</div>
+            </div>
+
+            <div class="question-info">
+                <div class="question-number">{{ points }} Points</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="question-wrapper">
+            {{ content|safe }}
+
+            <div class="submit-section">
+                <button class="submit-btn" id="submitBtn" onclick="submitAnswer({{ q_num }})" disabled>
+                    Continue to Next Question
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedAnswer = '';
+
+        function selectAnswer(answer, element) {
+            selectedAnswer = answer;
+            document.getElementById('submitBtn').disabled = false;
+            if (element) {
+                document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+                element.classList.add('selected');
+            }
+        }
+
+        function submitAnswer(qNum) {
+            if (!selectedAnswer.trim()) {
+                alert('Please provide an answer before continuing');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('submitBtn').innerHTML = 'Processing...';
+            document.getElementById('submitBtn').disabled = true;
+
+            // Add slight delay for better UX
+            setTimeout(() => {
+                window.location.href = `/submit/${qNum}?answer=${encodeURIComponent(selectedAnswer)}`;
+            }, 500);
+        }
+
+        {{ script|safe }}
+    </script>
+</body>
+</html>

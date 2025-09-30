@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     # Redis (for caching and sessions)
     REDIS_URL: str = "redis://localhost:6379"
 
+    # Session Management
+    SESSION_COOKIE_NAME: str = "assessment_session_id"
+    SESSION_TIMEOUT_SECONDS: int = 14400  # 4 hours
+    SESSION_WARNING_SECONDS: int = 300  # 5 minutes
+    SESSION_SECURE_COOKIE: bool = False  # Set True in production with HTTPS
+    SESSION_ROTATION_INTERVAL: int = 1800  # 30 minutes
+
     # Celery (for background tasks)
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"

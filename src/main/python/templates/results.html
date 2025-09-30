@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Results - Dark Theme</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/assessment.css">
+</head>
+<body>
+    <div class="container">
+        <div class="results-header">
+            <div class="results-title">Assessment Complete!</div>
+            <div class="results-subtitle">Your comprehensive English proficiency results</div>
+        </div>
+
+        <div class="overall-score" style="background: {{ score_gradient }};">
+            <div class="score-content">
+                <div class="score-number">{{ total_score }}/{{ total_possible }}</div>
+                <div class="score-text">{{ percentage|round(1) }}% Overall Score</div>
+                <div class="result-status">{{ result_status }}</div>
+            </div>
+        </div>
+
+        <div class="modules-breakdown">
+            <div class="breakdown-title">Detailed Module Results</div>
+            <div class="modules-grid">
+                {% for module_html in module_results %}
+                    {{ module_html|safe }}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="features-verified">
+            <div class="features-title">✓ All Features Successfully Tested</div>
+            <ul class="feature-list">
+                <li class="feature-item">
+                    <div class="feature-icon">🎧</div>
+                    Audio-only listening comprehension
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">🔢</div>
+                    Time & numbers with audio context
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">📝</div>
+                    Professional grammar assessment
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">📚</div>
+                    Interactive vocabulary matching
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">📖</div>
+                    Reading comprehension skills
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">🎤</div>
+                    Real-time voice analysis
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">⚡</div>
+                    Seamless user experience
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">🌙</div>
+                    Premium dark interface
+                </li>
+            </ul>
+        </div>
+
+        <div class="action-section">
+            <a href="/" class="restart-btn">Take Assessment Again</a>
+        </div>
+    </div>
+</body>
+</html>
