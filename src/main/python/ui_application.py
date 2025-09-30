@@ -277,7 +277,7 @@ def home():
                 align-items: center;
                 z-index: 1;
                 position: relative;
-                transform: scale(1.12);
+                transform: scale(1.25);
             }
 
             .left-section {
