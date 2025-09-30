@@ -1251,11 +1251,16 @@ def show_question(q_num: int):
 
             .container {{
                 max-width: 2300px;
-                margin: 50px auto;
+                margin: 0 auto;
                 padding: 0 60px;
                 position: relative;
                 z-index: 1;
                 transform: scale(1.25);
+                min-height: calc(100vh - 200px);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding-top: 50px;
             }}
 
             .content-main {{
@@ -1739,8 +1744,8 @@ def show_question(q_num: int):
 
             .submit-section {{
                 text-align: center;
-                margin-top: 80px;
-                padding-top: 60px;
+                margin-top: 60px;
+                padding-top: 40px;
                 border-top: 2px solid rgba(0, 122, 255, 0.25);
             }}
 
