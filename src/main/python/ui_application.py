@@ -1187,7 +1187,7 @@ def show_question(q_num: int):
             }}
 
             .question-number {{
-                font-size: 1.8rem;
+                font-size: 2.1rem;
                 color: rgba(0, 0, 0, 0.7);
                 font-weight: 600;
             }}
@@ -1195,9 +1195,9 @@ def show_question(q_num: int):
             .module-badge {{
                 background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
                 color: white;
-                padding: 12px 30px;
+                padding: 14px 35px;
                 border-radius: 30px;
-                font-size: 1.4rem;
+                font-size: 1.65rem;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.8px;
@@ -1212,8 +1212,8 @@ def show_question(q_num: int):
 
             .progress-bar {{
                 background: rgba(0, 0, 0, 0.1);
-                height: 8px;
-                border-radius: 4px;
+                height: 12px;
+                border-radius: 6px;
                 overflow: hidden;
                 position: relative;
             }}
@@ -1222,7 +1222,7 @@ def show_question(q_num: int):
                 background: linear-gradient(90deg, #007aff, #ff0000);
                 height: 100%;
                 width: {progress}%;
-                border-radius: 4px;
+                border-radius: 6px;
                 transition: width 0.5s ease;
                 position: relative;
                 box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
@@ -1245,10 +1245,11 @@ def show_question(q_num: int):
             }}
 
             .progress-text {{
-                font-size: 1.1rem;
+                font-size: 1.3rem;
                 color: rgba(0, 0, 0, 0.6);
-                margin-top: 5px;
+                margin-top: 8px;
                 text-align: center;
+                font-weight: 500;
             }}
 
             .container {{
