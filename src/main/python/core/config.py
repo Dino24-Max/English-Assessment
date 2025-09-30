@@ -64,6 +64,23 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
+    # Security Settings
+    CSRF_ENABLED: bool = True
+    CSRF_TOKEN_LENGTH: int = 32
+    CSRF_COOKIE_SECURE: bool = False  # Set True in production with HTTPS
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: int = 100  # requests per window
+    RATE_LIMIT_WINDOW: int = 60  # seconds
+    RATE_LIMIT_AUTH: int = 5  # login attempts per window
+    RATE_LIMIT_AUTH_WINDOW: int = 300  # 5 minutes
+
+    MAX_REQUEST_SIZE: int = 10 * 1024 * 1024  # 10MB
+    MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024  # 50MB
+
+    SECURITY_HEADERS_ENABLED: bool = True
+    INPUT_VALIDATION_ENABLED: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = True
