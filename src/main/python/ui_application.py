@@ -1413,12 +1413,12 @@ def show_question(q_num: int):
             }}
 
             .question-text {{
-                font-size: 2.5rem;
+                font-size: 3.5rem;
                 font-weight: 700;
                 color: #1a1a1a;
                 line-height: 1.5;
                 text-align: center;
-                padding: 40px;
+                padding: 50px;
                 background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 255, 0.94) 100%);
                 border-radius: 28px;
                 border: 2.5px solid rgba(0, 122, 255, 0.3);
@@ -1435,10 +1435,10 @@ def show_question(q_num: int):
                 background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 251, 255, 0.94) 100%);
                 border: 2.5px solid rgba(0, 122, 255, 0.25);
                 border-radius: 26px;
-                padding: 35px 40px;
+                padding: 40px 50px;
                 cursor: pointer;
                 transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                font-size: 1.7rem;
+                font-size: 2.3rem;
                 font-weight: 600;
                 position: relative;
                 overflow: hidden;
