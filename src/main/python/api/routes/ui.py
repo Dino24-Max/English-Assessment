@@ -182,7 +182,7 @@ async def question_page(request: Request, question_num: int, operation: Optional
                 )
 
         # Calculate progress
-        progress_percent = round((question_num / 21) * 100, 1)
+        progress_percent = round((int(question_num) / 21) * 100, 1)
 
         # Determine if this is the last question
         is_last_question = (question_num == 21)
@@ -203,20 +203,9 @@ async def question_page(request: Request, question_num: int, operation: Optional
             "operation": operation  # Pass operation to template
         }
 
-        # Select template based on module type
-        module = question_data.get("module")
-        template_map = {
-            "listening": "question_listening.html",
-            "time_numbers": "question_time_numbers.html",
-            "grammar": "question_grammar.html",
-            "vocabulary": "question_vocabulary.html",
-            "reading": "question_reading.html",
-            "speaking": "question_speaking.html"
-        }
-
-        template_name = template_map.get(module, "question.html")
-
-        return templates.TemplateResponse(template_name, context)
+        # Use generic question template for all modules
+        # TODO: Create module-specific templates in the future
+        return templates.TemplateResponse("question.html", context)
 
     except HTTPException:
         raise
