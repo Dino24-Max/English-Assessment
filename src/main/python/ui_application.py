@@ -1163,8 +1163,10 @@ def show_question(q_num: int):
                 backdrop-filter: blur(30px) saturate(120%);
                 border-bottom: 2px solid rgba(0, 122, 255, 0.25);
                 padding: 25px 50px;
-                position: sticky;
+                position: fixed;
                 top: 0;
+                left: 0;
+                right: 0;
                 z-index: 100;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             }}
@@ -1256,11 +1258,12 @@ def show_question(q_num: int):
                 position: relative;
                 z-index: 1;
                 transform: scale(1.25);
-                min-height: calc(100vh - 200px);
+                transform-origin: center center;
+                min-height: 100vh;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                padding-top: 50px;
+                align-items: center;
             }}
 
             .content-main {{
@@ -1847,12 +1850,14 @@ def show_question(q_num: int):
         </div>
 
         <div class="container">
-            {content}
+            <div style="width: 100%; max-width: 1800px;">
+                {content}
 
-            <div class="submit-section">
-                <button class="submit-btn" id="submitBtn" onclick="submitAnswer({q_num})" disabled>
-                    Continue to Next Question
-                </button>
+                <div class="submit-section">
+                    <button class="submit-btn" id="submitBtn" onclick="submitAnswer({q_num})" disabled>
+                        Continue to Next Question
+                    </button>
+                </div>
             </div>
         </div>
 
