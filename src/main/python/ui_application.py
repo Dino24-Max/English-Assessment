@@ -518,17 +518,17 @@ def home():
 
             .assessment-info {
                 background: rgba(0, 122, 255, 0.1);
-                border-radius: 20px;
-                padding: 30px;
-                margin-bottom: 30px;
-                border: 1px solid rgba(0, 122, 255, 0.2);
+                border-radius: 24px;
+                padding: 40px;
+                margin-bottom: 35px;
+                border: 2px solid rgba(0, 122, 255, 0.25);
             }
 
             .info-title {
-                font-size: 1.2rem;
-                font-weight: 600;
+                font-size: 1.8rem;
+                font-weight: 700;
                 color: #007aff;
-                margin-bottom: 15px;
+                margin-bottom: 20px;
             }
 
             .info-list {
@@ -540,8 +540,8 @@ def home():
             .info-item {
                 display: flex;
                 align-items: center;
-                margin-bottom: 12px;
-                font-size: 0.95rem;
+                margin-bottom: 16px;
+                font-size: 1.4rem;
                 color: rgba(0, 0, 0, 0.7);
             }
 
