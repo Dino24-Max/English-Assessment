@@ -1163,10 +1163,7 @@ def show_question(q_num: int):
                 backdrop-filter: blur(30px) saturate(120%);
                 border-bottom: 2px solid rgba(0, 122, 255, 0.25);
                 padding: 25px 50px;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
+                position: relative;
                 z-index: 100;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             }}
@@ -1252,13 +1249,14 @@ def show_question(q_num: int):
             }}
 
             .container {{
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%) scale(1.25);
-                z-index: 1;
-                width: 90%;
                 max-width: 2300px;
+                width: 100%;
+                margin: 40px auto;
+                padding: 0 40px;
+                position: relative;
+                z-index: 1;
+                transform: scale(1.25);
+                transform-origin: center top;
             }}
 
             .content-main {{
