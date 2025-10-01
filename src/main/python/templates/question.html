@@ -439,6 +439,37 @@
     </script>
 
     <style>
+        /* Timer Section */
+        .timer-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 245, 255, 0.95) 100%);
+            padding: 15px 30px;
+            border-radius: 20px;
+            border: 2.5px solid rgba(0, 122, 255, 0.25);
+            box-shadow: 0 8px 20px rgba(0, 122, 255, 0.15);
+        }
+
+        .timer-icon {
+            font-size: 3.5rem;
+            line-height: 1;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .timer-display {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #007aff;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+        }
+
         .question-text {
             font-size: 2.4rem;
             font-weight: 600;
