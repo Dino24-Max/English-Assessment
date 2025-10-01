@@ -15,6 +15,11 @@
                 <div class="module-badge">{{ question_data.module|title }}</div>
             </div>
 
+            <div class="timer-section">
+                <div class="timer-icon">⏱</div>
+                <div class="timer-display" id="timerDisplay">30:00</div>
+            </div>
+
             <div class="progress-section">
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: {{ progress }}%;"></div>
@@ -366,6 +371,71 @@
                 {% endif %}
             }, 500);
         }
+
+        // ===== 30-MINUTE COUNTDOWN TIMER =====
+        let totalSeconds;
+        let timerInterval;
+
+        function initializeTimer() {
+            // Check if timer exists in localStorage
+            const savedTime = localStorage.getItem('assessmentTimer');
+            const timerStarted = localStorage.getItem('timerStarted');
+
+            if (savedTime && timerStarted) {
+                // Resume timer from saved time
+                totalSeconds = parseInt(savedTime);
+            } else {
+                // Start new 30-minute timer
+                totalSeconds = 30 * 60; // 30 minutes = 1800 seconds
+                localStorage.setItem('timerStarted', 'true');
+            }
+
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                totalSeconds--;
+                localStorage.setItem('assessmentTimer', totalSeconds);
+
+                updateTimerDisplay();
+
+                // Check if time's up
+                if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    alert('Time is up! The assessment will now be submitted.');
+                    window.location.href = '/results';
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timerDisplay').textContent = display;
+
+            // Change color when time is running low (< 5 minutes)
+            const timerElement = document.getElementById('timerDisplay');
+            if (totalSeconds < 300) {
+                timerElement.style.color = '#ff3b30';
+                timerElement.style.fontWeight = '800';
+            } else if (totalSeconds < 600) {
+                timerElement.style.color = '#ff9500';
+            }
+        }
+
+        // Initialize timer when page loads
+        window.addEventListener('load', initializeTimer);
+
+        // Clear timer when assessment is complete
+        {% if is_last_question %}
+        window.addEventListener('beforeunload', () => {
+            localStorage.removeItem('assessmentTimer');
+            localStorage.removeItem('timerStarted');
+        });
+        {% endif %}
     </script>
 
     <style>
