@@ -32,15 +32,94 @@
         <div class="question-wrapper">
             <h2 class="question-text">{{ question_data.question }}</h2>
 
-            {% if question_data.audio_text %}
+            {# LISTENING MODULE - AI Audio Playback #}
+            {% if question_data.module == "listening" and question_data.audio_text %}
             <div class="audio-section">
-                <p class="audio-instruction">Listen to the audio:</p>
-                <div class="audio-preview">"{{ question_data.audio_text }}"</div>
-                <p class="audio-note">(Audio playback would be implemented here)</p>
+                <p class="audio-instruction">🎧 Listen to the audio and answer the question:</p>
+                <div class="audio-controls">
+                    <button class="audio-btn play-btn" onclick="playAudio()" id="playBtn">
+                        <span class="btn-icon">▶</span> Play Audio
+                    </button>
+                    <button class="audio-btn" onclick="pauseAudio()" id="pauseBtn" style="display:none;">
+                        <span class="btn-icon">⏸</span> Pause
+                    </button>
+                    <div class="play-count" id="playCount">Plays remaining: <span id="playsLeft">2</span>/2</div>
+                </div>
+                <div class="audio-transcript" id="transcript" style="display:none;">
+                    <strong>Transcript:</strong> "{{ question_data.audio_text }}"
+                </div>
             </div>
             {% endif %}
 
-            {% if question_data.options %}
+            {# TIME & NUMBERS MODULE - Audio + Text Input #}
+            {% if question_data.module == "time_numbers" and question_data.audio_text %}
+            <div class="audio-section">
+                <p class="audio-instruction">🎧 Listen carefully and fill in the answer:</p>
+                <div class="audio-controls">
+                    <button class="audio-btn play-btn" onclick="playAudio()">
+                        <span class="btn-icon">▶</span> Play Audio
+                    </button>
+                    <div class="play-count">Unlimited plays</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# READING MODULE - Passage Display #}
+            {% if question_data.module == "reading" and question_data.passage %}
+            <div class="reading-section">
+                <div class="passage-box">
+                    <div class="passage-title">📖 Read the passage carefully:</div>
+                    <div class="passage-content">{{ question_data.passage }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# VOCABULARY MODULE - Drag and Drop Matching #}
+            {% if question_data.module == "vocabulary" and question_data.terms %}
+            <div class="vocabulary-section">
+                <p class="vocab-instruction">🔄 Drag the terms to match them with the correct definitions:</p>
+                <div class="matching-container">
+                    <div class="terms-column">
+                        <h3>Terms</h3>
+                        <div id="termsBox">
+                            {% for term in question_data.terms %}
+                            <div class="term-item draggable" draggable="true" data-term="{{ term }}" ondragstart="drag(event)">
+                                {{ term }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="definitions-column">
+                        <h3>Definitions</h3>
+                        {% for definition in question_data.definitions %}
+                        <div class="drop-zone" ondrop="drop(event)" ondragover="allowDrop(event)" data-definition="{{ definition }}">
+                            <div class="definition-text">{{ definition }}</div>
+                            <div class="matched-term" id="match-{{ loop.index0 }}"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# SPEAKING MODULE - Voice Recording #}
+            {% if question_data.module == "speaking" %}
+            <div class="speaking-section">
+                <p class="speaking-instruction">🎤 Click the button below to record your response (minimum {{ question_data.min_duration }} seconds):</p>
+                <div class="recording-controls">
+                    <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+                        <span class="record-icon">⏺</span> Start Recording
+                    </button>
+                    <div class="recording-timer" id="timer">0:00</div>
+                    <div class="recording-status" id="status">Ready to record</div>
+                </div>
+                <div class="recording-visual" id="visualizer"></div>
+                <audio id="audioPlayback" controls style="display:none; margin-top: 20px; width: 100%;"></audio>
+            </div>
+            {% endif %}
+
+            {# MULTIPLE CHOICE OPTIONS #}
+            {% if question_data.options and question_data.module != "vocabulary" %}
             <div class="options-container">
                 {% for option in question_data.options %}
                 <button class="option" onclick="selectAnswer('{{ option }}', this)">
@@ -48,7 +127,10 @@
                 </button>
                 {% endfor %}
             </div>
-            {% else %}
+            {% endif %}
+
+            {# TEXT INPUT (for time_numbers without options) #}
+            {% if (question_data.module == "time_numbers" or question_data.module == "grammar") and not question_data.options %}
             <div class="input-section">
                 <input type="text" id="answerInput" class="answer-input" placeholder="Type your answer here..." onkeyup="checkInput()">
             </div>
@@ -68,7 +150,178 @@
 
     <script>
         let selectedAnswer = '';
+        let audioSynthesis = null;
+        let playsRemaining = 2;
+        let isPlaying = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimer = null;
+        let recordingSeconds = 0;
+        let audioBlob = null;
 
+        // Audio playback using Web Speech API
+        function playAudio() {
+            if (isPlaying) return;
+
+            {% if question_data.audio_text %}
+            const text = "{{ question_data.audio_text }}";
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            utterance.onstart = function() {
+                isPlaying = true;
+                document.getElementById('playBtn').style.display = 'none';
+                document.getElementById('pauseBtn').style.display = 'inline-block';
+            };
+
+            utterance.onend = function() {
+                isPlaying = false;
+                document.getElementById('playBtn').style.display = 'inline-block';
+                document.getElementById('pauseBtn').style.display = 'none';
+
+                {% if question_data.module == "listening" %}
+                playsRemaining--;
+                document.getElementById('playsLeft').textContent = playsRemaining;
+                if (playsRemaining <= 0) {
+                    document.getElementById('playBtn').disabled = true;
+                    document.getElementById('playBtn').style.opacity = '0.5';
+                    document.getElementById('transcript').style.display = 'block';
+                }
+                {% endif %}
+            };
+
+            window.speechSynthesis.speak(utterance);
+            {% endif %}
+        }
+
+        function pauseAudio() {
+            window.speechSynthesis.cancel();
+            isPlaying = false;
+            document.getElementById('playBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+        }
+
+        // Drag and drop for vocabulary
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("term", ev.target.getAttribute('data-term'));
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const term = ev.dataTransfer.getData("term");
+            const dropZone = ev.currentTarget;
+            const matchedTermDiv = dropZone.querySelector('.matched-term');
+
+            // Clear previous match in this zone
+            matchedTermDiv.innerHTML = '';
+
+            // Add the term
+            const termDiv = document.createElement('div');
+            termDiv.className = 'dropped-term';
+            termDiv.textContent = term;
+            termDiv.setAttribute('data-term', term);
+            matchedTermDiv.appendChild(termDiv);
+
+            // Check if all matches are complete
+            checkVocabularyMatches();
+        }
+
+        function checkVocabularyMatches() {
+            const dropZones = document.querySelectorAll('.drop-zone');
+            let allMatched = true;
+            let matches = {};
+
+            dropZones.forEach(zone => {
+                const matchedTerm = zone.querySelector('.dropped-term');
+                const definition = zone.getAttribute('data-definition');
+
+                if (matchedTerm) {
+                    const term = matchedTerm.getAttribute('data-term');
+                    matches[term] = definition;
+                } else {
+                    allMatched = false;
+                }
+            });
+
+            if (allMatched) {
+                selectedAnswer = JSON.stringify(matches);
+                document.getElementById('submitBtn').disabled = false;
+            } else {
+                document.getElementById('submitBtn').disabled = true;
+            }
+        }
+
+        // Voice recording for speaking module
+        async function toggleRecording() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                recordingSeconds = 0;
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioPlayback = document.getElementById('audioPlayback');
+                    audioPlayback.src = audioUrl;
+                    audioPlayback.style.display = 'block';
+
+                    selectedAnswer = 'recorded_' + recordingSeconds + 's';
+
+                    {% if question_data.min_duration %}
+                    if (recordingSeconds >= {{ question_data.min_duration }}) {
+                        document.getElementById('submitBtn').disabled = false;
+                    }
+                    {% endif %}
+                };
+
+                mediaRecorder.start();
+                document.getElementById('recordBtn').innerHTML = '<span class="record-icon">⏹</span> Stop Recording';
+                document.getElementById('recordBtn').classList.add('recording');
+                document.getElementById('status').textContent = 'Recording...';
+
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    const mins = Math.floor(recordingSeconds / 60);
+                    const secs = recordingSeconds % 60;
+                    document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+
+            } catch (error) {
+                alert('Microphone access denied. Please allow microphone access to record your response.');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                clearInterval(recordingTimer);
+                document.getElementById('recordBtn').innerHTML = '<span class="record-icon">⏺</span> Record Again';
+                document.getElementById('recordBtn').classList.remove('recording');
+                document.getElementById('status').textContent = 'Recording complete';
+            }
+        }
+
+        // Standard answer selection
         function selectAnswer(answer, element) {
             selectedAnswer = answer;
             document.getElementById('submitBtn').disabled = false;
@@ -119,6 +372,7 @@
             line-height: 1.4;
         }
 
+        /* Audio Section */
         .audio-section {
             background: linear-gradient(145deg, #f5f7fa 0%, #e8ecf1 100%);
             border-radius: 20px;
@@ -127,29 +381,216 @@
             border: 2px solid rgba(0, 122, 255, 0.15);
         }
 
-        .audio-instruction {
+        .audio-instruction, .vocab-instruction, .speaking-instruction {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .audio-btn {
+            background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 15px 30px;
+            font-size: 1.6rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .audio-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3);
+        }
+
+        .audio-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-icon {
+            font-size: 1.4rem;
+        }
+
+        .play-count {
+            font-size: 1.4rem;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .audio-transcript {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            font-size: 1.6rem;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        /* Reading Section */
+        .reading-section {
+            margin-bottom: 30px;
+        }
+
+        .passage-box {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border: 2px solid rgba(0, 122, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+        }
+
+        .passage-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #007aff;
+            margin-bottom: 20px;
+        }
+
+        .passage-content {
+            font-size: 1.7rem;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        /* Vocabulary Matching */
+        .vocabulary-section {
+            margin-bottom: 30px;
+        }
+
+        .matching-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .terms-column h3, .definitions-column h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #007aff;
+        }
+
+        .term-item {
+            background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            color: white;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            cursor: grab;
+            font-size: 1.6rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .term-item:active {
+            cursor: grabbing;
+        }
+
+        .drop-zone {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px dashed rgba(0, 122, 255, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            min-height: 70px;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone:hover {
+            border-color: rgba(0, 122, 255, 0.6);
+            background: rgba(0, 122, 255, 0.05);
+        }
+
+        .definition-text {
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .dropped-term {
+            background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        /* Speaking/Recording Section */
+        .speaking-section {
+            background: linear-gradient(145deg, #f5f7fa 0%, #e8ecf1 100%);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(255, 59, 48, 0.15);
+        }
+
+        .recording-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .record-btn {
+            background: linear-gradient(135deg, #ff3b30 0%, #ff2d55 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 20px 40px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(255, 59, 48, 0.4);
+        }
+
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .recording-timer {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #ff3b30;
+            font-family: 'Courier New', monospace;
+        }
+
+        .recording-status {
             font-size: 1.6rem;
             color: #666;
-            margin-bottom: 15px;
+            font-weight: 600;
         }
 
-        .audio-preview {
-            font-size: 1.8rem;
-            font-style: italic;
-            color: #333;
-            line-height: 1.6;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 12px;
-            margin-bottom: 10px;
-        }
-
-        .audio-note {
-            font-size: 1.4rem;
-            color: #999;
-            font-style: italic;
-        }
-
+        /* Options */
         .options-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -159,7 +600,6 @@
 
         .option {
             background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 252, 255, 0.9) 100%);
-            backdrop-filter: blur(20px);
             border: 2px solid rgba(0, 122, 255, 0.2);
             border-radius: 16px;
             padding: 25px;
@@ -183,6 +623,7 @@
             box-shadow: 0 10px 35px rgba(0, 122, 255, 0.3);
         }
 
+        /* Input */
         .input-section {
             margin: 30px 0;
         }
@@ -203,6 +644,7 @@
             box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
         }
 
+        /* Submit */
         .submit-section {
             margin-top: 40px;
             text-align: center;
@@ -229,6 +671,12 @@
         .submit-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .matching-container {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </body>
