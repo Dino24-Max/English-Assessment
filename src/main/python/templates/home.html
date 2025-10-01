@@ -31,6 +31,15 @@
                     </div>
                 </div>
 
+                <!-- Time Limit Warning -->
+                <div class="time-warning-box">
+                    <div class="warning-icon">⏰</div>
+                    <div class="warning-content">
+                        <div class="warning-title">Important: Time Limit</div>
+                        <div class="warning-text">You have <strong>30 minutes</strong> to complete all 21 questions. The timer will start when you begin the assessment.</div>
+                    </div>
+                </div>
+
                 <div class="cta-section">
                     <a href="/question/1?operation={{ operation }}" class="start-btn">Begin Assessment</a>
                 </div>
@@ -91,5 +100,109 @@
             </div>
         </div>
     </div>
+
+    <style>
+        /* Time Warning Box */
+        .time-warning-box {
+            background: linear-gradient(135deg, rgba(255, 149, 0, 0.12) 0%, rgba(255, 59, 48, 0.08) 100%);
+            border: 2.5px solid rgba(255, 149, 0, 0.4);
+            border-radius: 28px;
+            padding: 28px 35px;
+            margin: 40px 0 35px 0;
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            box-shadow: 0 12px 35px rgba(255, 149, 0, 0.18),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .time-warning-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff9500 0%, #ff6b00 50%, #ff3b30 100%);
+            box-shadow: 0 0 20px rgba(255, 149, 0, 0.6);
+        }
+
+        .time-warning-box:hover {
+            border-color: rgba(255, 149, 0, 0.6);
+            box-shadow: 0 15px 40px rgba(255, 149, 0, 0.22),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            transform: translateY(-3px);
+        }
+
+        .warning-icon {
+            font-size: 5.5rem;
+            line-height: 1;
+            animation: pulse-warning 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            50% {
+                transform: scale(1.1);
+                filter: brightness(1.2);
+            }
+        }
+
+        .warning-content {
+            flex: 1;
+        }
+
+        .warning-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ff9500;
+            margin-bottom: 12px;
+            letter-spacing: 0.3px;
+        }
+
+        .warning-text {
+            font-size: 1.8rem;
+            color: rgba(0, 0, 0, 0.85);
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        .warning-text strong {
+            color: #ff3b30;
+            font-weight: 800;
+            font-size: 1.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .time-warning-box {
+                flex-direction: column;
+                text-align: center;
+                padding: 25px 20px;
+                margin: 30px 0 25px 0;
+            }
+
+            .warning-icon {
+                font-size: 4rem;
+            }
+
+            .warning-title {
+                font-size: 1.8rem;
+            }
+
+            .warning-text {
+                font-size: 1.5rem;
+            }
+
+            .warning-text strong {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
 </body>
 </html>
