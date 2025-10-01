@@ -169,7 +169,7 @@
             if (isPlaying) return;
 
             {% if question_data.audio_text %}
-            const text = "{{ question_data.audio_text }}";
+            const text = {{ question_data.audio_text|tojson }};
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 0.9;
             utterance.pitch = 1.0;
