@@ -50,9 +50,6 @@
                     </button>
                     <div class="play-count" id="playCount">Plays remaining: <span id="playsLeft">2</span>/2</div>
                 </div>
-                <div class="audio-transcript" id="transcript" style="display:none;">
-                    <strong>Transcript:</strong> "{{ question_data.audio_text }}"
-                </div>
             </div>
             {% endif %}
 
@@ -195,9 +192,6 @@
                 if (playsRemaining <= 0) {
                     document.getElementById('playBtn').disabled = true;
                     document.getElementById('playBtn').style.opacity = '0.5';
-                    {% if question_data.module == "listening" %}
-                    document.getElementById('transcript').style.display = 'block';
-                    {% endif %}
                 }
                 {% endif %}
             };
