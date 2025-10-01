@@ -289,8 +289,20 @@ async def results_page(request: Request):
         # For now, return template with placeholder data
 
         # Placeholder scores (would come from database)
-        total_score = 0
-        total_possible = 100
+        # TODO: Replace with actual scoring logic
+        # Demo scores to show passing result
+        modules = [
+            {"name": "Listening", "score": 10, "possible": 12, "icon": "🎧"},
+            {"name": "Time & Numbers", "score": 9, "possible": 12, "icon": "🔢"},
+            {"name": "Grammar", "score": 13, "possible": 16, "icon": "📝"},
+            {"name": "Vocabulary", "score": 26, "possible": 32, "icon": "📚"},
+            {"name": "Reading", "score": 19, "possible": 24, "icon": "📖"},
+            {"name": "Speaking", "score": 48, "possible": 60, "icon": "🎤"}
+        ]
+
+        # Calculate total score
+        total_score = sum(m["score"] for m in modules)
+        total_possible = sum(m["possible"] for m in modules)
         percentage = round((total_score / total_possible) * 100, 1)
 
         # Determine result status and gradient
@@ -300,16 +312,6 @@ async def results_page(request: Request):
         else:
             result_status = "❌ NOT PASSED"
             score_gradient = "linear-gradient(135deg, #ff3b30 0%, #ff453a 100%)"
-
-        # Module scores
-        modules = [
-            {"name": "Listening", "score": 0, "possible": 12, "icon": "🎧"},
-            {"name": "Time & Numbers", "score": 0, "possible": 12, "icon": "🔢"},
-            {"name": "Grammar", "score": 0, "possible": 16, "icon": "📝"},
-            {"name": "Vocabulary", "score": 0, "possible": 32, "icon": "📚"},
-            {"name": "Reading", "score": 0, "possible": 24, "icon": "📖"},
-            {"name": "Speaking", "score": 0, "possible": 60, "icon": "🎤"}
-        ]
 
         # Generate module HTML
         module_results = []
