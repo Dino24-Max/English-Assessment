@@ -288,34 +288,55 @@ async def results_page(request: Request):
         # In production, fetch actual results from database
         # For now, return template with placeholder data
 
-        # Placeholder results (would come from database)
-        results_data = {
-            "candidate_name": "John Doe",
-            "assessment_date": "2025-09-30",
-            "total_score": 0,
-            "total_possible": 100,
-            "passing_score": 65,
-            "passed": False,
-            "grade": "FAIL",
-            "module_scores": [
-                {"module": "Listening", "score": 0, "possible": 12},
-                {"module": "Time & Numbers", "score": 0, "possible": 12},
-                {"module": "Grammar", "score": 0, "possible": 16},
-                {"module": "Vocabulary", "score": 0, "possible": 32},
-                {"module": "Reading", "score": 0, "possible": 24},
-                {"module": "Speaking", "score": 0, "possible": 60}
-            ],
-            "recommendations": [
-                "Complete the assessment to see your results",
-                "Review all modules for accurate scoring"
-            ]
-        }
+        # Placeholder scores (would come from database)
+        total_score = 0
+        total_possible = 100
+        percentage = round((total_score / total_possible) * 100, 1)
+
+        # Determine result status and gradient
+        if percentage >= 65:
+            result_status = "✅ PASSED"
+            score_gradient = "linear-gradient(135deg, #34c759 0%, #30d158 100%)"
+        else:
+            result_status = "❌ NOT PASSED"
+            score_gradient = "linear-gradient(135deg, #ff3b30 0%, #ff453a 100%)"
+
+        # Module scores
+        modules = [
+            {"name": "Listening", "score": 0, "possible": 12, "icon": "🎧"},
+            {"name": "Time & Numbers", "score": 0, "possible": 12, "icon": "🔢"},
+            {"name": "Grammar", "score": 0, "possible": 16, "icon": "📝"},
+            {"name": "Vocabulary", "score": 0, "possible": 32, "icon": "📚"},
+            {"name": "Reading", "score": 0, "possible": 24, "icon": "📖"},
+            {"name": "Speaking", "score": 0, "possible": 60, "icon": "🎤"}
+        ]
+
+        # Generate module HTML
+        module_results = []
+        for module in modules:
+            module_percentage = round((module["score"] / module["possible"]) * 100, 1) if module["possible"] > 0 else 0
+            module_html = f'''
+            <div class="module-result-card">
+                <div class="module-header">
+                    <span class="module-icon">{module["icon"]}</span>
+                    <span class="module-name">{module["name"]}</span>
+                </div>
+                <div class="module-score">{module["score"]}/{module["possible"]}</div>
+                <div class="module-percentage">{module_percentage}%</div>
+            </div>
+            '''
+            module_results.append(module_html)
 
         return templates.TemplateResponse(
             "results.html",
             {
                 "request": request,
-                "results": results_data
+                "total_score": total_score,
+                "total_possible": total_possible,
+                "percentage": percentage,
+                "score_gradient": score_gradient,
+                "result_status": result_status,
+                "module_results": module_results
             }
         )
 
