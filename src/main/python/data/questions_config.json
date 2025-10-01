@@ -1,0 +1,180 @@
+{
+  "1": {
+    "module": "listening",
+    "question": "What time is the reservation?",
+    "audio_text": "Hello, I would like to book a table for four people at seven PM tonight, please.",
+    "options": ["6 PM", "7 PM", "8 PM", "4 PM"],
+    "correct": "7 PM",
+    "points": 5.33
+  },
+  "2": {
+    "module": "listening",
+    "question": "What is the room number?",
+    "audio_text": "Excuse me, the air conditioning is way too cold in room eight-two-five-four. Could you please send someone to fix it?",
+    "options": ["8245", "8254", "8524", "2548"],
+    "correct": "8254",
+    "points": 5.33
+  },
+  "3": {
+    "module": "listening",
+    "question": "What deck is the buffet restaurant on?",
+    "audio_text": "Excuse me, I am trying to find the buffet restaurant. Is it on deck twelve or deck fourteen? Yes sir, the buffet restaurant is on deck twelve. Just take the elevator up to deck twelve and turn right.",
+    "options": ["Deck 10", "Deck 12", "Deck 14", "Deck 16"],
+    "correct": "Deck 12",
+    "points": 5.34
+  },
+  "4": {
+    "module": "time_numbers",
+    "question": "What time does breakfast start?",
+    "audio_text": "Good morning! Breakfast is served from seven AM to ten-thirty AM daily in the main dining room.",
+    "correct": "7:00",
+    "points": 5.33
+  },
+  "5": {
+    "module": "time_numbers",
+    "question": "How many guests are in the reservation?",
+    "audio_text": "We need a table for eight people at six-thirty tonight. Can you accommodate us?",
+    "correct": "8",
+    "points": 5.33
+  },
+  "6": {
+    "module": "time_numbers",
+    "question": "What is the cabin number?",
+    "audio_text": "I am in cabin nine one seven three and my safe is not working properly. Could you send maintenance?",
+    "correct": "9173",
+    "points": 5.34
+  },
+  "7": {
+    "module": "grammar",
+    "question": "___ I help you with your luggage?",
+    "options": ["May", "Do", "Will", "Am"],
+    "correct": "May",
+    "points": 4
+  },
+  "8": {
+    "module": "grammar",
+    "question": "The guest ___ arrived at the port this morning.",
+    "options": ["have", "has", "had", "having"],
+    "correct": "has",
+    "points": 4
+  },
+  "9": {
+    "module": "grammar",
+    "question": "Could you please ___ me to the spa?",
+    "options": ["direct", "directing", "directed", "direction"],
+    "correct": "direct",
+    "points": 4
+  },
+  "10": {
+    "module": "grammar",
+    "question": "The restaurant is ___ the third deck.",
+    "options": ["in", "on", "at", "by"],
+    "correct": "on",
+    "points": 4
+  },
+  "11": {
+    "module": "vocabulary",
+    "question": "Match the cruise ship terms with their meanings:",
+    "terms": ["Bridge", "Gangway", "Tender", "Muster"],
+    "definitions": ["Ship's walkway to shore", "Emergency assembly", "Small boat for shore trips", "Ship's control center"],
+    "correct_matches": {
+      "Bridge": "Ship's control center",
+      "Gangway": "Ship's walkway to shore",
+      "Tender": "Small boat for shore trips",
+      "Muster": "Emergency assembly"
+    },
+    "points": 4
+  },
+  "12": {
+    "module": "vocabulary",
+    "question": "Match the hospitality terms:",
+    "terms": ["Concierge", "Amenities", "Excursion", "Embark"],
+    "definitions": ["To board the ship", "Guest services specialist", "Shore activities", "Hotel facilities"],
+    "correct_matches": {
+      "Concierge": "Guest services specialist",
+      "Amenities": "Hotel facilities",
+      "Excursion": "Shore activities",
+      "Embark": "To board the ship"
+    },
+    "points": 4
+  },
+  "13": {
+    "module": "vocabulary",
+    "question": "Match the dining terms:",
+    "terms": ["Buffet", "A la carte", "Galley", "Sommelier"],
+    "definitions": ["Wine expert", "Self-service dining", "Ship's kitchen", "Menu with individual prices"],
+    "correct_matches": {
+      "Buffet": "Self-service dining",
+      "A la carte": "Menu with individual prices",
+      "Galley": "Ship's kitchen",
+      "Sommelier": "Wine expert"
+    },
+    "points": 4
+  },
+  "14": {
+    "module": "vocabulary",
+    "question": "Match the safety terms:",
+    "terms": ["Muster drill", "Life jacket", "Assembly station", "All aboard"],
+    "definitions": ["Final boarding call", "Safety meeting", "Personal flotation device", "Emergency meeting point"],
+    "correct_matches": {
+      "Muster drill": "Safety meeting",
+      "Life jacket": "Personal flotation device",
+      "Assembly station": "Emergency meeting point",
+      "All aboard": "Final boarding call"
+    },
+    "points": 4
+  },
+  "15": {
+    "module": "reading",
+    "question": "What should guests do if they miss the ship's departure?",
+    "passage": "IMPORTANT NOTICE: Ship departures are strictly scheduled. Guests who miss departure must contact the Port Agent immediately. The ship cannot delay departure for individual passengers. Guests are responsible for reaching the next port independently and rejoining the cruise. Travel insurance is recommended to cover unexpected expenses.",
+    "options": ["Wait at the port", "Contact the Port Agent", "Call the cruise line", "Take a taxi to catch up"],
+    "correct": "Contact the Port Agent",
+    "points": 4
+  },
+  "16": {
+    "module": "reading",
+    "question": "What time does the casino close?",
+    "passage": "CASINO HOURS: Our casino operates daily with the following schedule: Sea Days: 8:00 AM - 2:00 AM | Port Days: 6:00 PM - 2:00 AM. Please note: Casino operations are subject to maritime laws and may be suspended while in territorial waters. Guests must be 21+ to gamble. Valid ID required.",
+    "options": ["12:00 AM", "1:00 AM", "2:00 AM", "3:00 AM"],
+    "correct": "2:00 AM",
+    "points": 4
+  },
+  "17": {
+    "module": "reading",
+    "question": "What is required for the specialty restaurant?",
+    "passage": "SPECIALTY DINING: Reservations required for all specialty restaurants. Cover charges apply: $25-$45 per person. Dress code: Smart casual after 6 PM (no shorts, flip-flops, or tank tops). Dietary restrictions can be accommodated with 24-hour advance notice. Children's menus available upon request.",
+    "options": ["Formal attire", "Reservations", "Advance payment", "Group booking"],
+    "correct": "Reservations",
+    "points": 4
+  },
+  "18": {
+    "module": "reading",
+    "question": "When is the muster drill scheduled?",
+    "passage": "SAFETY FIRST: All guests must participate in the mandatory muster drill before departure. Drill times: Embarkation Day at 4:00 PM. Listen for announcements and proceed to your assigned muster station. Attendance is required by maritime law. Life jackets are not required during the drill but muster station locations are posted in your stateroom.",
+    "options": ["3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    "correct": "4:00 PM",
+    "points": 4
+  },
+  "19": {
+    "module": "speaking",
+    "question": "A guest says: 'The air conditioning in my room is too cold.' Please respond appropriately.",
+    "expected_keywords": ["apologize", "sorry", "send someone", "fix", "adjust", "maintenance", "comfortable"],
+    "min_duration": 5,
+    "points": 6.67
+  },
+  "20": {
+    "module": "speaking",
+    "question": "A guest asks: 'What time does the buffet close?' Please provide a helpful response.",
+    "expected_keywords": ["buffet", "closes", "hours", "dining", "alternative", "room service", "restaurant"],
+    "min_duration": 5,
+    "points": 6.67
+  },
+  "21": {
+    "module": "speaking",
+    "question": "A guest is lost and asks: 'How do I get to the spa?' Give clear directions.",
+    "expected_keywords": ["elevator", "deck", "directions", "follow", "signs", "spa", "level", "floor"],
+    "min_duration": 5,
+    "points": 6.66
+  }
+}

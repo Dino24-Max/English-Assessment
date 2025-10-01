@@ -87,12 +87,12 @@ async def homepage(request: Request, operation: Optional[str] = None):
                 "total_points": 100,
                 "passing_score": 65,
                 "modules": [
-                    {"name": "Listening", "questions": 3, "points": 12},
-                    {"name": "Time & Numbers", "questions": 3, "points": 12},
+                    {"name": "Listening", "questions": 3, "points": 16},
+                    {"name": "Time & Numbers", "questions": 3, "points": 16},
                     {"name": "Grammar", "questions": 4, "points": 16},
-                    {"name": "Vocabulary", "questions": 4, "points": 32},
-                    {"name": "Reading", "questions": 4, "points": 24},
-                    {"name": "Speaking", "questions": 3, "points": 60}
+                    {"name": "Vocabulary", "questions": 4, "points": 16},
+                    {"name": "Reading", "questions": 4, "points": 16},
+                    {"name": "Speaking", "questions": 3, "points": 20}
                 ]
             }
         )
@@ -292,12 +292,12 @@ async def results_page(request: Request):
         # TODO: Replace with actual scoring logic
         # Demo scores to show passing result
         modules = [
-            {"name": "Listening", "score": 10, "possible": 12, "icon": "🎧"},
-            {"name": "Time & Numbers", "score": 9, "possible": 12, "icon": "🔢"},
-            {"name": "Grammar", "score": 13, "possible": 16, "icon": "📝"},
-            {"name": "Vocabulary", "score": 26, "possible": 32, "icon": "📚"},
-            {"name": "Reading", "score": 19, "possible": 24, "icon": "📖"},
-            {"name": "Speaking", "score": 48, "possible": 60, "icon": "🎤"}
+            {"name": "Listening", "score": 13, "possible": 16, "icon": "🎧"},
+            {"name": "Time & Numbers", "score": 12, "possible": 16, "icon": "🔢"},
+            {"name": "Grammar", "score": 14, "possible": 16, "icon": "📝"},
+            {"name": "Vocabulary", "score": 13, "possible": 16, "icon": "📚"},
+            {"name": "Reading", "score": 15, "possible": 16, "icon": "📖"},
+            {"name": "Speaking", "score": 16, "possible": 20, "icon": "🎤"}
         ]
 
         # Calculate total score
