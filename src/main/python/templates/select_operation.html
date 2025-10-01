@@ -15,7 +15,8 @@
             <div class="selection-header" style="text-align: center; margin-bottom: 80px;">
                 <h1 class="hero-title" style="margin-bottom: 30px;">Select Your Operation</h1>
                 <p class="hero-subtitle" style="font-size: 2.2rem; max-width: 900px;">
-                    Choose your department category to begin your English Assessment. Questions will be tailored to your operation area.
+                    Choose your department category to begin your English Assessment.<br>
+                    <span style="font-size: 1.8rem; opacity: 0.8;">Hover over each card to see included departments</span>
                 </p>
             </div>
 
@@ -28,12 +29,26 @@
                     <h2 class="operation-title" style="font-size: 3rem; font-weight: 800; color: #1a1a1a; margin-bottom: 20px; text-align: center;">
                         Hotel Operations
                     </h2>
-                    <p class="operation-description" style="font-size: 1.6rem; color: rgba(0,0,0,0.7); line-height: 1.6; text-align: center; margin-bottom: 25px;">
-                        Front Desk, Housekeeping, F&B Service, Bar, Guest Services, Cabin, Auxiliary, Laundry, Photo, Provisions
-                    </p>
-                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.4rem; color: rgba(0,0,0,0.65);">
+                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.6rem; color: rgba(0,0,0,0.7); margin-top: 25px;">
                         <span><strong>10</strong> Departments</span>
                         <span><strong>21</strong> Questions</span>
+                    </div>
+
+                    <!-- Hover Tooltip -->
+                    <div class="department-tooltip">
+                        <div class="tooltip-header">📋 Included Departments</div>
+                        <div class="tooltip-content">
+                            <div class="dept-item">🛎️ Front Desk / Guest Services</div>
+                            <div class="dept-item">🧹 Housekeeping</div>
+                            <div class="dept-item">🍽️ Food & Beverage Service</div>
+                            <div class="dept-item">👨‍🍳 Kitchen / Culinary</div>
+                            <div class="dept-item">🍹 Bar Service</div>
+                            <div class="dept-item">🎭 Entertainment</div>
+                            <div class="dept-item">💆 Spa & Wellness</div>
+                            <div class="dept-item">👶 Youth Staff</div>
+                            <div class="dept-item">🧺 Laundry Services</div>
+                            <div class="dept-item">📸 Photography</div>
+                        </div>
                     </div>
                 </a>
 
@@ -45,12 +60,19 @@
                     <h2 class="operation-title" style="font-size: 3rem; font-weight: 800; color: #1a1a1a; margin-bottom: 20px; text-align: center;">
                         Marine Operations
                     </h2>
-                    <p class="operation-description" style="font-size: 1.6rem; color: rgba(0,0,0,0.7); line-height: 1.6; text-align: center; margin-bottom: 25px;">
-                        Deck Department, Engine Department, Security Department
-                    </p>
-                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.4rem; color: rgba(0,0,0,0.65);">
+                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.6rem; color: rgba(0,0,0,0.7); margin-top: 25px;">
                         <span><strong>3</strong> Departments</span>
                         <span><strong>21</strong> Questions</span>
+                    </div>
+
+                    <!-- Hover Tooltip -->
+                    <div class="department-tooltip">
+                        <div class="tooltip-header">📋 Included Departments</div>
+                        <div class="tooltip-content">
+                            <div class="dept-item">🚢 Deck Department</div>
+                            <div class="dept-item">⚙️ Engine Department</div>
+                            <div class="dept-item">🛡️ Security Department</div>
+                        </div>
                     </div>
                 </a>
 
@@ -62,12 +84,19 @@
                     <h2 class="operation-title" style="font-size: 3rem; font-weight: 800; color: #1a1a1a; margin-bottom: 20px; text-align: center;">
                         Casino Operations
                     </h2>
-                    <p class="operation-description" style="font-size: 1.6rem; color: rgba(0,0,0,0.7); line-height: 1.6; text-align: center; margin-bottom: 25px;">
-                        Table Games, Slot Machines, Casino Services
-                    </p>
-                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.4rem; color: rgba(0,0,0,0.65);">
+                    <div class="operation-stats" style="display: flex; justify-content: center; gap: 30px; font-size: 1.6rem; color: rgba(0,0,0,0.7); margin-top: 25px;">
                         <span><strong>3</strong> Departments</span>
                         <span><strong>21</strong> Questions</span>
+                    </div>
+
+                    <!-- Hover Tooltip -->
+                    <div class="department-tooltip">
+                        <div class="tooltip-header">📋 Included Departments</div>
+                        <div class="tooltip-content">
+                            <div class="dept-item">🎲 Table Games</div>
+                            <div class="dept-item">🎰 Slot Machines</div>
+                            <div class="dept-item">💼 Casino Services</div>
+                        </div>
                     </div>
                 </a>
             </div>
@@ -86,7 +115,7 @@
                         0 0 0 1px rgba(0, 122, 255, 0.1),
                         inset 0 1px 0 rgba(255, 255, 255, 0.85);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             display: block;
         }
@@ -100,6 +129,7 @@
             height: 5px;
             background: linear-gradient(90deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
             box-shadow: 0 0 25px rgba(0, 122, 255, 0.6), 0 0 15px rgba(255, 0, 0, 0.3);
+            border-radius: 44px 44px 0 0;
         }
 
         .operation-card:hover {
@@ -130,11 +160,117 @@
             background-clip: text;
         }
 
+        /* Department Tooltip Styles */
+        .department-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 252, 255, 0.96) 100%);
+            backdrop-filter: blur(30px) saturate(150%);
+            border: 2.5px solid rgba(0, 122, 255, 0.35);
+            border-radius: 28px;
+            padding: 25px 30px;
+            box-shadow: 0 20px 60px rgba(0, 122, 255, 0.25),
+                        0 8px 25px rgba(0, 0, 0, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 1000;
+            min-width: 350px;
+            margin-bottom: 15px;
+        }
+
+        .department-tooltip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
+            border-radius: 28px 28px 0 0;
+            box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
+        }
+
+        .department-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 12px solid rgba(250, 252, 255, 0.96);
+            filter: drop-shadow(0 4px 8px rgba(0, 122, 255, 0.2));
+        }
+
+        .operation-card:hover .department-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-10px);
+        }
+
+        .tooltip-header {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #007aff;
+            margin-bottom: 18px;
+            text-align: center;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(0, 122, 255, 0.2);
+        }
+
+        .tooltip-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .dept-item {
+            font-size: 1.5rem;
+            color: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.05) 100%);
+            border-radius: 12px;
+            border: 1.5px solid rgba(0, 122, 255, 0.15);
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .dept-item:hover {
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(88, 86, 214, 0.1) 100%);
+            border-color: rgba(0, 122, 255, 0.3);
+            transform: translateX(5px);
+        }
+
         @media (max-width: 1400px) {
             .operations-grid {
                 grid-template-columns: 1fr !important;
                 gap: 40px !important;
                 max-width: 700px !important;
+            }
+
+            .department-tooltip {
+                bottom: auto;
+                top: 100%;
+                margin-top: 15px;
+                margin-bottom: 0;
+            }
+
+            .department-tooltip::after {
+                bottom: auto;
+                top: -12px;
+                border-top: none;
+                border-bottom: 12px solid rgba(250, 252, 255, 0.96);
+            }
+
+            .operation-card:hover .department-tooltip {
+                transform: translateX(-50%) translateY(10px);
             }
         }
 
@@ -145,6 +281,10 @@
 
             .selection-header p {
                 font-size: 1.6rem !important;
+            }
+
+            .selection-header p span {
+                font-size: 1.3rem !important;
             }
 
             .operation-card {
@@ -159,12 +299,22 @@
                 font-size: 2rem !important;
             }
 
-            .operation-description {
+            .operation-stats {
                 font-size: 1.2rem !important;
             }
 
-            .operation-stats {
-                font-size: 1.1rem !important;
+            .department-tooltip {
+                min-width: 280px;
+                padding: 20px 22px;
+            }
+
+            .tooltip-header {
+                font-size: 1.5rem;
+            }
+
+            .dept-item {
+                font-size: 1.2rem;
+                padding: 8px 12px;
             }
         }
     </style>
