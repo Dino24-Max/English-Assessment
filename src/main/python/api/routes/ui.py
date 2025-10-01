@@ -316,7 +316,7 @@ async def results_page(request: Request):
         for module in modules:
             module_percentage = round((module["score"] / module["possible"]) * 100, 1) if module["possible"] > 0 else 0
             module_html = f'''
-            <div class="module-result-card">
+            <div class="module-card">
                 <div class="module-header">
                     <span class="module-icon">{module["icon"]}</span>
                     <span class="module-name">{module["name"]}</span>
