@@ -189,14 +189,20 @@ async def question_page(request: Request, question_num: int, operation: Optional
         next_question = question_num + 1 if not is_last_question else None
         previous_question = question_num - 1 if question_num > 1 else None
 
-        # Prepare context
+        # Prepare context - match template variable names
         context = {
             "request": request,
-            "question_num": question_num,
+            "q_num": question_num,  # Template expects q_num
+            "question_num": question_num,  # Keep for backward compatibility
             "total_questions": 21,
-            "progress_percent": progress_percent,
+            "progress": progress_percent,  # Template expects progress
+            "progress_percent": progress_percent,  # Keep for backward compatibility
             "question_data": question_data,
             "module": question_data.get("module"),
+            "module_display": question_data.get("module", "Unknown"),  # Template expects module_display
+            "points": question_data.get("points", 0),  # Template expects points
+            "content": question_data.get("content", ""),  # Template expects content
+            "script": question_data.get("script", ""),  # Template expects script
             "is_last_question": is_last_question,
             "next_question": next_question,
             "previous_question": previous_question,
