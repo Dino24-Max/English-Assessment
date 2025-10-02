@@ -224,6 +224,7 @@ async def submit_answer(
     request: Request,
     question_num: int = Form(...),
     answer: str = Form(...),
+    operation: Optional[str] = Form(None),
     time_spent: Optional[int] = Form(None)
 ):
     """
@@ -232,6 +233,7 @@ async def submit_answer(
     Args:
         question_num: Question number
         answer: User's answer
+        operation: Operation type (HOTEL, MARINE, CASINO) - optional
         time_spent: Time spent on question in seconds (optional)
 
     Returns:
@@ -263,9 +265,12 @@ async def submit_answer(
             # Last question - redirect to results
             return RedirectResponse(url="/results", status_code=303)
         else:
-            # Go to next question
+            # Go to next question, preserve operation parameter if present
             next_question = question_num + 1
-            return RedirectResponse(url=f"/question/{next_question}", status_code=303)
+            if operation:
+                return RedirectResponse(url=f"/question/{next_question}?operation={operation}", status_code=303)
+            else:
+                return RedirectResponse(url=f"/question/{next_question}", status_code=303)
 
     except HTTPException:
         raise
