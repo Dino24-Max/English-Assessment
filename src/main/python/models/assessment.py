@@ -87,7 +87,7 @@ class Question(BaseModel):
     points = Column(Integer, nullable=False)
 
     # Question specific data
-    metadata = Column(JSON, nullable=True)  # Additional question-specific data
+    question_metadata = Column(JSON, nullable=True)  # Additional question-specific data (renamed from 'metadata' to avoid SQLAlchemy reserved word)
 
 
 class Assessment(BaseModel):

@@ -14,18 +14,22 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Cruise Employee English Assessment Platform"
     VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
-    # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    # Security - REQUIRED environment variables (no defaults for security)
+    SECRET_KEY: str  # Must be set via environment variable
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:8000"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:8000", "http://127.0.0.1:8080"]
 
-    # Database
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/english_assessment"
-    SQLALCHEMY_DATABASE_URL: str = DATABASE_URL
+    # Database - REQUIRED environment variable (no default for security)
+    DATABASE_URL: str  # Must be set via environment variable
+
+    @property
+    def SQLALCHEMY_DATABASE_URL(self) -> str:
+        """Return database URL for SQLAlchemy"""
+        return self.DATABASE_URL
 
     # AI Services
     OPENAI_API_KEY: str = ""
@@ -57,7 +61,7 @@ class Settings(BaseSettings):
     SESSION_COOKIE_NAME: str = "assessment_session_id"
     SESSION_TIMEOUT_SECONDS: int = 14400  # 4 hours
     SESSION_WARNING_SECONDS: int = 300  # 5 minutes
-    SESSION_SECURE_COOKIE: bool = False  # Set True in production with HTTPS
+    SESSION_SECURE_COOKIE: bool = os.getenv("SESSION_SECURE_COOKIE", "false").lower() == "true"
     SESSION_ROTATION_INTERVAL: int = 1800  # 30 minutes
 
     # Celery (for background tasks)
@@ -67,7 +71,7 @@ class Settings(BaseSettings):
     # Security Settings
     CSRF_ENABLED: bool = True
     CSRF_TOKEN_LENGTH: int = 32
-    CSRF_COOKIE_SECURE: bool = False  # Set True in production with HTTPS
+    CSRF_COOKIE_SECURE: bool = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
 
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: int = 100  # requests per window
@@ -81,9 +85,13 @@ class Settings(BaseSettings):
     SECURITY_HEADERS_ENABLED: bool = True
     INPUT_VALIDATION_ENABLED: bool = True
 
+    # Admin API Key for question bank management
+    ADMIN_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra environment variables
 
 
 # Create settings instance

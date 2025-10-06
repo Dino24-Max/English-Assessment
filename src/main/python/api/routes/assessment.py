@@ -9,9 +9,11 @@ from sqlalchemy import select, and_
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
+import os
 
 from core.database import get_db
 from core.assessment_engine import AssessmentEngine
+from core.config import settings
 from models.assessment import User, Assessment, DivisionType, AssessmentStatus, AssessmentResponse, Question
 from data.question_bank_loader import QuestionBankLoader
 from services.ai_service import AIService
@@ -330,7 +332,12 @@ async def load_question_bank(
 ):
     """Load question bank (admin only)"""
 
-    if admin_key != "admin123":  # In production, use proper authentication
+    # Verify admin key from environment variable
+    expected_admin_key = os.getenv("ADMIN_API_KEY")
+    if not expected_admin_key:
+        raise HTTPException(status_code=500, detail="Admin authentication not configured")
+
+    if admin_key != expected_admin_key:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     try:

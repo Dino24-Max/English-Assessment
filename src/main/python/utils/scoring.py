@@ -13,7 +13,8 @@ from core.config import settings
 class ScoringEngine:
     """Handles assessment scoring logic"""
 
-    def __init__(self):
+    def __init__(self, db: AsyncSession = None):
+        self.db = db
         self.module_max_points = {
             "listening": 16,
             "time_numbers": 16,
@@ -76,11 +77,26 @@ class ScoringEngine:
 
         return scores
 
-    def _get_module_from_question_id(self, question_id: int) -> ModuleType:
-        """Get module type from question ID - simplified for demo"""
-        # In a real implementation, this would query the database
-        # For now, return a default
-        return ModuleType.LISTENING
+    async def _get_module_from_question_id(self, question_id: int) -> ModuleType:
+        """Get module type from question ID by querying database"""
+        if not self.db:
+            # Fallback if no database session provided
+            return ModuleType.LISTENING
+
+        try:
+            # Query database for question's module type
+            stmt = select(Question.module_type).where(Question.id == question_id)
+            result = await self.db.execute(stmt)
+            module_type = result.scalar_one_or_none()
+
+            if module_type:
+                return module_type
+            else:
+                # Default if question not found
+                return ModuleType.LISTENING
+        except Exception:
+            # Fallback on error
+            return ModuleType.LISTENING
 
     def calculate_module_score(self, responses: List[AssessmentResponse], module: str) -> float:
         """Calculate score for specific module"""

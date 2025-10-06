@@ -5,6 +5,7 @@ Main FastAPI application entry point
 
 import os
 import uvicorn
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,8 +46,16 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Static files
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    # Static files - Ensure directories exist
+    python_src_dir = Path(__file__).parent
+    static_dir = python_src_dir / "static"
+    static_dir.mkdir(exist_ok=True)
+    (static_dir / "css").mkdir(exist_ok=True)
+    (static_dir / "js").mkdir(exist_ok=True)
+    (static_dir / "audio").mkdir(exist_ok=True)
+    (static_dir / "images").mkdir(exist_ok=True)
+
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     # UI routes (frontend pages)
     app.include_router(ui.router, tags=["UI"])
@@ -79,6 +88,16 @@ def create_app() -> FastAPI:
 app = create_app()
 
 if __name__ == "__main__":
+    print("=" * 60)
+    print("Cruise Employee English Assessment Platform")
+    print("=" * 60)
+    print(f"Server running at: http://{settings.HOST}:{settings.PORT}")
+    print(f"Health check: http://{settings.HOST}:{settings.PORT}/health")
+    print(f"API docs: http://{settings.HOST}:{settings.PORT}/docs")
+    print(f"Debug mode: {settings.DEBUG}")
+    print("=" * 60)
+    print("\nPress CTRL+C to stop the server\n")
+
     uvicorn.run(
         "main:app",
         host=settings.HOST,

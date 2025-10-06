@@ -253,12 +253,14 @@ async def submit_answer(
 
         question_data = questions[question_key]
 
-        # Store answer in session or database
-        # For now, this is a placeholder - in production, store in database
-        # In a real implementation, you would:
-        # 1. Get assessment_id from session
-        # 2. Store answer in database via AssessmentEngine
-        # 3. Calculate score
+        # TODO SPRINT 2: Implement database persistence
+        # Current status: Answers stored in session only (not persisted to database)
+        # Required implementation:
+        # 1. Get or create assessment_id from session
+        # 2. Store answer in database via AssessmentEngine.submit_response()
+        # 3. Calculate score using ScoringEngine
+        # 4. Update Assessment record with progress
+        # Priority: HIGH - Required for production deployment
 
         # Determine next action
         if question_num == 21:
