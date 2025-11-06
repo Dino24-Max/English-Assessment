@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speaking Question - CCL English Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/assessment.css">
+    <style>
+        .recording-interface {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .question-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .question-type {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .scenario-box {
+            background: #f5f7ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .scenario-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .scenario-text {
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .recorder-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .recorder-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin: 0 auto 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .recorder-button.idle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .recorder-button.recording {
+            background: #e53935;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .recorder-button.recorded {
+            background: #4caf50;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 10px 30px rgba(229, 57, 53, 0.4);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 15px 40px rgba(229, 57, 53, 0.6);
+            }
+        }
+
+        .recorder-status {
+            font-size: 18px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .recorder-timer {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+            font-family: 'SF Mono', 'Monaco', monospace;
+        }
+
+        .audio-playback {
+            display: none;
+            margin: 20px 0;
+        }
+
+        .audio-playback audio {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .instructions {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .instructions-title {
+            font-weight: 600;
+            color: #f57c00;
+            margin-bottom: 8px;
+        }
+
+        .instructions-text {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f7ff;
+        }
+
+        .permission-warning {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .recording-interface {
+                padding: 30px 20px;
+            }
+
+            .question-text {
+                font-size: 20px;
+            }
+
+            .recorder-button {
+                width: 100px;
+                height: 100px;
+                font-size: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="recording-interface">
+        <div class="question-header">
+            <div class="question-type">🎤 Speaking Question</div>
+            <div class="question-text" id="question-text">{{ question.question_text }}</div>
+        </div>
+
+        <div class="scenario-box">
+            <div class="scenario-title">Scenario:</div>
+            <div class="scenario-text" id="scenario-text">{{ question.scenario | default('Please respond to the situation described in the question.') }}</div>
+        </div>
+
+        <div class="instructions">
+            <div class="instructions-title">Recording Instructions:</div>
+            <div class="instructions-text">
+                1. Click the microphone button to start recording<br>
+                2. Speak clearly and naturally (maximum 20 seconds)<br>
+                3. Click again to stop recording<br>
+                4. Listen to your recording and re-record if needed<br>
+                5. Click "Submit Answer" when satisfied
+            </div>
+        </div>
+
+        <div class="permission-warning" id="permission-warning">
+            Microphone permission denied. Please allow microphone access to record your answer.
+        </div>
+
+        <div class="recorder-container">
+            <button id="recorder-button" class="recorder-button idle" onclick="toggleRecording()">
+                🎤
+            </button>
+            <div class="recorder-status" id="recorder-status">Click to start recording</div>
+            <div class="recorder-timer" id="recorder-timer">00:00</div>
+        </div>
+
+        <div class="audio-playback" id="audio-playback">
+            <audio id="audio-player" controls></audio>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="resetRecording()" id="reset-btn" disabled>🔄 Re-record</button>
+            <button class="btn btn-primary" onclick="submitAnswer()" id="submit-btn" disabled>Submit Answer →</button>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStartTime;
+        let timerInterval;
+        let recordedBlob;
+        const MAX_RECORDING_TIME = 20000; // 20 seconds in milliseconds
+
+        // Check microphone permission on page load
+        window.addEventListener('load', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop()); // Stop immediately after checking
+            } catch (error) {
+                document.getElementById('permission-warning').style.display = 'block';
+                document.getElementById('recorder-button').disabled = true;
+            }
+        });
+
+        async function toggleRecording() {
+            const button = document.getElementById('recorder-button');
+            const status = document.getElementById('recorder-status');
+
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                // Start recording
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        recordedBlob = audioBlob;
+                        const audioUrl = URL.createObjectURL(audioBlob);
+
+                        const audioPlayer = document.getElementById('audio-player');
+                        audioPlayer.src = audioUrl;
+                        document.getElementById('audio-playback').style.display = 'block';
+
+                        button.className = 'recorder-button recorded';
+                        button.textContent = '✓';
+                        status.textContent = 'Recording complete';
+
+                        document.getElementById('reset-btn').disabled = false;
+                        document.getElementById('submit-btn').disabled = false;
+
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    recordingStartTime = Date.now();
+
+                    button.className = 'recorder-button recording';
+                    button.textContent = '⏸';
+                    status.textContent = 'Recording in progress...';
+
+                    // Start timer
+                    startTimer();
+
+                    // Auto-stop after max time
+                    setTimeout(() => {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            stopRecording();
+                        }
+                    }, MAX_RECORDING_TIME);
+
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    document.getElementById('permission-warning').style.display = 'block';
+                }
+            } else {
+                // Stop recording
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                clearInterval(timerInterval);
+            }
+        }
+
+        function startTimer() {
+            const timerDisplay = document.getElementById('recorder-timer');
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - recordingStartTime;
+                const seconds = Math.floor(elapsed / 1000);
+                const milliseconds = Math.floor((elapsed % 1000) / 10);
+
+                timerDisplay.textContent =
+                    `${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
+            }, 10);
+        }
+
+        function resetRecording() {
+            // Reset UI
+            const button = document.getElementById('recorder-button');
+            const status = document.getElementById('recorder-status');
+            const timer = document.getElementById('recorder-timer');
+
+            button.className = 'recorder-button idle';
+            button.textContent = '🎤';
+            status.textContent = 'Click to start recording';
+            timer.textContent = '00:00';
+
+            document.getElementById('audio-playback').style.display = 'none';
+            document.getElementById('reset-btn').disabled = true;
+            document.getElementById('submit-btn').disabled = true;
+
+            // Clear recorded data
+            recordedBlob = null;
+            audioChunks = [];
+        }
+
+        async function submitAnswer() {
+            if (!recordedBlob) {
+                alert('Please record your answer first.');
+                return;
+            }
+
+            // Disable buttons during submission
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('submit-btn').textContent = 'Submitting...';
+
+            try {
+                // Create form data
+                const formData = new FormData();
+                formData.append('audio_file', recordedBlob, 'recording.wav');
+                formData.append('question_num', {{ question_num }});
+                formData.append('question_id', {{ question.id }});
+
+                // Submit to server
+                const response = await fetch('/api/v1/assessment/{{ assessment_id }}/speaking', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Move to next question
+                    window.location.href = '/question/{{ next_question }}?operation={{ operation }}';
+                } else {
+                    const error = await response.json();
+                    alert('Error submitting answer: ' + (error.detail || 'Unknown error'));
+                    document.getElementById('submit-btn').disabled = false;
+                    document.getElementById('submit-btn').textContent = 'Submit Answer →';
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                alert('Network error. Please check your connection and try again.');
+                document.getElementById('submit-btn').disabled = false;
+                document.getElementById('submit-btn').textContent = 'Submit Answer →';
+            }
+        }
+
+        // Prevent accidental page navigation
+        window.addEventListener('beforeunload', (e) => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                e.preventDefault();
+                e.returnValue = 'Recording in progress. Are you sure you want to leave?';
+            }
+        });
+    </script>
+</body>
+</html>

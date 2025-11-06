@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - CCL English Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/assessment.css">
+    <style>
+        .registration-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .registration-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .registration-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .registration-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .registration-subtitle {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .form-label .required {
+            color: #e53935;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-family: 'SF Pro Display', sans-serif;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .info-box {
+            background: #f5f7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .registration-card {
+                padding: 30px 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .registration-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-container">
+        <div class="registration-card">
+            <div class="registration-header">
+                <h1 class="registration-title">Register for Assessment</h1>
+                <p class="registration-subtitle">Complete your profile to begin the English assessment</p>
+            </div>
+
+            <div class="info-box">
+                <p>All fields marked with <span class="required">*</span> are required. Your information will be used to generate your assessment certificate upon successful completion.</p>
+            </div>
+
+            <div id="error-message" class="error-message"></div>
+
+            <form id="registration-form" action="/api/v1/assessment/register" method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="first_name">First Name <span class="required">*</span></label>
+                        <input type="text" id="first_name" name="first_name" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="last_name">Last Name <span class="required">*</span></label>
+                        <input type="text" id="last_name" name="last_name" class="form-input" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="nationality">Nationality <span class="required">*</span></label>
+                    <input type="text" id="nationality" name="nationality" class="form-input" required placeholder="e.g., USA, Mexico, Philippines">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="division">Division <span class="required">*</span></label>
+                    <select id="division" name="division" class="form-select" required>
+                        <option value="">Select Division...</option>
+                        <option value="hotel">Hotel Operations</option>
+                        <option value="marine">Marine Operations</option>
+                        <option value="casino">Casino Operations</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="department">Department <span class="required">*</span></label>
+                    <select id="department" name="department" class="form-select" required>
+                        <option value="">Select Department...</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="submit-btn">Register & Start Assessment</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Department options by division
+        const departments = {
+            hotel: [
+                'Front Desk',
+                'Housekeeping',
+                'Food & Beverage',
+                'Bar Service',
+                'Guest Services',
+                'Cabin Service',
+                'Auxiliary Service',
+                'Laundry'
+            ],
+            marine: [
+                'Navigation',
+                'Engineering',
+                'Safety & Security'
+            ],
+            casino: [
+                'Gaming Floor',
+                'Cage Operations',
+                'Surveillance'
+            ]
+        };
+
+        // Update department dropdown when division changes
+        document.getElementById('division').addEventListener('change', function() {
+            const divisionValue = this.value;
+            const departmentSelect = document.getElementById('department');
+
+            // Clear existing options
+            departmentSelect.innerHTML = '<option value="">Select Department...</option>';
+
+            // Add new options
+            if (divisionValue && departments[divisionValue]) {
+                departments[divisionValue].forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    departmentSelect.appendChild(option);
+                });
+            }
+        });
+
+        // Form submission with validation
+        document.getElementById('registration-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.style.display = 'none';
+
+            // Get form data
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch('/api/v1/assessment/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(Object.fromEntries(formData))
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store user_id in session/local storage
+                    localStorage.setItem('user_id', data.user_id);
+
+                    // Redirect to division selection or assessment start
+                    const division = formData.get('division');
+                    window.location.href = `/select-operation`;
+                } else {
+                    errorMessage.textContent = data.detail || 'Registration failed. Please try again.';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An error occurred. Please check your connection and try again.';
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        // Input validation feedback
+        const inputs = document.querySelectorAll('.form-input, .form-select');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.value.trim() === '' && this.hasAttribute('required')) {
+                    this.style.borderColor = '#e53935';
+                } else {
+                    this.style.borderColor = '#e0e0e0';
+                }
+            });
+
+            input.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    this.style.borderColor = '#4caf50';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
