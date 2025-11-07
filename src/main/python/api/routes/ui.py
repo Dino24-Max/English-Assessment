@@ -722,7 +722,7 @@ async def registration_page(request: Request):
         }
 
         return templates.TemplateResponse(
-            "register.html",
+            "registration.html",
             {
                 "request": request,
                 "divisions": divisions_data
