@@ -250,73 +250,13 @@
                     <input type="text" id="nationality" name="nationality" class="form-input" required placeholder="e.g., USA, Mexico, Philippines">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="division">Division <span class="required">*</span></label>
-                    <select id="division" name="division" class="form-select" required>
-                        <option value="">Select Division...</option>
-                        <option value="hotel">Hotel Operations</option>
-                        <option value="marine">Marine Operations</option>
-                        <option value="casino">Casino Operations</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="department">Department <span class="required">*</span></label>
-                    <select id="department" name="department" class="form-select" required>
-                        <option value="">Select Department...</option>
-                    </select>
-                </div>
-
-                <button type="submit" class="submit-btn">Register & Start Assessment</button>
+                <button type="submit" class="submit-btn">Continue to Assessment</button>
             </form>
         </div>
     </div>
 
     <script>
-        // Department options by division (matches backend data)
-        const departments = {
-            hotel: [
-                'Front Desk / Guest Services',
-                'Housekeeping',
-                'Food & Beverage Service',
-                'Kitchen / Culinary',
-                'Bar Service',
-                'Entertainment',
-                'Spa & Wellness',
-                'Youth Staff'
-            ],
-            marine: [
-                'Deck Department',
-                'Engine Department',
-                'Technical Services'
-            ],
-            casino: [
-                'Gaming Tables',
-                'Slot Machines',
-                'Casino Administration'
-            ]
-        };
-
-        // Update department dropdown when division changes
-        document.getElementById('division').addEventListener('change', function() {
-            const divisionValue = this.value;
-            const departmentSelect = document.getElementById('department');
-
-            // Clear existing options
-            departmentSelect.innerHTML = '<option value="">Select Department...</option>';
-
-            // Add new options
-            if (divisionValue && departments[divisionValue]) {
-                departments[divisionValue].forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    option.textContent = dept;
-                    departmentSelect.appendChild(option);
-                });
-            }
-        });
-
-        // Form submission with validation
+        // Form submission - simplified without division/department
         document.getElementById('registration-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -326,13 +266,23 @@
             // Get form data
             const formData = new FormData(this);
 
+            // Add default division and department (will be selected on next page)
+            const registrationData = {
+                first_name: formData.get('first_name'),
+                last_name: formData.get('last_name'),
+                email: formData.get('email'),
+                nationality: formData.get('nationality'),
+                division: 'hotel',  // Default value, will be updated on select-operation page
+                department: 'Front Desk / Guest Services'  // Default value
+            };
+
             try {
                 const response = await fetch('/api/v1/assessment/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(Object.fromEntries(formData))
+                    body: JSON.stringify(registrationData)
                 });
 
                 const data = await response.json();
@@ -341,8 +291,7 @@
                     // Store user_id in session/local storage
                     localStorage.setItem('user_id', data.user_id);
 
-                    // Redirect to division selection or assessment start
-                    const division = formData.get('division');
+                    // Redirect to operation selection page
                     window.location.href = `/select-operation`;
                 } else {
                     errorMessage.textContent = data.detail || 'Registration failed. Please try again.';
