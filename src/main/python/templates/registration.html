@@ -7,137 +7,208 @@
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/assessment.css">
     <style>
+        /* Override body background for registration page */
+        body {
+            background: url('/static/images/homepage-background.png') center center / cover no-repeat fixed;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+
+        /* Same backdrop filter as homepage */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 248, 255, 0.65) 50%, rgba(255, 245, 245, 0.7) 100%);
+            backdrop-filter: blur(5px) saturate(115%) brightness(1.03);
+            -webkit-backdrop-filter: blur(5px) saturate(115%) brightness(1.03);
+            z-index: 0;
+            pointer-events: none;
+        }
+
         .registration-container {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
         }
 
         .registration-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15),
+                        0 8px 25px rgba(0, 122, 255, 0.1);
+            max-width: 700px;
             width: 100%;
-            padding: 40px;
+            padding: 50px 60px;
+            border: 2px solid rgba(0, 122, 255, 0.15);
+            position: relative;
+            z-index: 10;
+            transform: scale(1);
         }
 
         .registration-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 35px;
         }
 
         .registration-title {
-            font-size: 32px;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 10px;
+            font-size: 3.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
         }
 
         .registration-subtitle {
-            font-size: 16px;
-            color: #666;
+            font-size: 1.6rem;
+            color: rgba(0, 0, 0, 0.65);
+            font-weight: 500;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .form-label {
             display: block;
-            font-size: 14px;
+            font-size: 1.5rem;
             font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
+            color: #1a1a1a;
+            margin-bottom: 10px;
         }
 
         .form-label .required {
-            color: #e53935;
+            color: #ff3b30;
+            font-weight: 700;
         }
 
         .form-input, .form-select {
             width: 100%;
-            padding: 12px 16px;
-            font-size: 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            padding: 15px 20px;
+            font-size: 1.6rem;
+            border: 2.5px solid rgba(0, 122, 255, 0.25);
+            border-radius: 14px;
             transition: all 0.3s ease;
             font-family: 'SF Pro Display', sans-serif;
+            background: rgba(255, 255, 255, 0.95);
+            color: #1a1a1a;
         }
 
         .form-input:focus, .form-select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #007aff;
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
+            background: rgba(255, 255, 255, 1);
         }
 
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 20px;
         }
 
         .submit-btn {
             width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 18px 30px;
+            background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
             color: white;
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 1.9rem;
+            font-weight: 700;
             border: none;
-            border-radius: 12px;
+            border-radius: 16px;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 10px;
+            margin-top: 15px;
+            box-shadow: 0 10px 30px rgba(0, 122, 255, 0.3);
+            letter-spacing: 0.3px;
         }
 
         .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 122, 255, 0.4);
         }
 
         .submit-btn:active {
-            transform: translateY(0);
+            transform: translateY(-1px);
         }
 
         .info-box {
-            background: #f5f7ff;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.06) 100%);
+            border-left: 4px solid #007aff;
+            padding: 18px 22px;
+            border-radius: 12px;
+            margin-bottom: 28px;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.08);
         }
 
         .info-box p {
             margin: 0;
-            color: #555;
-            font-size: 14px;
-            line-height: 1.6;
+            color: rgba(0, 0, 0, 0.75);
+            font-size: 1.4rem;
+            line-height: 1.7;
+            font-weight: 500;
         }
 
         .error-message {
-            background: #ffebee;
+            background: rgba(255, 59, 48, 0.1);
+            border-left: 4px solid #ff3b30;
             color: #c62828;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 15px 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
             display: none;
+            font-size: 1.5rem;
+            font-weight: 600;
         }
 
         @media (max-width: 768px) {
             .registration-card {
-                padding: 30px 20px;
+                padding: 35px 25px;
+                border-radius: 24px;
+            }
+
+            .registration-title {
+                font-size: 2.4rem;
+            }
+
+            .registration-subtitle {
+                font-size: 1.3rem;
             }
 
             .form-row {
                 grid-template-columns: 1fr;
             }
 
-            .registration-title {
-                font-size: 24px;
+            .form-input, .form-select {
+                font-size: 1.4rem;
+                padding: 13px 16px;
+            }
+
+            .form-label {
+                font-size: 1.3rem;
+            }
+
+            .submit-btn {
+                font-size: 1.6rem;
+                padding: 16px 24px;
+            }
+
+            .info-box p {
+                font-size: 1.2rem;
             }
         }
     </style>
@@ -288,15 +359,15 @@
         inputs.forEach(input => {
             input.addEventListener('blur', function() {
                 if (this.value.trim() === '' && this.hasAttribute('required')) {
-                    this.style.borderColor = '#e53935';
+                    this.style.borderColor = '#ff3b30';
                 } else {
-                    this.style.borderColor = '#e0e0e0';
+                    this.style.borderColor = 'rgba(0, 122, 255, 0.25)';
                 }
             });
 
             input.addEventListener('input', function() {
                 if (this.value.trim() !== '') {
-                    this.style.borderColor = '#4caf50';
+                    this.style.borderColor = '#34c759';
                 }
             });
         });
