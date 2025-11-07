@@ -495,9 +495,14 @@ async def anti_cheating_report_page(request: Request):
     - Session details
     """
     try:
-        # Get assessment ID from session
-        session = request.session
-        assessment_id = session.get("assessment_id")
+        # Get assessment ID from session (if available)
+        assessment_id = None
+        try:
+            session = request.session
+            assessment_id = session.get("assessment_id")
+        except Exception:
+            # No session available, use demo data
+            pass
 
         # Default values
         suspicious_score = 0
@@ -553,6 +558,61 @@ async def anti_cheating_report_page(request: Request):
             except Exception as e:
                 print(f"Error fetching anti-cheating data: {e}")
                 # Use default values
+
+        # Check if demo mode is requested
+        demo_mode = request.query_params.get("demo")
+
+        # Demo data for testing (if no real assessment data)
+        if demo_mode == "clean" or (not assessment_id and not demo_mode):
+            # Clean demo - no suspicious activity
+            suspicious_score = 0
+            risk_level = "clean"
+            tab_switches = 0
+            copy_paste_attempts = 0
+            ip_changed = False
+            ua_changed = False
+            risk_factors = []
+            session_start_time = "2025-11-07 10:00:00"
+        elif demo_mode == "low":
+            # Low risk demo
+            suspicious_score = 10
+            risk_level = "low"
+            tab_switches = 2
+            copy_paste_attempts = 0
+            ip_changed = False
+            ua_changed = False
+            risk_factors = ["Minor tab switching (2 times)"]
+            session_start_time = "2025-11-07 10:00:00"
+        elif demo_mode == "medium":
+            # Medium risk demo
+            suspicious_score = 25
+            risk_level = "medium"
+            tab_switches = 4
+            copy_paste_attempts = 2
+            ip_changed = False
+            ua_changed = False
+            risk_factors = ["Excessive tab switching (4 times)", "Copy/paste detected (2 attempts)"]
+            session_start_time = "2025-11-07 10:00:00"
+        elif demo_mode == "high":
+            # High risk demo
+            suspicious_score = 55
+            risk_level = "high"
+            tab_switches = 5
+            copy_paste_attempts = 6
+            ip_changed = True
+            ua_changed = False
+            risk_factors = ["IP address changed from 192.168.1.100 to 10.0.0.1", "Excessive tab switching (5 times)", "Excessive copy/paste (6 attempts)"]
+            session_start_time = "2025-11-07 10:00:00"
+        elif demo_mode == "critical":
+            # Critical risk demo
+            suspicious_score = 85
+            risk_level = "critical"
+            tab_switches = 8
+            copy_paste_attempts = 10
+            ip_changed = True
+            ua_changed = True
+            risk_factors = ["IP address changed from 192.168.1.100 to 10.0.0.1", "User agent (browser/device) changed during assessment", "Excessive tab switching (8 times)", "Excessive copy/paste (10 attempts)"]
+            session_start_time = "2025-11-07 10:00:00"
 
         # If no risk factors, add a positive message
         if not risk_factors:
