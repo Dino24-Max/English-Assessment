@@ -9,10 +9,11 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 
 from core.database import engine, Base
-from api.routes import assessment, admin, analytics, ui
+from api.routes import assessment, admin, analytics, ui, auth
 from core.config import settings
 
 
@@ -35,6 +36,13 @@ def create_app() -> FastAPI:
         description="AI-powered English proficiency testing for cruise ship employees",
         version="1.0.0",
         lifespan=lifespan
+    )
+
+    # Session middleware (must be added before CORS)
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.SECRET_KEY if hasattr(settings, 'SECRET_KEY') else "your-secret-key-change-in-production",
+        max_age=3600 * 24 * 7  # 7 days
     )
 
     # CORS middleware
@@ -61,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(ui.router, tags=["UI"])
 
     # API routes (backend endpoints)
+    app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
     app.include_router(assessment.router, prefix="/api/v1/assessment", tags=["Assessment"])
     app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
     app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])

@@ -733,6 +733,24 @@ async def registration_page(request: Request):
         raise HTTPException(status_code=500, detail=f"Error rendering registration: {str(e)}")
 
 
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """
+    Login page - User authentication
+    """
+    try:
+        return templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "title": "Login - CCL English Assessment"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering login page: {str(e)}")
+
+
 # Health check endpoint
 @router.get("/health")
 async def health_check():
