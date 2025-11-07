@@ -482,6 +482,104 @@ async def results_page(request: Request):
         raise HTTPException(status_code=500, detail=f"Error rendering results: {str(e)}")
 
 
+@router.get("/anti-cheating-report", response_class=HTMLResponse)
+async def anti_cheating_report_page(request: Request):
+    """
+    Anti-Cheating Report Page - Display assessment integrity report
+
+    Shows:
+    - Suspicious activity score (0-100)
+    - Risk level (clean, low, medium, high, critical)
+    - Tab switches, copy/paste attempts
+    - IP and user agent consistency
+    - Session details
+    """
+    try:
+        # Get assessment ID from session
+        session = request.session
+        assessment_id = session.get("assessment_id")
+
+        # Default values
+        suspicious_score = 0
+        risk_level = "clean"
+        tab_switches = 0
+        copy_paste_attempts = 0
+        ip_changed = False
+        ua_changed = False
+        risk_factors = []
+        ip_address = "Unknown"
+        user_agent = request.headers.get("user-agent", "Unknown")
+        session_start_time = "Unknown"
+
+        # Fetch anti-cheating data from database
+        if assessment_id:
+            try:
+                from core.database import get_db
+                from utils.anti_cheating import AntiCheatingService
+
+                async for db in get_db():
+                    # Get anti-cheating service
+                    anti_cheat = AntiCheatingService(db)
+
+                    # Get suspicious score
+                    score_data = await anti_cheat.get_suspicious_score(assessment_id)
+
+                    suspicious_score = score_data.get("score", 0)
+                    risk_level = score_data.get("level", "clean")
+                    risk_factors = score_data.get("factors", [])
+
+                    # Get session validation
+                    validation = await anti_cheat.validate_session(assessment_id, request)
+                    ip_changed = not validation.get("ip_consistent", True)
+                    ua_changed = not validation.get("user_agent_consistent", True)
+
+                    # Get assessment details
+                    from models.assessment import Assessment
+                    from sqlalchemy import select
+
+                    result = await db.execute(
+                        select(Assessment).where(Assessment.id == assessment_id)
+                    )
+                    assessment = result.scalar_one_or_none()
+
+                    if assessment and assessment.analytics_data:
+                        analytics = assessment.analytics_data
+                        tab_switches = analytics.get("tab_switches", 0)
+                        copy_paste_attempts = analytics.get("copy_paste_attempts", 0)
+                        session_start_time = analytics.get("session_start_time", "Unknown")
+                        ip_address = assessment.ip_address or "Unknown"
+
+                    break
+            except Exception as e:
+                print(f"Error fetching anti-cheating data: {e}")
+                # Use default values
+
+        # If no risk factors, add a positive message
+        if not risk_factors:
+            risk_factors = []
+
+        return templates.TemplateResponse(
+            "anti_cheating_report.html",
+            {
+                "request": request,
+                "assessment_id": assessment_id or "N/A",
+                "suspicious_score": suspicious_score,
+                "risk_level": risk_level,
+                "tab_switches": tab_switches,
+                "copy_paste_attempts": copy_paste_attempts,
+                "ip_changed": ip_changed,
+                "ua_changed": ua_changed,
+                "risk_factors": risk_factors,
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+                "session_start_time": session_start_time
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering anti-cheating report: {str(e)}")
+
+
 @router.get("/instructions", response_class=HTMLResponse)
 async def instructions_page(request: Request):
     """

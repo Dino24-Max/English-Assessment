@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Integrity Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .score-display {
+            font-size: 72px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .score-clean { color: #10b981; }
+        .score-low { color: #3b82f6; }
+        .score-medium { color: #f59e0b; }
+        .score-high { color: #ef4444; }
+        .score-critical { color: #dc2626; }
+
+        .risk-level {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+
+        .level-clean { background: #d1fae5; color: #065f46; }
+        .level-low { background: #dbeafe; color: #1e40af; }
+        .level-medium { background: #fef3c7; color: #92400e; }
+        .level-high { background: #fee2e2; color: #991b1b; }
+        .level-critical { background: #fecaca; color: #7f1d1d; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-card.warning {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .metric-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .metric-status {
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .status-ok {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .factors-section {
+            margin-top: 30px;
+        }
+
+        .factors-section h2 {
+            color: #1f2937;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .factor-item {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .factor-item.clean {
+            background: #d1fae5;
+            border-left-color: #10b981;
+        }
+
+        .session-info {
+            background: #f3f4f6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .session-info h3 {
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #1f2937;
+            font-family: monospace;
+        }
+
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            margin: 0 10px;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .explanation {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .explanation h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+
+        .explanation ul {
+            margin-left: 20px;
+            color: #1f2937;
+        }
+
+        .explanation li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Assessment Integrity Report</h1>
+            <p>Detailed analysis of your assessment session</p>
+        </div>
+
+        <div class="content">
+            <!-- Score Card -->
+            <div class="score-card">
+                <h2 style="color: #1f2937; margin-bottom: 10px;">Suspicious Activity Score</h2>
+                <div class="score-display score-{{ risk_level }}">{{ suspicious_score }}</div>
+                <div class="risk-level level-{{ risk_level }}">{{ risk_level.upper() }} RISK</div>
+                <p style="margin-top: 15px; color: #6b7280;">
+                    {% if suspicious_score == 0 %}
+                    Excellent! No suspicious activity detected.
+                    {% elif suspicious_score < 20 %}
+                    Very good. Minor activity detected within normal range.
+                    {% elif suspicious_score < 40 %}
+                    Some activity detected. Your assessment is under review.
+                    {% elif suspicious_score < 70 %}
+                    Significant activity detected. Manual review required.
+                    {% else %}
+                    Critical: Multiple suspicious activities detected. Immediate review required.
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card {% if tab_switches > 3 %}warning{% endif %}">
+                    <div class="metric-label">Tab Switches</div>
+                    <div class="metric-value">{{ tab_switches }}</div>
+                    <div class="metric-status {% if tab_switches > 3 %}status-warning{% else %}status-ok{% endif %}">
+                        {% if tab_switches > 3 %}Above Threshold{% else %}Normal{% endif %}
+                    </div>
+                </div>
+
+                <div class="metric-card {% if copy_paste_attempts > 5 %}warning{% endif %}">
+                    <div class="metric-label">Copy/Paste Attempts</div>
+                    <div class="metric-value">{{ copy_paste_attempts }}</div>
+                    <div class="metric-status {% if copy_paste_attempts > 5 %}status-warning{% else %}status-ok{% endif %}">
+                        {% if copy_paste_attempts > 5 %}Above Threshold{% else %}Normal{% endif %}
+                    </div>
+                </div>
+
+                <div class="metric-card {% if ip_changed %}warning{% endif %}">
+                    <div class="metric-label">IP Consistency</div>
+                    <div class="metric-value">{% if ip_changed %}CHANGED{% else %}OK{% endif %}</div>
+                    <div class="metric-status {% if ip_changed %}status-warning{% else %}status-ok{% endif %}">
+                        {% if ip_changed %}Changed During Test{% else %}Consistent{% endif %}
+                    </div>
+                </div>
+
+                <div class="metric-card {% if ua_changed %}warning{% endif %}">
+                    <div class="metric-label">Browser/Device</div>
+                    <div class="metric-value">{% if ua_changed %}CHANGED{% else %}OK{% endif %}</div>
+                    <div class="metric-status {% if ua_changed %}status-warning{% else %}status-ok{% endif %}">
+                        {% if ua_changed %}Device Switched{% else %}Consistent{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Factors -->
+            {% if risk_factors %}
+            <div class="factors-section">
+                <h2>Detected Issues</h2>
+                {% for factor in risk_factors %}
+                <div class="factor-item">
+                    {{ factor }}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="factors-section">
+                <div class="factor-item clean">
+                    No suspicious activities detected. Your assessment was completed with full integrity.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Session Information -->
+            <div class="session-info">
+                <h3>Session Details</h3>
+                <div class="info-row">
+                    <span class="info-label">Assessment ID:</span>
+                    <span class="info-value">{{ assessment_id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Your IP Address:</span>
+                    <span class="info-value">{{ ip_address }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Browser:</span>
+                    <span class="info-value">{{ user_agent[:50] }}...</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Session Start:</span>
+                    <span class="info-value">{{ session_start_time }}</span>
+                </div>
+            </div>
+
+            <!-- Explanation -->
+            <div class="explanation">
+                <h4>How is this score calculated?</h4>
+                <ul>
+                    <li><strong>IP Address Changed (+40 points):</strong> Switching networks during the assessment</li>
+                    <li><strong>Browser/Device Changed (+30 points):</strong> Using a different device mid-assessment</li>
+                    <li><strong>Tab Switches (+5 each, max 20):</strong> Leaving the assessment tab</li>
+                    <li><strong>Copy/Paste (+3 each, max 15):</strong> Pasting content into answer fields</li>
+                </ul>
+                <p style="margin-top: 15px; font-weight: 600;">
+                    Risk Levels: 0 = Clean | 1-19 = Low | 20-39 = Medium | 40-69 = High | 70-100 = Critical
+                </p>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+                <a href="/results" class="btn">View Score Results</a>
+                <a href="/" class="btn">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
