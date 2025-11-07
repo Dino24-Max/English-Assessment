@@ -353,3 +353,68 @@ async def load_question_bank(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/track-tab-switch")
+async def track_tab_switch(
+    data: Dict[str, Any],
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Track tab switch events during assessment
+    Called from frontend JavaScript when user switches tabs
+    """
+    try:
+        assessment_id = data.get("assessment_id") or request.session.get("assessment_id")
+
+        if not assessment_id:
+            return {"status": "no_assessment", "recorded": False}
+
+        # Use anti-cheating service
+        anti_cheat = AntiCheatingService(db)
+        result = await anti_cheat.record_tab_switch(int(assessment_id))
+
+        return {
+            "status": "success",
+            "recorded": result.get("recorded", False),
+            "total_switches": result.get("total_switches", 0),
+            "warning": result.get("warning", False)
+        }
+
+    except Exception as e:
+        print(f"Error tracking tab switch: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/track-copy-paste")
+async def track_copy_paste(
+    data: Dict[str, Any],
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Track copy/paste events during assessment
+    Called from frontend JavaScript when user copies or pastes
+    """
+    try:
+        assessment_id = data.get("assessment_id") or request.session.get("assessment_id")
+        action = data.get("action", "paste")
+
+        if not assessment_id:
+            return {"status": "no_assessment", "recorded": False}
+
+        # Use anti-cheating service
+        anti_cheat = AntiCheatingService(db)
+        result = await anti_cheat.record_copy_paste(int(assessment_id), action)
+
+        return {
+            "status": "success",
+            "recorded": result.get("recorded", False),
+            "total_attempts": result.get("total_attempts", 0),
+            "warning": result.get("warning", False)
+        }
+
+    except Exception as e:
+        print(f"Error tracking copy/paste: {e}")
+        return {"status": "error", "message": str(e)}

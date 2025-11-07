@@ -14,10 +14,13 @@ src_path = project_root / "src" / "main" / "python"
 sys.path.insert(0, str(src_path))
 
 if __name__ == "__main__":
-    print("🚢 Starting Cruise Employee English Assessment Platform...")
-    print("📊 Dashboard will be available at: http://127.0.0.1:8000")
-    print("📖 API docs available at: http://127.0.0.1:8000/docs")
-    print("🔍 Health check: http://127.0.0.1:8000/health")
+    print("=" * 60)
+    print("Starting Cruise Employee English Assessment Platform...")
+    print("=" * 60)
+    print("Dashboard:   http://127.0.0.1:8000")
+    print("API Docs:    http://127.0.0.1:8000/docs")
+    print("Health:      http://127.0.0.1:8000/health")
+    print("=" * 60)
     print()
 
     uvicorn.run(

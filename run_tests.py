@@ -12,7 +12,7 @@ def run_tests():
     """Run all tests with coverage"""
 
     print("=" * 70)
-    print("🧪 RUNNING TEST SUITE - English Assessment Platform")
+    print("RUNNING TEST SUITE - English Assessment Platform")
     print("=" * 70)
     print()
 
@@ -57,7 +57,7 @@ def run_tests():
     results = []
 
     for test_run in commands:
-        print(f"\n📋 {test_run['name']}")
+        print(f"\n[{test_run['name']}]")
         print("-" * 70)
 
         try:
@@ -75,12 +75,12 @@ def run_tests():
             })
 
             if not success and test_run['name'] != "Install Dependencies":
-                print(f"❌ {test_run['name']} FAILED")
+                print(f"[FAIL] {test_run['name']}")
             elif success and test_run['name'] != "Install Dependencies":
-                print(f"✅ {test_run['name']} PASSED")
+                print(f"[PASS] {test_run['name']}")
 
         except Exception as e:
-            print(f"❌ Error running {test_run['name']}: {e}")
+            print(f"[ERROR] {test_run['name']}: {e}")
             results.append({
                 "name": test_run['name'],
                 "success": False
@@ -89,14 +89,14 @@ def run_tests():
     # Print summary
     print()
     print("=" * 70)
-    print("📊 TEST SUMMARY")
+    print("TEST SUMMARY")
     print("=" * 70)
 
     passed = sum(1 for r in results if r['success'])
     total = len(results)
 
     for result in results:
-        status = "✅ PASS" if result['success'] else "❌ FAIL"
+        status = "[PASS]" if result['success'] else "[FAIL]"
         print(f"{status} - {result['name']}")
 
     print()
@@ -104,14 +104,14 @@ def run_tests():
 
     if passed == total:
         print()
-        print("🎉 ALL TESTS PASSED!")
+        print("ALL TESTS PASSED!")
         print()
-        print("📈 Coverage report generated in: htmlcov/index.html")
-        print("💾 You can view detailed coverage by opening that file in a browser")
+        print("Coverage report generated in: htmlcov/index.html")
+        print("You can view detailed coverage by opening that file in a browser")
         return 0
     else:
         print()
-        print("⚠️  SOME TESTS FAILED - Please review the output above")
+        print("WARNING: SOME TESTS FAILED - Please review the output above")
         return 1
 
 if __name__ == "__main__":

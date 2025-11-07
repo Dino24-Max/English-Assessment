@@ -154,6 +154,141 @@
     </div>
 
     <script>
+        // ======================================
+        // ANTI-CHEATING DETECTION
+        // ======================================
+        let tabSwitchCount = 0;
+        let copyPasteCount = 0;
+
+        // Detect tab/window visibility changes (tab switching)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                tabSwitchCount++;
+                console.log('Tab switch detected! Count:', tabSwitchCount);
+
+                // Send to backend API
+                fetch('/api/v1/assessment/track-tab-switch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        assessment_id: '{{ session.get("assessment_id") }}',
+                        count: tabSwitchCount
+                    })
+                }).catch(err => console.log('Tab switch tracking error:', err));
+
+                // Show warning if threshold exceeded
+                if (tabSwitchCount > 3) {
+                    showWarning('Warning: Excessive tab switching detected. Your assessment is being monitored.');
+                }
+            }
+        });
+
+        // Detect copy events
+        document.addEventListener('copy', function(e) {
+            console.log('Copy detected!');
+            copyPasteCount++;
+            trackCopyPaste('copy');
+        });
+
+        // Detect paste events
+        document.addEventListener('paste', function(e) {
+            copyPasteCount++;
+            console.log('Paste detected! Count:', copyPasteCount);
+
+            // Send to backend API
+            fetch('/api/v1/assessment/track-copy-paste', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    assessment_id: '{{ session.get("assessment_id") }}',
+                    action: 'paste',
+                    count: copyPasteCount
+                })
+            }).catch(err => console.log('Copy/paste tracking error:', err));
+
+            // Show warning if threshold exceeded
+            if (copyPasteCount > 5) {
+                showWarning('Warning: Excessive copy/paste detected. Your assessment is being monitored.');
+            }
+        });
+
+        // Track copy/paste helper function
+        function trackCopyPaste(action) {
+            fetch('/api/v1/assessment/track-copy-paste', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    assessment_id: '{{ session.get("assessment_id") }}',
+                    action: action,
+                    count: copyPasteCount
+                })
+            }).catch(err => console.log('Copy/paste tracking error:', err));
+        }
+
+        // Show warning message
+        function showWarning(message) {
+            // Create warning banner if it doesn't exist
+            let warningBanner = document.getElementById('anti-cheat-warning');
+            if (!warningBanner) {
+                warningBanner = document.createElement('div');
+                warningBanner.id = 'anti-cheat-warning';
+                warningBanner.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                    color: white;
+                    padding: 15px;
+                    text-align: center;
+                    font-weight: 600;
+                    z-index: 10000;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                    animation: slideDown 0.3s ease;
+                `;
+                document.body.insertBefore(warningBanner, document.body.firstChild);
+
+                // Add animation style
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideDown {
+                        from { transform: translateY(-100%); }
+                        to { transform: translateY(0); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            warningBanner.textContent = message;
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (warningBanner && warningBanner.parentNode) {
+                    warningBanner.style.animation = 'slideUp 0.3s ease';
+                    setTimeout(() => {
+                        if (warningBanner.parentNode) {
+                            warningBanner.parentNode.removeChild(warningBanner);
+                        }
+                    }, 300);
+                }
+            }, 5000);
+        }
+
+        // Display current tracking stats in console for debugging
+        console.log('%c🛡️ Anti-Cheating Monitor Active', 'color: #4CAF50; font-size: 14px; font-weight: bold;');
+        console.log('Tab switches will be tracked');
+        console.log('Copy/paste actions will be tracked');
+
+        // ======================================
+        // END ANTI-CHEATING DETECTION
+        // ======================================
+
         let selectedAnswer = '';
         let audioSynthesis = null;
         let playsRemaining = 2;
