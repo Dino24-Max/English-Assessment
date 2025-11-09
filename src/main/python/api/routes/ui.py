@@ -189,9 +189,18 @@ async def question_page(request: Request, question_num: int, operation: Optional
         next_question = question_num + 1 if not is_last_question else None
         previous_question = question_num - 1 if question_num > 1 else None
 
+        # Get session data for anti-cheating
+        session_data = {}
+        try:
+            session_data = dict(request.session)
+        except Exception:
+            # Session not available, use empty dict
+            session_data = {}
+
         # Prepare context - match template variable names
         context = {
             "request": request,
+            "session": session_data,  # Add session for anti-cheating tracking
             "q_num": question_num,  # Template expects q_num
             "question_num": question_num,  # Keep for backward compatibility
             "total_questions": 21,
