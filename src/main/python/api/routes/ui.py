@@ -64,44 +64,12 @@ def get_questions() -> Dict[str, Any]:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def homepage(request: Request, operation: Optional[str] = None):
+async def homepage(request: Request):
     """
-    Homepage - Welcome page with optional operation parameter
-    If no operation is provided, redirect to operation selection
+    Homepage - Redirect to registration page as landing page
     """
-    try:
-        # If no operation specified, redirect to operation selection
-        if not operation:
-            return RedirectResponse(url="/select-operation", status_code=303)
-
-        # Validate operation
-        operation = operation.upper()
-        valid_operations = ["HOTEL", "MARINE", "CASINO"]
-        if operation not in valid_operations:
-            return RedirectResponse(url="/select-operation", status_code=303)
-
-        return templates.TemplateResponse(
-            "home.html",
-            {
-                "request": request,
-                "title": "Cruise Employee English Assessment",
-                "operation": operation,
-                "total_questions": 21,
-                "total_points": 100,
-                "passing_score": 65,
-                "modules": [
-                    {"name": "Listening", "questions": 3, "points": 16},
-                    {"name": "Time & Numbers", "questions": 3, "points": 16},
-                    {"name": "Grammar", "questions": 4, "points": 16},
-                    {"name": "Vocabulary", "questions": 4, "points": 16},
-                    {"name": "Reading", "questions": 4, "points": 16},
-                    {"name": "Speaking", "questions": 3, "points": 20}
-                ]
-            }
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering homepage: {str(e)}")
+    # Redirect to registration page as the first page
+    return RedirectResponse(url="/register", status_code=303)
 
 
 @router.get("/select-operation", response_class=HTMLResponse)
