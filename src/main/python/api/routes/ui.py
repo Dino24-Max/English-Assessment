@@ -3,13 +3,16 @@ UI Routes - Serves frontend pages using Jinja2 templates
 Handles all user-facing web pages for the assessment platform
 """
 
-from fastapi import APIRouter, Request, HTTPException, Form
+from fastapi import APIRouter, Request, HTTPException, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Optional
 import json
 import os
 from pathlib import Path
+
+from core.database import get_db
 
 
 # Initialize router
