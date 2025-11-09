@@ -13,7 +13,15 @@ from core.config import settings
 class ScoringEngine:
     """Handles assessment scoring logic"""
 
-    def __init__(self, db: AsyncSession = None):
+    def __init__(self, db: AsyncSession):
+        """
+        Initialize scoring engine with database session
+
+        Args:
+            db: Required database session for querying question details
+        """
+        if db is None:
+            raise ValueError("Database session is required for ScoringEngine")
         self.db = db
         self.module_max_points = {
             "listening": 16,
@@ -25,7 +33,12 @@ class ScoringEngine:
         }
 
     async def calculate_final_scores(self, responses: List[AssessmentResponse]) -> Dict[str, Any]:
-        """Calculate final scores from all responses"""
+        """
+        Calculate final scores from all responses
+
+        This method now eagerly loads question data to avoid N+1 queries
+        and properly tracks safety questions
+        """
 
         scores = {
             "listening": 0,
@@ -40,22 +53,34 @@ class ScoringEngine:
             "safety_pass_rate": 0.0
         }
 
+        if not responses:
+            return scores
+
+        # Eagerly fetch all question details in one query to avoid N+1
+        question_ids = [r.question_id for r in responses]
+        stmt = select(Question).where(Question.id.in_(question_ids))
+        result = await self.db.execute(stmt)
+        questions_map = {q.id: q for q in result.scalars().all()}
+
         # Group responses by module
         module_responses = {}
         safety_responses = {"correct": 0, "total": 0}
 
         for response in responses:
-            # Get question details (would need to join with Question table)
-            module_type = self._get_module_from_question_id(response.question_id)
-            module_key = module_type.value if module_type else "unknown"
+            # Get question from our pre-fetched map
+            question = questions_map.get(response.question_id)
+            if not question:
+                continue  # Skip if question not found
+
+            module_key = question.module_type.value
 
             if module_key not in module_responses:
                 module_responses[module_key] = []
 
             module_responses[module_key].append(response)
 
-            # Track safety questions
-            if hasattr(response, 'question') and response.question.is_safety_related:
+            # Track safety questions properly
+            if question.is_safety_related:
                 safety_responses["total"] += 1
                 if response.is_correct:
                     safety_responses["correct"] += 1
@@ -66,14 +91,17 @@ class ScoringEngine:
                 total_points = sum(r.points_earned for r in module_responses_list)
                 scores[module] = min(total_points, self.module_max_points[module])
 
-        # Calculate total score
-        scores["total_score"] = sum(scores[module] for module in self.module_max_points.keys())
+        # Calculate total score (cap at 100.0)
+        scores["total_score"] = min(100.0, sum(scores[module] for module in self.module_max_points.keys()))
 
         # Safety questions pass rate
         if safety_responses["total"] > 0:
             scores["safety_pass_rate"] = safety_responses["correct"] / safety_responses["total"]
             scores["safety_questions_correct"] = safety_responses["correct"]
             scores["safety_questions_total"] = safety_responses["total"]
+        else:
+            # No safety questions: default to passing (or set policy as needed)
+            scores["safety_pass_rate"] = 1.0
 
         return scores
 

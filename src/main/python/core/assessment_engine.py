@@ -206,15 +206,31 @@ class AssessmentEngine:
         }
 
     async def _score_response(self, question: Question, user_answer: str) -> Tuple[bool, float]:
-        """Score a user's response to a question"""
+        """
+        Score a user's response to a question
+
+        Now handles all question types properly including:
+        - CATEGORY_MATCH (vocabulary module)
+        - TITLE_SELECTION (reading module)
+        """
 
         if question.question_type == QuestionType.MULTIPLE_CHOICE:
             is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
             points = question.points if is_correct else 0
 
         elif question.question_type == QuestionType.FILL_BLANK:
-            # More flexible matching for fill-in-the-blank
+            # More flexible matching for fill-in-the-blank (time & numbers)
             is_correct = self._flexible_text_match(user_answer, question.correct_answer)
+            points = question.points if is_correct else 0
+
+        elif question.question_type == QuestionType.CATEGORY_MATCH:
+            # Vocabulary module - match category terms
+            is_correct = self._score_category_match(user_answer, question.correct_answer)
+            points = question.points if is_correct else 0
+
+        elif question.question_type == QuestionType.TITLE_SELECTION:
+            # Reading module - select best title
+            is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
             points = question.points if is_correct else 0
 
         elif question.question_type == QuestionType.SPEAKING_RESPONSE:
@@ -226,23 +242,177 @@ class AssessmentEngine:
             points = analysis["total_points"]
 
         else:
-            # Default exact match
-            is_correct = user_answer.strip() == question.correct_answer.strip()
+            # Default exact match for any other type
+            is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
             points = question.points if is_correct else 0
 
         return is_correct, points
 
+    def _score_category_match(self, user_answer: str, correct_answer: str) -> bool:
+        """
+        Score category matching questions (vocabulary module)
+
+        Format expected:
+        - user_answer: "A,B,C" or "category1:term1,term2"
+        - correct_answer: "A,B,C" or "category1:term1,term2"
+        """
+        import json
+
+        # Try JSON format first (more structured)
+        try:
+            user_data = json.loads(user_answer)
+            correct_data = json.loads(correct_answer)
+
+            if isinstance(user_data, dict) and isinstance(correct_data, dict):
+                # Compare category assignments
+                return user_data == correct_data
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # Fall back to comma-separated list
+        user_items = {item.strip().lower() for item in user_answer.split(",")}
+        correct_items = {item.strip().lower() for item in correct_answer.split(",")}
+
+        # Allow partial credit: at least 75% correct
+        if len(correct_items) == 0:
+            return False
+
+        matches = len(user_items & correct_items)
+        accuracy = matches / len(correct_items)
+
+        return accuracy >= 0.75  # 75% threshold for partial credit
+
     def _flexible_text_match(self, user_answer: str, correct_answer: str) -> bool:
-        """Flexible text matching for fill-in-the-blank questions"""
+        """
+        Flexible text matching for fill-in-the-blank questions
+
+        FIXED: Previous implementation was too lenient:
+        - "7" matched "7:00" and "270"
+        - "nine" matched "nine hundred"
+
+        Now uses strict matching with allowed variations for common formats
+        """
         user_clean = user_answer.strip().lower().replace(".", "").replace(",", "")
         correct_clean = correct_answer.strip().lower().replace(".", "").replace(",", "")
 
-        # Check for exact match or common variations
-        return (
-            user_clean == correct_clean or
-            user_clean in correct_clean or
-            correct_clean in user_clean
-        )
+        # Exact match (most common case)
+        if user_clean == correct_clean:
+            return True
+
+        # Handle time formats: 7:00, 7am, 0700, seven o'clock
+        if self._is_time_match(user_clean, correct_clean):
+            return True
+
+        # Handle number formats: 100, one hundred, a hundred
+        if self._is_number_match(user_clean, correct_clean):
+            return True
+
+        # No substring matching - must be exact or recognized variation
+        return False
+
+    def _is_time_match(self, user: str, correct: str) -> bool:
+        """Check if user answer matches time in different formats"""
+        import re
+
+        # Extract hours and minutes from various time formats
+        def parse_time(text: str) -> tuple:
+            """Extract (hour, minute, am/pm) from text"""
+            # 7:00, 07:00
+            m = re.match(r'(\d{1,2}):(\d{2})\s*(am|pm)?', text)
+            if m:
+                return (int(m.group(1)), int(m.group(2)), m.group(3))
+
+            # 7am, 7 am
+            m = re.match(r'(\d{1,2})\s*(am|pm)', text)
+            if m:
+                return (int(m.group(1)), 0, m.group(2))
+
+            # 0700 (military time)
+            m = re.match(r'(\d{2})(\d{2})$', text)
+            if m and len(text) == 4:
+                return (int(m.group(1)), int(m.group(2)), None)
+
+            return None
+
+        user_time = parse_time(user)
+        correct_time = parse_time(correct)
+
+        if user_time and correct_time:
+            # Compare normalized times
+            u_hour, u_min, u_meridiem = user_time
+            c_hour, c_min, c_meridiem = correct_time
+
+            # Normalize hours to 24-hour format
+            if u_meridiem == 'pm' and u_hour != 12:
+                u_hour += 12
+            elif u_meridiem == 'am' and u_hour == 12:
+                u_hour = 0
+
+            if c_meridiem == 'pm' and c_hour != 12:
+                c_hour += 12
+            elif c_meridiem == 'am' and c_hour == 12:
+                c_hour = 0
+
+            return u_hour == c_hour and u_min == c_min
+
+        return False
+
+    def _is_number_match(self, user: str, correct: str) -> bool:
+        """Check if user answer matches number in different formats"""
+        # Word to number mappings
+        word_to_num = {
+            'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+            'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+            'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13,
+            'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
+            'eighteen': 18, 'nineteen': 19, 'twenty': 20, 'thirty': 30,
+            'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70,
+            'eighty': 80, 'ninety': 90, 'hundred': 100, 'thousand': 1000
+        }
+
+        def text_to_number(text: str) -> int:
+            """Convert text to number if possible"""
+            # Remove common prefixes
+            text = text.replace('a ', '1 ').replace('an ', '1 ')
+
+            # Try direct digit parsing
+            try:
+                return int(text.replace(' ', ''))
+            except ValueError:
+                pass
+
+            # Try word mapping
+            if text in word_to_num:
+                return word_to_num[text]
+
+            # Handle compound numbers: "one hundred fifty"
+            words = text.split()
+            if len(words) > 1:
+                try:
+                    total = 0
+                    current = 0
+                    for word in words:
+                        if word in word_to_num:
+                            val = word_to_num[word]
+                            if val >= 100:
+                                current = (current or 1) * val
+                                total += current
+                                current = 0
+                            else:
+                                current += val
+                    return total + current
+                except:
+                    pass
+
+            return None
+
+        user_num = text_to_number(user)
+        correct_num = text_to_number(correct)
+
+        if user_num is not None and correct_num is not None:
+            return user_num == correct_num
+
+        return False
 
     async def complete_assessment(self, assessment_id: int) -> Dict[str, Any]:
         """Complete assessment and calculate final scores"""

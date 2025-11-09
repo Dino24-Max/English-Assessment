@@ -2,7 +2,7 @@
 Assessment-related database models
 """
 
-from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, JSON, Enum
+from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, JSON, Enum, Index, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from models.base import BaseModel
@@ -57,14 +57,19 @@ class User(BaseModel):
     nationality = Column(String(100), nullable=False)
 
     # Assessment Information
-    division = Column(Enum(DivisionType), nullable=True)  # Will be set during operation selection
+    division = Column(Enum(DivisionType), nullable=True, index=True)  # Will be set during operation selection
     department = Column(String(100), nullable=True)  # Will be set during operation selection
 
     # Status
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
 
     # Relationships
     assessments = relationship("Assessment", back_populates="user")
+
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index('ix_users_active_division', 'is_active', 'division'),
+    )
 
 
 class Question(BaseModel):
@@ -84,11 +89,18 @@ class Question(BaseModel):
 
     # Metadata
     difficulty_level = Column(Integer, default=1)  # 1-5 scale
-    is_safety_related = Column(Boolean, default=False)
+    is_safety_related = Column(Boolean, default=False, index=True)
     points = Column(Integer, nullable=False)
 
     # Question specific data
     question_metadata = Column(JSON, nullable=True)  # Additional question-specific data (renamed from 'metadata' to avoid SQLAlchemy reserved word)
+
+    # Composite indexes for question selection queries
+    __table_args__ = (
+        Index('ix_questions_module_division', 'module_type', 'division'),
+        Index('ix_questions_division_difficulty', 'division', 'difficulty_level'),
+        Index('ix_questions_safety', 'is_safety_related'),
+    )
 
 
 class Assessment(BaseModel):
@@ -96,16 +108,16 @@ class Assessment(BaseModel):
     __tablename__ = "assessments"
 
     # User and Session Info
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     session_id = Column(String(100), unique=True, nullable=False, index=True)
 
     # Assessment Details
-    division = Column(Enum(DivisionType), nullable=False)
-    status = Column(Enum(AssessmentStatus), default=AssessmentStatus.NOT_STARTED)
+    division = Column(Enum(DivisionType), nullable=False, index=True)
+    status = Column(Enum(AssessmentStatus), default=AssessmentStatus.NOT_STARTED, index=True)
 
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=True)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
 
     # Scoring
@@ -135,7 +147,17 @@ class Assessment(BaseModel):
 
     # Relationships
     user = relationship("User", back_populates="assessments")
-    responses = relationship("AssessmentResponse", back_populates="assessment")
+    responses = relationship("AssessmentResponse", back_populates="assessment", cascade="all, delete-orphan")
+
+    # Composite indexes and constraints
+    __table_args__ = (
+        Index('ix_assessments_user_status', 'user_id', 'status'),
+        Index('ix_assessments_division_status', 'division', 'status'),
+        Index('ix_assessments_completed', 'completed_at', 'passed'),
+        CheckConstraint('total_score >= 0', name='check_total_score_positive'),
+        CheckConstraint('total_score <= max_possible_score', name='check_score_range'),
+        CheckConstraint('max_possible_score > 0', name='check_max_score_positive'),
+    )
 
 
 class AssessmentResponse(BaseModel):
@@ -143,8 +165,8 @@ class AssessmentResponse(BaseModel):
     __tablename__ = "assessment_responses"
 
     # References
-    assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False)
-    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    assessment_id = Column(Integer, ForeignKey("assessments.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False, index=True)
 
     # Response Data
     user_answer = Column(Text, nullable=True)
@@ -163,6 +185,15 @@ class AssessmentResponse(BaseModel):
     # Relationships
     assessment = relationship("Assessment", back_populates="responses")
     question = relationship("Question")
+
+    # Composite indexes for common queries
+    __table_args__ = (
+        Index('ix_response_assessment_question', 'assessment_id', 'question_id'),
+        Index('ix_response_answered_at', 'answered_at'),
+        CheckConstraint('points_earned >= 0', name='check_points_earned_positive'),
+        CheckConstraint('points_earned <= points_possible', name='check_points_earned_range'),
+        CheckConstraint('points_possible > 0', name='check_points_possible_positive'),
+    )
 
 
 class DivisionDepartment(BaseModel):
