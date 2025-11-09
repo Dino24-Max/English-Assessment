@@ -120,9 +120,9 @@ async def select_operation_page(request: Request):
 
 
 @router.get("/start-assessment", response_class=HTMLResponse)
-async def start_assessment(request: Request, operation: str):
+async def start_assessment(request: Request, operation: str, db: AsyncSession = Depends(get_db)):
     """
-    Start assessment with operation filter
+    Start assessment with operation filter and create assessment session
 
     Args:
         operation: Operation type (HOTEL, MARINE, or CASINO)
@@ -138,8 +138,37 @@ async def start_assessment(request: Request, operation: str):
                 detail=f"Invalid operation. Must be one of: {', '.join(valid_operations)}"
             )
 
-        # Store operation in session or pass to first question
-        # For now, redirect to first question with operation parameter
+        # Get user ID from session
+        user_id = request.session.get("user_id")
+        if not user_id:
+            # Redirect to login if not authenticated
+            return RedirectResponse(url="/login", status_code=303)
+
+        # Create assessment session using AssessmentEngine
+        from core.assessment_engine import AssessmentEngine
+        from models.assessment import DivisionType
+        import uuid
+
+        engine = AssessmentEngine(db)
+
+        # Map operation to division type
+        division_map = {
+            "HOTEL": DivisionType.HOTEL,
+            "MARINE": DivisionType.MARINE,
+            "CASINO": DivisionType.CASINO
+        }
+
+        # Create assessment
+        assessment = await engine.create_assessment(
+            user_id=int(user_id),
+            division=division_map[operation]
+        )
+
+        # Store assessment_id in session for anti-cheating tracking
+        request.session["assessment_id"] = assessment.id
+        request.session["operation"] = operation
+
+        # Redirect to first question
         return RedirectResponse(url=f"/question/1?operation={operation}", status_code=303)
 
     except HTTPException:
