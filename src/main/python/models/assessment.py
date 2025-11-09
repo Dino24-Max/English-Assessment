@@ -53,11 +53,12 @@ class User(BaseModel):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)  # Bcrypt hashed password
     nationality = Column(String(100), nullable=False)
 
     # Assessment Information
-    division = Column(Enum(DivisionType), nullable=False)
-    department = Column(String(100), nullable=False)
+    division = Column(Enum(DivisionType), nullable=True)  # Will be set during operation selection
+    department = Column(String(100), nullable=True)  # Will be set during operation selection
 
     # Status
     is_active = Column(Boolean, default=True)

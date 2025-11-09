@@ -173,7 +173,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        assessment_id: '{{ session.get("assessment_id") }}',
+                        assessment_id: '{{ session.get("assessment_id", "") if session else "" }}',
                         count: tabSwitchCount
                     })
                 }).catch(err => console.log('Tab switch tracking error:', err));
@@ -204,7 +204,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    assessment_id: '{{ session.get("assessment_id") }}',
+                    assessment_id: '{{ session.get("assessment_id", "") if session else "" }}',
                     action: 'paste',
                     count: copyPasteCount
                 })
@@ -224,7 +224,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    assessment_id: '{{ session.get("assessment_id") }}',
+                    assessment_id: '{{ session.get("assessment_id", "") if session else "" }}',
                     action: action,
                     count: copyPasteCount
                 })
