@@ -178,9 +178,9 @@
                     })
                 }).catch(err => console.log('Tab switch tracking error:', err));
 
-                // Show warning if threshold exceeded
-                if (tabSwitchCount > 3) {
-                    showWarning('Warning: Excessive tab switching detected. Your assessment is being monitored.');
+                // Show warning if threshold exceeded (2nd switch and beyond)
+                if (tabSwitchCount >= 2) {
+                    showWarning('Warning: Tab switching detected. Your assessment is being monitored.');
                 }
             }
         });
@@ -210,9 +210,9 @@
                 })
             }).catch(err => console.log('Copy/paste tracking error:', err));
 
-            // Show warning if threshold exceeded
-            if (copyPasteCount > 5) {
-                showWarning('Warning: Excessive copy/paste detected. Your assessment is being monitored.');
+            // Show warning if threshold exceeded (2nd paste and beyond)
+            if (copyPasteCount >= 2) {
+                showWarning('Warning: Copy/paste detected. Your assessment is being monitored.');
             }
         });
 
