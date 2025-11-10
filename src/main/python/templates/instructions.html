@@ -17,21 +17,23 @@
             margin: 0;
             padding: 0;
             overflow-x: hidden;
+            font-size: 18px;
+            line-height: 1.6;
         }
 
         .instructions-container {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 40px 20px;
+            background: linear-gradient(135deg, #0066ff 0%, #00d4ff 100%);
+            padding: 60px 30px;
         }
 
         .instructions-card {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 60px;
+            border-radius: 32px;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.15);
+            padding: 80px;
             transform: translateZ(0);
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
@@ -39,22 +41,26 @@
 
         .instructions-header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 70px;
+            padding-bottom: 40px;
+            border-bottom: 3px solid #f0f0f0;
         }
 
         .instructions-title {
-            font-size: 36px;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 15px;
+            font-size: 56px;
+            font-weight: 800;
+            color: #000;
+            margin-bottom: 20px;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.5px;
         }
 
         .instructions-subtitle {
-            font-size: 18px;
+            font-size: 24px;
             color: #666;
             text-rendering: optimizeLegibility;
+            font-weight: 400;
         }
 
         .section {
@@ -73,54 +79,68 @@
         }
 
         .section-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #667eea;
+            font-size: 32px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 30px;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.3px;
         }
 
         .section-content {
-            color: #555;
-            font-size: 16px;
-            line-height: 1.8;
+            color: #444;
+            font-size: 20px;
+            line-height: 1.7;
             text-rendering: optimizeLegibility;
         }
 
         .section-content ul, .section-content ol {
-            margin-left: 20px;
-            margin-top: 15px;
+            margin-left: 0;
+            margin-top: 20px;
+            padding-left: 30px;
         }
 
         .section-content li {
-            margin-bottom: 10px;
+            margin-bottom: 18px;
+            font-size: 20px;
+        }
+
+        .section-content p {
+            font-size: 20px;
+            margin-bottom: 20px;
         }
 
         .highlight-box {
-            background: #f5f7ff;
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+            border-left: 6px solid #0066ff;
+            padding: 35px;
+            border-radius: 16px;
+            margin: 30px 0;
+            font-size: 20px;
         }
 
         .highlight-box strong {
-            color: #667eea;
+            color: #0066ff;
+            font-size: 22px;
+        }
+
+        .highlight-box p {
+            margin: 0;
         }
 
         .warning-box {
-            background: #fff3e0;
-            border-left: 4px solid #ff9800;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background: linear-gradient(135deg, #fff8e6 0%, #ffe6cc 100%);
+            border-left: 6px solid #ff9800;
+            padding: 35px;
+            border-radius: 16px;
+            margin: 30px 0;
+            font-size: 22px;
         }
 
         .warning-box strong {
-            color: #f57c00;
+            color: #ff6600;
+            font-size: 24px;
         }
 
         .module-grid {
@@ -131,72 +151,92 @@
         }
 
         .module-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 12px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            padding: 35px;
+            border-radius: 20px;
             border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .module-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-color: #0066ff;
         }
 
         .module-card-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
         .module-icon {
-            font-size: 32px;
+            font-size: 48px;
         }
 
         .module-name {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
+            font-size: 24px;
+            font-weight: 700;
+            color: #000;
         }
 
         .module-details {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.6;
+            font-size: 18px;
+            color: #555;
+            line-height: 1.7;
+        }
+
+        .module-details strong {
+            font-size: 20px;
+            color: #0066ff;
         }
 
         .action-buttons {
             display: flex;
-            gap: 15px;
-            margin-top: 40px;
+            gap: 25px;
+            margin-top: 70px;
             justify-content: center;
+            padding-top: 50px;
+            border-top: 3px solid #f0f0f0;
         }
 
         .btn {
-            padding: 16px 32px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 12px;
+            padding: 24px 50px;
+            font-size: 22px;
+            font-weight: 700;
+            border-radius: 16px;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
             display: inline-block;
+            letter-spacing: -0.2px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0066ff 0%, #0080ff 100%);
             color: white;
             border: none;
+            box-shadow: 0 8px 24px rgba(0, 102, 255, 0.25);
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 36px rgba(0, 102, 255, 0.35);
+            background: linear-gradient(135deg, #0052cc 0%, #0066ff 100%);
         }
 
         .btn-secondary {
             background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
+            color: #0066ff;
+            border: 3px solid #0066ff;
         }
 
         .btn-secondary:hover {
-            background: #f5f7ff;
+            background: #f0f8ff;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 102, 255, 0.15);
         }
 
         @media (max-width: 1200px) {
@@ -212,23 +252,48 @@
 
         @media (max-width: 768px) {
             .instructions-card {
-                padding: 30px 20px;
+                padding: 40px 25px;
             }
 
             .instructions-title {
-                font-size: 28px;
+                font-size: 38px;
+            }
+
+            .instructions-subtitle {
+                font-size: 20px;
             }
 
             .section-title {
-                font-size: 20px;
+                font-size: 28px;
+            }
+
+            .section-content {
+                font-size: 18px;
+            }
+
+            .section-content li {
+                font-size: 18px;
             }
 
             .action-buttons {
                 flex-direction: column;
             }
 
+            .btn {
+                font-size: 20px;
+                padding: 20px 40px;
+            }
+
             .module-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .module-name {
+                font-size: 22px;
+            }
+
+            .module-details {
+                font-size: 16px;
             }
 
             .two-column-layout {
