@@ -64,11 +64,16 @@ def get_questions() -> Dict[str, Any]:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def homepage(request: Request):
+async def homepage(request: Request, operation: Optional[str] = None):
     """
     Homepage - Redirect to registration page as landing page
+    If operation parameter is provided, redirect to start assessment
     """
-    # Redirect to registration page as the first page
+    # If operation is provided, redirect to start assessment
+    if operation:
+        return RedirectResponse(url=f"/start-assessment?operation={operation}", status_code=303)
+
+    # Otherwise, redirect to registration page as the first page
     return RedirectResponse(url="/register", status_code=303)
 
 
