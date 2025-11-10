@@ -25,7 +25,7 @@ class AssessmentEngine:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.ai_service = AIService()
-        self.scoring_engine = ScoringEngine()
+        self.scoring_engine = ScoringEngine(self.db)
 
     async def create_assessment(self, user_id: int, division: DivisionType) -> Assessment:
         """Create new assessment session"""
