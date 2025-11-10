@@ -349,8 +349,12 @@
 
             <!-- Action Buttons -->
             <div class="action-buttons">
-                <a href="/" class="btn btn-secondary">Back to Home</a>
-                <a href="/select-operation" class="btn btn-primary">I Understand - Start Assessment</a>
+                <a href="/select-operation" class="btn btn-secondary">Back to Operation Selection</a>
+                {% if operation %}
+                <a href="/start-assessment?operation={{ operation }}" class="btn btn-primary">I Understand - Start Assessment</a>
+                {% else %}
+                <a href="/select-operation" class="btn btn-primary">Select Operation First</a>
+                {% endif %}
             </div>
         </div>
     </div>

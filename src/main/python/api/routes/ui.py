@@ -67,11 +67,11 @@ def get_questions() -> Dict[str, Any]:
 async def homepage(request: Request, operation: Optional[str] = None):
     """
     Homepage - Redirect to registration page as landing page
-    If operation parameter is provided, redirect to start assessment
+    If operation parameter is provided, redirect to instructions page
     """
-    # If operation is provided, redirect to start assessment
+    # If operation is provided, redirect to instructions page
     if operation:
-        return RedirectResponse(url=f"/start-assessment?operation={operation}", status_code=303)
+        return RedirectResponse(url=f"/instructions?operation={operation}", status_code=303)
 
     # Otherwise, redirect to registration page as the first page
     return RedirectResponse(url="/register", status_code=303)
@@ -150,6 +150,10 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
     except HTTPException:
         raise
     except Exception as e:
+        # Log the full error for debugging
+        import traceback
+        print(f"ERROR in start_assessment: {str(e)}")
+        print(f"Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error starting assessment: {str(e)}")
 
 
@@ -655,7 +659,7 @@ async def anti_cheating_report_page(request: Request):
 
 
 @router.get("/instructions", response_class=HTMLResponse)
-async def instructions_page(request: Request):
+async def instructions_page(request: Request, operation: Optional[str] = None):
     """
     Instructions page - Assessment guidelines and rules
     """
@@ -689,7 +693,8 @@ async def instructions_page(request: Request):
             "instructions.html",
             {
                 "request": request,
-                "instructions": instructions_data
+                "instructions": instructions_data,
+                "operation": operation  # Pass operation to template
             }
         )
 
