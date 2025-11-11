@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Optional
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -61,6 +62,80 @@ def get_questions() -> Dict[str, Any]:
         QUESTIONS_CONFIG = load_questions_config()
 
     return QUESTIONS_CONFIG
+
+
+def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, Any]:
+    """
+    Score answer using questions_config.json (UI-only scoring)
+    This bypasses the database Question table for UI assessments
+    
+    Args:
+        question_num: Question number (1-21)
+        user_answer: User's answer
+        
+    Returns:
+        Dict with is_correct, points_earned, points_possible, feedback
+    """
+    try:
+        questions = get_questions()
+        question_key = str(question_num)
+        
+        if question_key not in questions:
+            return {
+                "is_correct": False,
+                "points_earned": 0,
+                "points_possible": 4,
+                "feedback": "Question not found"
+            }
+        
+        question_data = questions[question_key]
+        correct_answer = question_data.get("correct_answer", "")
+        points = question_data.get("points", 4)
+        question_type = question_data.get("type", "multiple_choice")
+        module = question_data.get("module", "unknown")
+        
+        # Normalize answers for comparison
+        user_clean = user_answer.strip().lower()
+        correct_clean = correct_answer.strip().lower()
+        
+        # Score based on question type
+        if question_type in ["multiple_choice", "fill_blank", "title_selection"]:
+            # Exact match (case-insensitive)
+            is_correct = user_clean == correct_clean
+        elif question_type == "category_match":
+            # For category matching, allow flexible matching
+            # User might answer in different order
+            user_items = set(user_clean.replace(" ", "").split(","))
+            correct_items = set(correct_clean.replace(" ", "").split(","))
+            is_correct = user_items == correct_items
+        else:
+            # Default: exact match
+            is_correct = user_clean == correct_clean
+        
+        points_earned = points if is_correct else 0
+        
+        # Generate feedback
+        if is_correct:
+            feedback = "✅ Correct! Well done."
+        else:
+            feedback = f"❌ Incorrect. The correct answer is: {correct_answer}"
+        
+        return {
+            "is_correct": is_correct,
+            "points_earned": points_earned,
+            "points_possible": points,
+            "feedback": feedback,
+            "module": module
+        }
+        
+    except Exception as e:
+        print(f"❌ ERROR in score_answer_from_config: {e}")
+        return {
+            "is_correct": False,
+            "points_earned": 0,
+            "points_possible": 4,
+            "feedback": f"Error scoring answer: {str(e)}"
+        }
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -330,83 +405,96 @@ async def submit_answer(
                     await engine.start_assessment(assessment_id)
                     break
 
-        # Submit answer to database
-        # Use question_num as question_id since JSON config doesn't have separate IDs
-        print(f"🔍 DEBUG: Starting answer submission for Q{question_num}")
+        # UI-BASED SCORING: Use questions_config.json directly
+        # This avoids the database Question table ID mismatch issue
+        print(f"🔍 DEBUG: Starting UI-based scoring for Q{question_num}")
         print(f"🔍 DEBUG: assessment_id = {assessment_id}")
         print(f"🔍 DEBUG: answer = {answer}")
         print(f"🔍 DEBUG: time_spent = {time_spent}")
-
-        if assessment_id:
-            try:
-                from core.database import get_db
-                from core.assessment_engine import AssessmentEngine
-
-                print(f"✅ DEBUG: Entering database submission block for Q{question_num}")
-
-                async for db in get_db():
-                    engine = AssessmentEngine(db)
-                    print(f"✅ DEBUG: Created AssessmentEngine instance")
-
-                    # Submit response and get scoring
-                    # Use question_num as the question_id
-                    print(f"📝 DEBUG: Calling submit_response with question_id={question_num}")
-                    result = await engine.submit_response(
-                        assessment_id=assessment_id,
-                        question_id=question_num,  # Use question number as ID
-                        user_answer=answer,
-                        time_spent=time_spent
-                    )
-
-                    print(f"✅ DEBUG: submit_response returned: {result}")
-
-                    # Store result in session for display
-                    if "answers" not in session:
-                        session["answers"] = {}
-
-                    session["answers"][str(question_num)] = {
-                        "answer": answer,
-                        "is_correct": result["is_correct"],
-                        "points_earned": result["points_earned"],
-                        "points_possible": result["points_possible"],
-                        "feedback": result["feedback"],
-                        "time_spent": time_spent,
-                        "question_id": question_num
-                    }
-                    print(f"✅ DEBUG: Stored answer in session for Q{question_num}")
-                    break
-            except Exception as e:
-                # Log error but don't block user flow
-                print(f"❌ ERROR persisting answer to database: {e}")
-                import traceback
-                traceback.print_exc()
-                # Fallback: store in session only
-                if "answers" not in session:
-                    session["answers"] = {}
-                session["answers"][str(question_num)] = {
-                    "answer": answer,
-                    "time_spent": time_spent,
-                    "question_id": question_num
-                }
-        else:
-            print(f"⚠️ DEBUG: No assessment_id found, skipping database submission")
+        
+        # Score answer using config file
+        result = score_answer_from_config(question_num, answer)
+        print(f"✅ DEBUG: UI scoring result: {result}")
+        
+        # Store result in session
+        if "answers" not in session:
+            session["answers"] = {}
+        
+        session["answers"][str(question_num)] = {
+            "answer": answer,
+            "is_correct": result["is_correct"],
+            "points_earned": result["points_earned"],
+            "points_possible": result["points_possible"],
+            "feedback": result["feedback"],
+            "module": result.get("module", "unknown"),
+            "time_spent": time_spent,
+            "question_id": question_num
+        }
+        print(f"✅ DEBUG: Stored answer in session for Q{question_num}")
 
         # Determine next action
         if question_num == 21:
             print(f"🎯 DEBUG: Last question (Q21) reached!")
-            # Last question - calculate final scores before showing results
+            # Last question - calculate final scores from session
             if assessment_id:
                 try:
                     from core.database import get_db
-                    from core.assessment_engine import AssessmentEngine
-
-                    print(f"🎯 DEBUG: Calling complete_assessment for assessment_id={assessment_id}")
+                    from models.assessment import Assessment, AssessmentStatus
+                    from sqlalchemy import select
+                    
+                    print(f"🎯 DEBUG: Calculating scores for assessment_id={assessment_id}")
+                    
+                    # Calculate scores from session answers
+                    answers = session.get("answers", {})
+                    print(f"📊 DEBUG: Found {len(answers)} answers in session")
+                    
+                    # Group by module and calculate scores
+                    module_scores = {
+                        "listening": 0,
+                        "time_numbers": 0,
+                        "grammar": 0,
+                        "vocabulary": 0,
+                        "reading": 0,
+                        "speaking": 0
+                    }
+                    
+                    for q_num, answer_data in answers.items():
+                        module = answer_data.get("module", "unknown").lower().replace(" & ", "_").replace(" ", "_")
+                        points = answer_data.get("points_earned", 0)
+                        
+                        if module in module_scores:
+                            module_scores[module] += points
+                            print(f"  Q{q_num}: {module} += {points} points")
+                    
+                    total_score = sum(module_scores.values())
+                    print(f"✅ DEBUG: Calculated total_score = {total_score}")
+                    print(f"✅ DEBUG: Module breakdown: {module_scores}")
+                    
+                    # Update database with final scores
                     async for db in get_db():
-                        engine = AssessmentEngine(db)
-                        # Calculate and aggregate all scores
-                        result = await engine.complete_assessment(assessment_id)
-                        print(f"✅ DEBUG: complete_assessment returned: {result}")
+                        result = await db.execute(
+                            select(Assessment).where(Assessment.id == assessment_id)
+                        )
+                        assessment = result.scalar_one_or_none()
+                        
+                        if assessment:
+                            assessment.status = AssessmentStatus.COMPLETED
+                            assessment.completed_at = datetime.now()
+                            assessment.total_score = total_score
+                            assessment.listening_score = module_scores["listening"]
+                            assessment.time_numbers_score = module_scores["time_numbers"]
+                            assessment.grammar_score = module_scores["grammar"]
+                            assessment.vocabulary_score = module_scores["vocabulary"]
+                            assessment.reading_score = module_scores["reading"]
+                            assessment.speaking_score = module_scores["speaking"]
+                            assessment.passed = total_score >= 70
+                            
+                            await db.commit()
+                            print(f"✅ DEBUG: Assessment updated in database")
+                        else:
+                            print(f"⚠️ DEBUG: Assessment {assessment_id} not found in database")
                         break
+                        
                 except Exception as e:
                     print(f"❌ ERROR completing assessment: {e}")
                     import traceback
