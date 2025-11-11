@@ -330,7 +330,8 @@ async def submit_answer(
                     break
 
         # Submit answer to database
-        if assessment_id and question_data.get("id"):
+        # Use question_num as question_id since JSON config doesn't have separate IDs
+        if assessment_id:
             try:
                 from core.database import get_db
                 from core.assessment_engine import AssessmentEngine
@@ -339,9 +340,10 @@ async def submit_answer(
                     engine = AssessmentEngine(db)
 
                     # Submit response and get scoring
+                    # Use question_num as the question_id
                     result = await engine.submit_response(
                         assessment_id=assessment_id,
-                        question_id=question_data["id"],
+                        question_id=question_num,  # Use question number as ID
                         user_answer=answer,
                         time_spent=time_spent
                     )
@@ -357,7 +359,7 @@ async def submit_answer(
                         "points_possible": result["points_possible"],
                         "feedback": result["feedback"],
                         "time_spent": time_spent,
-                        "question_id": question_data["id"]
+                        "question_id": question_num
                     }
                     break
             except Exception as e:
@@ -369,7 +371,7 @@ async def submit_answer(
                 session["answers"][str(question_num)] = {
                     "answer": answer,
                     "time_spent": time_spent,
-                    "question_id": question_data.get("id")
+                    "question_id": question_num
                 }
 
         # Determine next action
