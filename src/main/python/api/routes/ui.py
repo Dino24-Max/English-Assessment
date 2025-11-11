@@ -374,7 +374,22 @@ async def submit_answer(
 
         # Determine next action
         if question_num == 21:
-            # Last question - redirect to results
+            # Last question - calculate final scores before showing results
+            if assessment_id:
+                try:
+                    from core.database import get_db
+                    from core.assessment_engine import AssessmentEngine
+
+                    async for db in get_db():
+                        engine = AssessmentEngine(db)
+                        # Calculate and aggregate all scores
+                        await engine.complete_assessment(assessment_id)
+                        break
+                except Exception as e:
+                    print(f"Error completing assessment: {e}")
+                    # Continue to results even if scoring fails
+
+            # Redirect to results
             return RedirectResponse(url="/results", status_code=303)
         else:
             # Go to next question, preserve operation parameter if present
@@ -424,7 +439,7 @@ async def results_page(request: Request):
                     assessment = result.scalar_one_or_none()
 
                     if assessment:
-                        # Use actual scores from database
+                        # Use actual scores from database (calculated by complete_assessment)
                         modules = [
                             {"name": "Listening", "score": assessment.listening_score or 0, "possible": 16, "icon": "🎧"},
                             {"name": "Time & Numbers", "score": assessment.time_numbers_score or 0, "possible": 16, "icon": "🔢"},
@@ -437,20 +452,15 @@ async def results_page(request: Request):
                     break
             except Exception as e:
                 print(f"Error fetching assessment results: {e}")
-                # Fallback to demo scores if error
+                # If error, modules will remain empty list
                 pass
 
-        # Fallback: Use demo scores if no assessment found
+        # If no modules found (no assessment or error), show error message
         if not modules:
-            modules = [
-                {"name": "Listening", "score": 13, "possible": 16, "icon": "🎧"},
-                {"name": "Time & Numbers", "score": 12, "possible": 16, "icon": "🔢"},
-                {"name": "Grammar", "score": 14, "possible": 16, "icon": "📝"},
-                {"name": "Vocabulary", "score": 13, "possible": 16, "icon": "📚"},
-                {"name": "Reading", "score": 15, "possible": 16, "icon": "📖"},
-                {"name": "Speaking", "score": 16, "possible": 20, "icon": "🎤"}
-            ]
-            total_score = sum(m["score"] for m in modules)
+            raise HTTPException(
+                status_code=404,
+                detail="Assessment not found. Please complete the assessment first."
+            )
 
         # Calculate total from modules
         if total_score == 0:
