@@ -17,23 +17,23 @@
             margin: 0;
             padding: 0;
             overflow-x: hidden;
-            font-size: 22px;
-            line-height: 1.6;
+            font-size: 26px;
+            line-height: 1.5;
         }
 
         .instructions-container {
             min-height: 100vh;
             background: linear-gradient(135deg, #0066ff 0%, #00d4ff 100%);
-            padding: 60px 30px;
+            padding: 40px 30px;
         }
 
         .instructions-card {
-            max-width: 1600px;
+            max-width: 95%;
             margin: 0 auto;
             background: white;
             border-radius: 32px;
             box-shadow: 0 40px 100px rgba(0, 0, 0, 0.15);
-            padding: 80px;
+            padding: 60px 80px;
             transform: translateZ(0);
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
@@ -41,37 +41,44 @@
 
         .instructions-header {
             text-align: center;
-            margin-bottom: 70px;
-            padding-bottom: 40px;
+            margin-bottom: 50px;
+            padding-bottom: 30px;
             border-bottom: 3px solid #f0f0f0;
         }
 
         .instructions-title {
-            font-size: 72px;
+            font-size: 84px;
             font-weight: 800;
             color: #000;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
             letter-spacing: -0.5px;
         }
 
         .instructions-subtitle {
-            font-size: 32px;
+            font-size: 38px;
             color: #666;
             text-rendering: optimizeLegibility;
             font-weight: 400;
         }
 
         .section {
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
 
         .two-column-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-bottom: 30px;
+        }
+
+        .three-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 40px;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
 
         .full-width-section {
@@ -79,10 +86,10 @@
         }
 
         .section-title {
-            font-size: 42px;
+            font-size: 48px;
             font-weight: 700;
             color: #000;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
             letter-spacing: -0.3px;
@@ -90,39 +97,43 @@
 
         .section-content {
             color: #444;
-            font-size: 24px;
-            line-height: 1.7;
+            font-size: 28px;
+            line-height: 1.6;
             text-rendering: optimizeLegibility;
         }
 
         .section-content ul, .section-content ol {
             margin-left: 0;
-            margin-top: 20px;
+            margin-top: 15px;
             padding-left: 30px;
         }
 
         .section-content li {
-            margin-bottom: 20px;
-            font-size: 24px;
+            margin-bottom: 12px;
+            font-size: 28px;
         }
 
         .section-content p {
-            font-size: 24px;
-            margin-bottom: 20px;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .section-content strong {
+            font-size: 30px;
         }
 
         .highlight-box {
             background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
             border-left: 6px solid #0066ff;
-            padding: 35px;
+            padding: 30px;
             border-radius: 16px;
-            margin: 30px 0;
-            font-size: 24px;
+            margin: 20px 0;
+            font-size: 28px;
         }
 
         .highlight-box strong {
             color: #0066ff;
-            font-size: 26px;
+            font-size: 30px;
         }
 
         .highlight-box p {
@@ -132,27 +143,27 @@
         .warning-box {
             background: linear-gradient(135deg, #fff8e6 0%, #ffe6cc 100%);
             border-left: 6px solid #ff9800;
-            padding: 35px;
+            padding: 30px;
             border-radius: 16px;
-            margin: 30px 0;
-            font-size: 26px;
+            margin: 20px 0;
+            font-size: 30px;
         }
 
         .warning-box strong {
             color: #ff6600;
-            font-size: 28px;
+            font-size: 32px;
         }
 
         .module-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 25px;
-            margin-top: 30px;
+            gap: 30px;
+            margin-top: 20px;
         }
 
         .module-card {
             background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            padding: 35px;
+            padding: 30px;
             border-radius: 20px;
             border: 2px solid #e9ecef;
             transition: all 0.3s ease;
@@ -169,42 +180,42 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .module-icon {
-            font-size: 56px;
+            font-size: 64px;
         }
 
         .module-name {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 700;
             color: #000;
         }
 
         .module-details {
-            font-size: 22px;
+            font-size: 26px;
             color: #555;
-            line-height: 1.7;
+            line-height: 1.5;
         }
 
         .module-details strong {
-            font-size: 24px;
+            font-size: 30px;
             color: #0066ff;
         }
 
         .action-buttons {
             display: flex;
-            gap: 25px;
-            margin-top: 70px;
+            gap: 30px;
+            margin-top: 50px;
             justify-content: center;
-            padding-top: 50px;
+            padding-top: 40px;
             border-top: 3px solid #f0f0f0;
         }
 
         .btn {
-            padding: 28px 60px;
-            font-size: 26px;
+            padding: 32px 70px;
+            font-size: 30px;
             font-weight: 700;
             border-radius: 16px;
             cursor: pointer;
