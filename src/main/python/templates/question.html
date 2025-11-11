@@ -489,17 +489,38 @@
             document.getElementById('submitBtn').innerHTML = 'Processing...';
             document.getElementById('submitBtn').disabled = true;
 
-            // Store answer (in production, this would submit to backend)
-            console.log('Answer submitted:', selectedAnswer);
+            // Submit answer to backend
+            console.log('Submitting answer to backend:', selectedAnswer);
 
-            // Navigate to next question or results
-            setTimeout(() => {
-                {% if is_last_question %}
-                    window.location.href = '/results';
-                {% else %}
-                    window.location.href = '/question/{{ next_question }}{% if operation %}?operation={{ operation }}{% endif %}';
-                {% endif %}
-            }, 500);
+            // Create form data
+            const formData = new FormData();
+            formData.append('question_num', {{ question_num }});
+            formData.append('answer', selectedAnswer);
+            {% if operation %}
+            formData.append('operation', '{{ operation }}');
+            {% endif %}
+
+            // Submit to backend
+            fetch('/submit', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // Follow redirect (to next question or results)
+                    window.location.href = response.url;
+                } else {
+                    return response.text().then(text => {
+                        throw new Error('Unexpected response: ' + text);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting answer:', error);
+                alert('Error submitting answer. Please try again.');
+                document.getElementById('submitBtn').innerHTML = 'Continue to Next Question';
+                document.getElementById('submitBtn').disabled = false;
+            });
         }
 
         // ===== 30-MINUTE COUNTDOWN TIMER =====
