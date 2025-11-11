@@ -331,22 +331,33 @@ async def submit_answer(
 
         # Submit answer to database
         # Use question_num as question_id since JSON config doesn't have separate IDs
+        print(f"🔍 DEBUG: Starting answer submission for Q{question_num}")
+        print(f"🔍 DEBUG: assessment_id = {assessment_id}")
+        print(f"🔍 DEBUG: answer = {answer}")
+        print(f"🔍 DEBUG: time_spent = {time_spent}")
+
         if assessment_id:
             try:
                 from core.database import get_db
                 from core.assessment_engine import AssessmentEngine
 
+                print(f"✅ DEBUG: Entering database submission block for Q{question_num}")
+
                 async for db in get_db():
                     engine = AssessmentEngine(db)
+                    print(f"✅ DEBUG: Created AssessmentEngine instance")
 
                     # Submit response and get scoring
                     # Use question_num as the question_id
+                    print(f"📝 DEBUG: Calling submit_response with question_id={question_num}")
                     result = await engine.submit_response(
                         assessment_id=assessment_id,
                         question_id=question_num,  # Use question number as ID
                         user_answer=answer,
                         time_spent=time_spent
                     )
+
+                    print(f"✅ DEBUG: submit_response returned: {result}")
 
                     # Store result in session for display
                     if "answers" not in session:
@@ -361,10 +372,13 @@ async def submit_answer(
                         "time_spent": time_spent,
                         "question_id": question_num
                     }
+                    print(f"✅ DEBUG: Stored answer in session for Q{question_num}")
                     break
             except Exception as e:
                 # Log error but don't block user flow
-                print(f"Error persisting answer to database: {e}")
+                print(f"❌ ERROR persisting answer to database: {e}")
+                import traceback
+                traceback.print_exc()
                 # Fallback: store in session only
                 if "answers" not in session:
                     session["answers"] = {}
@@ -373,25 +387,35 @@ async def submit_answer(
                     "time_spent": time_spent,
                     "question_id": question_num
                 }
+        else:
+            print(f"⚠️ DEBUG: No assessment_id found, skipping database submission")
 
         # Determine next action
         if question_num == 21:
+            print(f"🎯 DEBUG: Last question (Q21) reached!")
             # Last question - calculate final scores before showing results
             if assessment_id:
                 try:
                     from core.database import get_db
                     from core.assessment_engine import AssessmentEngine
 
+                    print(f"🎯 DEBUG: Calling complete_assessment for assessment_id={assessment_id}")
                     async for db in get_db():
                         engine = AssessmentEngine(db)
                         # Calculate and aggregate all scores
-                        await engine.complete_assessment(assessment_id)
+                        result = await engine.complete_assessment(assessment_id)
+                        print(f"✅ DEBUG: complete_assessment returned: {result}")
                         break
                 except Exception as e:
-                    print(f"Error completing assessment: {e}")
+                    print(f"❌ ERROR completing assessment: {e}")
+                    import traceback
+                    traceback.print_exc()
                     # Continue to results even if scoring fails
+            else:
+                print(f"⚠️ DEBUG: No assessment_id found for complete_assessment")
 
             # Redirect to results
+            print(f"🔄 DEBUG: Redirecting to /results")
             return RedirectResponse(url="/results", status_code=303)
         else:
             # Go to next question, preserve operation parameter if present
@@ -423,6 +447,8 @@ async def results_page(request: Request):
         session = request.session
         assessment_id = session.get("assessment_id")
 
+        print(f"🔍 DEBUG /results: assessment_id from session = {assessment_id}")
+
         modules = []
         total_score = 0
         total_possible = 100
@@ -433,6 +459,7 @@ async def results_page(request: Request):
                 from models.assessment import Assessment
                 from sqlalchemy import select
 
+                print(f"🔍 DEBUG: Fetching assessment {assessment_id} from database...")
                 async for db in get_db():
                     # Fetch assessment from database
                     result = await db.execute(
@@ -440,7 +467,17 @@ async def results_page(request: Request):
                     )
                     assessment = result.scalar_one_or_none()
 
+                    print(f"🔍 DEBUG: Assessment object: {assessment}")
                     if assessment:
+                        print(f"📊 DEBUG: listening_score = {assessment.listening_score}")
+                        print(f"📊 DEBUG: time_numbers_score = {assessment.time_numbers_score}")
+                        print(f"📊 DEBUG: grammar_score = {assessment.grammar_score}")
+                        print(f"📊 DEBUG: vocabulary_score = {assessment.vocabulary_score}")
+                        print(f"📊 DEBUG: reading_score = {assessment.reading_score}")
+                        print(f"📊 DEBUG: speaking_score = {assessment.speaking_score}")
+                        print(f"📊 DEBUG: total_score = {assessment.total_score}")
+                        print(f"📊 DEBUG: status = {assessment.status}")
+
                         # Use actual scores from database (calculated by complete_assessment)
                         modules = [
                             {"name": "Listening", "score": assessment.listening_score or 0, "possible": 16, "icon": "🎧"},
@@ -451,14 +488,22 @@ async def results_page(request: Request):
                             {"name": "Speaking", "score": assessment.speaking_score or 0, "possible": 20, "icon": "🎤"}
                         ]
                         total_score = assessment.total_score or 0
+                        print(f"✅ DEBUG: Built modules list with total_score = {total_score}")
+                    else:
+                        print(f"⚠️ DEBUG: No assessment found in database for id {assessment_id}")
                     break
             except Exception as e:
-                print(f"Error fetching assessment results: {e}")
+                print(f"❌ ERROR fetching assessment results: {e}")
+                import traceback
+                traceback.print_exc()
                 # If error, modules will remain empty list
                 pass
+        else:
+            print(f"⚠️ DEBUG: No assessment_id in session")
 
         # If no modules found (no assessment or error), show error message
         if not modules:
+            print(f"❌ DEBUG: No modules found, raising 404 error")
             raise HTTPException(
                 status_code=404,
                 detail="Assessment not found. Please complete the assessment first."
