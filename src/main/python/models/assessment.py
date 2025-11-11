@@ -151,9 +151,15 @@ class Assessment(BaseModel):
 
     # Composite indexes and constraints
     __table_args__ = (
+        # Existing indexes
         Index('ix_assessments_user_status', 'user_id', 'status'),
         Index('ix_assessments_division_status', 'division', 'status'),
         Index('ix_assessments_completed', 'completed_at', 'passed'),
+        # New performance indexes
+        Index('ix_assessments_expires_at', 'expires_at'),  # For finding expired assessments
+        Index('ix_assessments_status_created', 'status', 'created_at'),  # For sorting by status and time
+        Index('ix_assessments_user_division', 'user_id', 'division'),  # For user division queries
+        # Constraints
         CheckConstraint('total_score >= 0', name='check_total_score_positive'),
         CheckConstraint('total_score <= max_possible_score', name='check_score_range'),
         CheckConstraint('max_possible_score > 0', name='check_max_score_positive'),
@@ -188,8 +194,13 @@ class AssessmentResponse(BaseModel):
 
     # Composite indexes for common queries
     __table_args__ = (
+        # Existing indexes
         Index('ix_response_assessment_question', 'assessment_id', 'question_id'),
         Index('ix_response_answered_at', 'answered_at'),
+        # New performance indexes
+        Index('ix_response_assessment_correct', 'assessment_id', 'is_correct'),  # For accuracy statistics
+        Index('ix_response_question_correct', 'question_id', 'is_correct'),  # For question difficulty analysis
+        # Constraints
         CheckConstraint('points_earned >= 0', name='check_points_earned_positive'),
         CheckConstraint('points_earned <= points_possible', name='check_points_earned_range'),
         CheckConstraint('points_possible > 0', name='check_points_possible_positive'),

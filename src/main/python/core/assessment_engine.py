@@ -17,6 +17,7 @@ from models.assessment import (
 from core.config import settings
 from services.ai_service import AIService
 from utils.scoring import ScoringEngine
+from utils.cache import cache_result, CacheKeys, CacheTTL
 
 
 class AssessmentEngine:
@@ -26,6 +27,36 @@ class AssessmentEngine:
         self.db = db
         self.ai_service = AIService()
         self.scoring_engine = ScoringEngine(self.db)
+
+    @cache_result(ttl=CacheTTL.HOUR, key_prefix=CacheKeys.QUESTIONS_BY_DIVISION)
+    async def _get_cached_questions_by_division(self, division: DivisionType) -> List[Question]:
+        """
+        Get all questions for a division with caching
+        Cache for 1 hour since question bank rarely changes
+        """
+        result = await self.db.execute(
+            select(Question).where(Question.division == division)
+        )
+        questions = result.scalars().all()
+        
+        # Convert to list of dicts for JSON serialization
+        return [
+            {
+                "id": q.id,
+                "module_type": q.module_type.value,
+                "division": q.division.value,
+                "question_type": q.question_type.value,
+                "question_text": q.question_text,
+                "options": q.options,
+                "correct_answer": q.correct_answer,
+                "audio_file_path": q.audio_file_path,
+                "difficulty_level": q.difficulty_level,
+                "is_safety_related": q.is_safety_related,
+                "points": q.points,
+                "question_metadata": q.question_metadata
+            }
+            for q in questions
+        ]
 
     async def create_assessment(self, user_id: int, division: DivisionType) -> Assessment:
         """Create new assessment session"""
@@ -81,7 +112,7 @@ class AssessmentEngine:
         }
 
     async def _generate_question_set(self, division: DivisionType) -> Dict[str, List[Dict]]:
-        """Generate randomized question set for assessment"""
+        """Generate randomized question set for assessment - Optimized with single query"""
 
         questions = {
             "listening": [],
@@ -102,24 +133,28 @@ class AssessmentEngine:
             ModuleType.SPEAKING: 1        # 1 scenario × 20 points = 20 points
         }
 
-        for module_type, count in questions_per_module.items():
-            # Get questions for this module and division
-            result = await self.db.execute(
-                select(Question).where(
-                    and_(
-                        Question.module_type == module_type,
-                        Question.division == division
-                    )
-                )
-            )
+        # OPTIMIZATION: Fetch all questions for this division in ONE query
+        result = await self.db.execute(
+            select(Question).where(Question.division == division)
+        )
+        all_questions = result.scalars().all()
+        
+        # Group questions by module type in memory (much faster than multiple DB queries)
+        questions_by_module = {}
+        for question in all_questions:
+            if question.module_type not in questions_by_module:
+                questions_by_module[question.module_type] = []
+            questions_by_module[question.module_type].append(question)
 
-            available_questions = result.scalars().all()
+        # Now select questions for each module
+        for module_type, count in questions_per_module.items():
+            available_questions = questions_by_module.get(module_type, [])
 
             if len(available_questions) < count:
                 # If not enough questions, create sample questions
                 await self._create_sample_questions(module_type, division)
 
-                # Re-fetch questions
+                # Re-fetch only this module's questions
                 result = await self.db.execute(
                     select(Question).where(
                         and_(
@@ -144,7 +179,7 @@ class AssessmentEngine:
                     "points": q.points,
                     "audio_file": q.audio_file_path,
                     "is_safety_related": q.is_safety_related,
-                    "metadata": q.metadata
+                    "metadata": q.question_metadata
                 }
                 for q in selected_questions
             ]
@@ -153,32 +188,39 @@ class AssessmentEngine:
 
     async def submit_response(self, assessment_id: int, question_id: int,
                             user_answer: str, time_spent: int = None) -> Dict[str, Any]:
-        """Submit answer for a question"""
-
-        # Get assessment and question
-        assessment_result = await self.db.execute(select(Assessment).where(Assessment.id == assessment_id))
+        """Submit answer for a question - Optimized with parallel queries"""
+        
+        import asyncio
+        
+        # Parallel query execution - Reduce 3 sequential queries to 1 parallel batch
+        assessment_query = select(Assessment).where(Assessment.id == assessment_id)
+        question_query = select(Question).where(Question.id == question_id)
+        existing_query = select(AssessmentResponse).where(
+            and_(
+                AssessmentResponse.assessment_id == assessment_id,
+                AssessmentResponse.question_id == question_id
+            )
+        )
+        
+        # Execute all queries in parallel
+        assessment_result, question_result, existing_result = await asyncio.gather(
+            self.db.execute(assessment_query),
+            self.db.execute(question_query),
+            self.db.execute(existing_query)
+        )
+        
         assessment = assessment_result.scalar_one_or_none()
-
-        question_result = await self.db.execute(select(Question).where(Question.id == question_id))
         question = question_result.scalar_one_or_none()
+        existing = existing_result.scalar_one_or_none()
 
+        # Validation
         if not assessment or not question:
             raise ValueError("Assessment or question not found")
 
         if assessment.status != AssessmentStatus.IN_PROGRESS:
             raise ValueError("Assessment is not in progress")
 
-        # Check if already answered
-        existing_result = await self.db.execute(
-            select(AssessmentResponse).where(
-                and_(
-                    AssessmentResponse.assessment_id == assessment_id,
-                    AssessmentResponse.question_id == question_id
-                )
-            )
-        )
-
-        if existing_result.scalar_one_or_none():
+        if existing:
             raise ValueError("Question already answered")
 
         # Score the response

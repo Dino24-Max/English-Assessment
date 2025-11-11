@@ -1,17 +1,69 @@
 """
 AI Service for speech analysis and content generation
 Integrates with OpenAI and Anthropic APIs
+Includes timeout, retry, and error handling
 """
 
 import asyncio
 import json
+import logging
 import librosa
 import numpy as np
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+from functools import wraps
 import openai
 import anthropic
 from core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+def with_timeout_and_retry(timeout: int = None, retries: int = None):
+    """
+    Decorator for AI service calls with timeout and retry logic
+    
+    Args:
+        timeout: Timeout in seconds (defaults to settings.AI_TIMEOUT_SECONDS)
+        retries: Number of retry attempts (defaults to settings.AI_RETRY_ATTEMPTS)
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            _timeout = timeout or settings.AI_TIMEOUT_SECONDS
+            _retries = retries or settings.AI_RETRY_ATTEMPTS
+            last_exception = None
+            
+            for attempt in range(_retries):
+                try:
+                    # Apply timeout to the function call
+                    async with asyncio.timeout(_timeout):
+                        result = await func(*args, **kwargs)
+                        return result
+                        
+                except asyncio.TimeoutError:
+                    last_exception = TimeoutError(f"AI service timeout after {_timeout}s")
+                    logger.warning(f"{func.__name__} timeout (attempt {attempt + 1}/{_retries})")
+                    if attempt < _retries - 1:
+                        await asyncio.sleep(settings.AI_RETRY_DELAY * (attempt + 1))
+                    
+                except (openai.APIError, anthropic.APIError) as e:
+                    last_exception = e
+                    logger.warning(f"{func.__name__} API error (attempt {attempt + 1}/{_retries}): {e}")
+                    if attempt < _retries - 1:
+                        await asyncio.sleep(settings.AI_RETRY_DELAY * (attempt + 1))
+                    
+                except Exception as e:
+                    last_exception = e
+                    logger.error(f"{func.__name__} unexpected error: {e}")
+                    break  # Don't retry on unexpected errors
+            
+            # All retries failed - return fallback response
+            logger.error(f"{func.__name__} failed after {_retries} attempts: {last_exception}")
+            raise last_exception
+        
+        return wrapper
+    return decorator
 
 
 class AIService:
@@ -21,9 +73,20 @@ class AIService:
         self.openai_client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
         self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
 
+    @with_timeout_and_retry(timeout=30, retries=3)
     async def analyze_speech_response(self, audio_file_path: str, expected_response: str,
                                     question_context: str) -> Dict[str, Any]:
-        """Analyze speech response using AI"""
+        """
+        Analyze speech response using AI with timeout and retry
+        
+        Args:
+            audio_file_path: Path to audio file
+            expected_response: Expected answer text
+            question_context: Question context for analysis
+            
+        Returns:
+            Dict with transcript, analysis, scores, and feedback
+        """
 
         try:
             # Load and analyze audio file
@@ -50,16 +113,54 @@ class AIService:
                 "feedback": self._generate_speech_feedback(scores, content_analysis)
             }
 
+        except TimeoutError as e:
+            logger.error(f"Speech analysis timeout for {audio_file_path}: {e}")
+            return self._get_fallback_speech_response("timeout")
+            
+        except (openai.APIError, anthropic.APIError) as e:
+            logger.error(f"AI API error for {audio_file_path}: {e}")
+            return self._get_fallback_speech_response("api_error")
+            
         except Exception as e:
-            # Fallback scoring if AI analysis fails
-            return {
-                "transcript": "Error in transcription",
-                "error": str(e),
-                "total_points": 10,  # Minimum points for attempt
-                "overall_score": 0.5,
-                "feedback": "Technical issue with speech analysis. Manual review required."
-            }
+            logger.error(f"Unexpected error in speech analysis for {audio_file_path}: {e}")
+            return self._get_fallback_speech_response("error")
+    
+    def _get_fallback_speech_response(self, error_type: str = "error") -> Dict[str, Any]:
+        """
+        Generate fallback response when AI analysis fails
+        
+        Args:
+            error_type: Type of error ('timeout', 'api_error', 'error')
+            
+        Returns:
+            Dict with fallback scoring and feedback
+        """
+        fallback_messages = {
+            "timeout": "Speech analysis timed out. Manual review required.",
+            "api_error": "AI service temporarily unavailable. Manual review required.",
+            "error": "Technical issue with speech analysis. Manual review required."
+        }
+        
+        return {
+            "transcript": "Analysis unavailable",
+            "error": error_type,
+            "total_points": 10,  # Minimum points for attempt (50% of 20 points)
+            "overall_score": 0.5,
+            "audio_quality": {"clarity": 0.5, "fluency": 0.5, "pronunciation": 0.5},
+            "content_analysis": {"accuracy": 0.5, "completeness": 0.5, "appropriateness": 0.5},
+            "scores": {
+                "clarity": 2,
+                "fluency": 2,
+                "pronunciation": 2,
+                "accuracy": 2,
+                "appropriateness": 2,
+                "total_score": 10,
+                "overall_score": 0.5
+            },
+            "feedback": fallback_messages.get(error_type, fallback_messages["error"])
+        }
 
+    @with_timeout_and_retry(timeout=20, retries=2)
     async def _transcribe_audio(self, audio_file_path: str) -> str:
         """Transcribe audio using OpenAI Whisper API"""
 
@@ -78,6 +179,7 @@ class AIService:
         except Exception as e:
             return f"[Transcription error: {str(e)}]"
 
+    @with_timeout_and_retry(timeout=15, retries=2)
     async def _analyze_speech_content(self, transcript: str, expected_response: str,
                                     context: str) -> Dict[str, Any]:
         """Analyze speech content for accuracy and appropriateness"""

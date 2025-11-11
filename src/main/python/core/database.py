@@ -4,17 +4,22 @@ Database configuration and connection management
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 from core.config import settings
 
 # Convert PostgreSQL URL to async version
 DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-# Create async engine
+# Create async engine with optimized connection pooling
 engine = create_async_engine(
     DATABASE_URL,
-    poolclass=NullPool,
-    echo=settings.DEBUG,
+    poolclass=AsyncAdaptedQueuePool,
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
+    pool_timeout=settings.DB_POOL_TIMEOUT,
+    pool_recycle=settings.DB_POOL_RECYCLE,
+    pool_pre_ping=settings.DB_POOL_PRE_PING,
+    echo=settings.DB_ECHO or settings.DEBUG,
 )
 
 # Create async session maker

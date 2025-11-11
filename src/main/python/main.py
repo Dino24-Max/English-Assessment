@@ -21,10 +21,19 @@ from core.config import settings
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
+    from utils.cache import cache_manager
+    
+    # Initialize database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Initialize Redis cache
+    await cache_manager.connect()
+    
     yield
+    
     # Shutdown
+    await cache_manager.disconnect()
     await engine.dispose()
 
 

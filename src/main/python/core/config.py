@@ -31,9 +31,22 @@ class Settings(BaseSettings):
         """Return database URL for SQLAlchemy"""
         return self.DATABASE_URL
 
+    # Database Connection Pool Settings
+    DB_POOL_SIZE: int = 20  # Number of connections to maintain in the pool
+    DB_MAX_OVERFLOW: int = 10  # Maximum number of connections to create beyond pool_size
+    DB_POOL_TIMEOUT: int = 30  # Seconds to wait before giving up on getting a connection
+    DB_POOL_RECYCLE: int = 3600  # Recycle connections after 1 hour (prevents stale connections)
+    DB_POOL_PRE_PING: bool = True  # Test connections before using them
+    DB_ECHO: bool = False  # Log all SQL statements (override with DEBUG if needed)
+
     # AI Services
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
+    
+    # AI Service Configuration
+    AI_TIMEOUT_SECONDS: int = 30  # Timeout for AI API calls
+    AI_RETRY_ATTEMPTS: int = 3  # Number of retry attempts
+    AI_RETRY_DELAY: float = 1.0  # Initial retry delay in seconds
 
     # Assessment Settings
     LISTENING_DURATION_SECONDS: int = 40
