@@ -166,6 +166,7 @@ async def question_page(request: Request, question_num: int, operation: Optional
         question_num: Question number (1-21)
         operation: Operation type (HOTEL, MARINE, or CASINO) - optional for backward compatibility
     """
+    print(f"📄 DEBUG: GET /question/{question_num} - operation={operation}")
     try:
         # Validate question number
         if question_num < 1 or question_num > 21:
