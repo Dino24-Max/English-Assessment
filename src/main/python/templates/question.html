@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Question {{ question_num }} - CCL English Assessment</title>
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/assessment.css">
+    <!-- Version: 2025-11-11-DEBUG -->
 </head>
 <body>
     <div class="header">
@@ -490,7 +494,8 @@
             document.getElementById('submitBtn').disabled = true;
 
             // Submit answer to backend
-            console.log('Submitting answer to backend:', selectedAnswer);
+            console.log('🚀 NEW CODE ACTIVE - Submitting answer to backend:', selectedAnswer);
+            console.log('🚀 Question number:', {{ question_num }});
 
             // Create form data
             const formData = new FormData();
