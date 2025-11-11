@@ -86,3 +86,11 @@ node_modules/
 *.mp3
 *.wav
 audio_cache/
+
+# Serena MCP working directory
+.serena/
+
+# Screenshots and temporary files
+*.png
+cookies.txt
+Screenshot*.png
