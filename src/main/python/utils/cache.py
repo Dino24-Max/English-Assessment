@@ -29,7 +29,7 @@ class CacheManager:
         return cls._instance
     
     async def connect(self):
-        """Initialize Redis connection"""
+        """Initialize Redis connection - gracefully handles Redis unavailability"""
         if self._redis_client is None:
             try:
                 self._redis_client = await aioredis.from_url(
@@ -41,9 +41,11 @@ class CacheManager:
                     health_check_interval=30
                 )
                 await self._redis_client.ping()
-                logger.info("Redis cache connected successfully")
-            except RedisError as e:
-                logger.error(f"Failed to connect to Redis: {e}")
+                logger.info("✅ Redis cache connected successfully - Caching ENABLED")
+            except (RedisError, Exception) as e:
+                logger.warning(f"⚠️ Redis not available: {e}")
+                logger.warning("⚠️ Application will run WITHOUT caching - Performance may be reduced")
+                logger.info("💡 To enable caching: Install and start Redis server")
                 self._redis_client = None
     
     async def disconnect(self):
