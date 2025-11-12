@@ -17,6 +17,40 @@ import string
 router = APIRouter()
 
 
+@router.post("/load-full-question-bank")
+async def load_full_question_bank(
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Load complete 1600-question bank into database
+    Requires admin authentication
+    """
+    from core.config import settings
+    from data.question_bank_loader import QuestionBankLoader
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        loader = QuestionBankLoader(db)
+        count = await loader.load_full_question_bank()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully loaded {count} questions into database",
+            "total_questions": count,
+            "structure": "16 departments × 10 scenarios × 10 questions"
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Question bank file not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load questions: {str(e)}")
+
+
 # Pydantic models for invitation API
 class InvitationCreateRequest(BaseModel):
     """Request model for creating invitation code"""

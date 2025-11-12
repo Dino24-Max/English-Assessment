@@ -1,10 +1,12 @@
 """
 Question Bank Loader
 Loads comprehensive question banks for all divisions and modules
+Supports both legacy format and new 1600-question full bank
 """
 
 import json
 from typing import Dict, List, Any
+from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.assessment import Question, ModuleType, DivisionType, QuestionType
 
@@ -15,8 +17,93 @@ class QuestionBankLoader:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def load_full_question_bank(self, json_file_path: str = None):
+        """
+        Load complete 1600-question bank from JSON file
+        
+        Args:
+            json_file_path: Path to question_bank_full.json (optional)
+        """
+        if not json_file_path:
+            # Default path
+            data_dir = Path(__file__).parent.parent.parent.parent / "data"
+            json_file_path = data_dir / "question_bank_full.json"
+        
+        print(f"Loading full question bank from: {json_file_path}")
+        
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            bank_data = json.load(f)
+        
+        questions_data = bank_data.get("questions", [])
+        print(f"Found {len(questions_data)} questions to load")
+        
+        # Batch insert for performance
+        questions_to_add = []
+        
+        for i, q_data in enumerate(questions_data, 1):
+            # Map module to ModuleType enum
+            module_map = {
+                "listening": ModuleType.LISTENING,
+                "grammar": ModuleType.GRAMMAR,
+                "vocabulary": ModuleType.VOCABULARY,
+                "reading": ModuleType.READING,
+                "time_numbers": ModuleType.TIME_NUMBERS,
+                "speaking": ModuleType.SPEAKING
+            }
+            
+            # Map division to DivisionType enum
+            division_map = {
+                "hotel": DivisionType.HOTEL,
+                "marine": DivisionType.MARINE,
+                "casino": DivisionType.CASINO
+            }
+            
+            # Map question_type string to QuestionType enum
+            type_map = {
+                "multiple_choice": QuestionType.MULTIPLE_CHOICE,
+                "fill_blank": QuestionType.FILL_BLANK,
+                "category_match": QuestionType.CATEGORY_MATCH,
+                "title_selection": QuestionType.TITLE_SELECTION,
+                "speaking_response": QuestionType.SPEAKING_RESPONSE
+            }
+            
+            question = Question(
+                module_type=module_map.get(q_data.get("module_type", q_data.get("module")), ModuleType.LISTENING),
+                division=division_map.get(q_data.get("division"), DivisionType.HOTEL),
+                question_type=type_map.get(q_data.get("question_type"), QuestionType.MULTIPLE_CHOICE),
+                question_text=q_data.get("question_text", ""),
+                options=q_data.get("options"),
+                correct_answer=q_data.get("correct_answer", ""),
+                audio_file_path=q_data.get("audio_file_path"),
+                difficulty_level=q_data.get("difficulty_level", 2),
+                is_safety_related=q_data.get("is_safety_related", False),
+                points=q_data.get("points", 4),
+                department=q_data.get("department"),
+                scenario_id=q_data.get("scenario_id"),
+                scenario_description=q_data.get("scenario_description"),
+                question_metadata=q_data.get("question_metadata")
+            )
+            
+            questions_to_add.append(question)
+            
+            # Batch commit every 100 questions for progress
+            if i % 100 == 0:
+                self.db.add_all(questions_to_add)
+                await self.db.commit()
+                print(f"  ✅ Loaded {i}/{len(questions_data)} questions")
+                questions_to_add = []
+        
+        # Commit remaining questions
+        if questions_to_add:
+            self.db.add_all(questions_to_add)
+            await self.db.commit()
+        
+        print(f"✅ Successfully loaded {len(questions_data)} questions into database!")
+        
+        return len(questions_data)
+
     async def load_all_questions(self):
-        """Load all question banks for all divisions"""
+        """Load all question banks for all divisions (legacy method)"""
 
         # Hotel Operations Questions
         await self._load_hotel_questions()
