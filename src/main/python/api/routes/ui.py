@@ -634,7 +634,9 @@ async def results_page(request: Request):
             total_score = sum(m["score"] for m in modules)
 
         total_possible = sum(m["possible"] for m in modules)
-        percentage = round((total_score / total_possible) * 100, 1) if total_possible > 0 else 0
+        # Convert to integers for display
+        total_score_int = int(round(total_score))
+        percentage = int(round((total_score / total_possible) * 100)) if total_possible > 0 else 0
 
         # Determine result status and gradient
         if percentage >= 65:
@@ -647,14 +649,16 @@ async def results_page(request: Request):
         # Generate module HTML
         module_results = []
         for module in modules:
-            module_percentage = round((module["score"] / module["possible"]) * 100, 1) if module["possible"] > 0 else 0
+            # Convert scores to integers for display
+            module_score_int = int(round(module["score"]))
+            module_percentage = int(round((module["score"] / module["possible"]) * 100)) if module["possible"] > 0 else 0
             module_html = f'''
             <div class="module-card">
                 <div class="module-header">
                     <span class="module-icon">{module["icon"]}</span>
                     <span class="module-name">{module["name"]}</span>
                 </div>
-                <div class="module-score">{module["score"]}/{module["possible"]}</div>
+                <div class="module-score">{module_score_int}/{module["possible"]}</div>
                 <div class="module-percentage">{module_percentage}%</div>
             </div>
             '''
@@ -664,7 +668,7 @@ async def results_page(request: Request):
             "results.html",
             {
                 "request": request,
-                "total_score": total_score,
+                "total_score": total_score_int,
                 "total_possible": total_possible,
                 "percentage": percentage,
                 "score_gradient": score_gradient,
