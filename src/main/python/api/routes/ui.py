@@ -124,10 +124,15 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             user_clean = user_answer.strip().lower()
             correct_clean = correct_answer.strip().lower()
             
-            # Score based on match
-            is_correct = user_clean == correct_clean
+            # IMPROVED: Handle time formats flexibly
+            # "7:00 am" should match "7:00"
+            user_normalized = user_clean.replace(" am", "").replace(" pm", "").replace("  ", " ").strip()
+            correct_normalized = correct_clean.replace(" am", "").replace(" pm", "").replace("  ", " ").strip()
             
-            print(f"📝 Regular question: user={user_clean}, correct={correct_clean}, match={is_correct}")
+            # Score based on match
+            is_correct = user_normalized == correct_normalized
+            
+            print(f"📝 Regular question: user='{user_normalized}', correct='{correct_normalized}', match={is_correct}")
         else:
             print(f"⚠️ No correct answer field found for Q{question_num}")
             correct_answer_display = "N/A"
