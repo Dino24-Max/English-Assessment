@@ -24,29 +24,29 @@ class QuestionBankGenerator:
         self.questions = []
         self.question_counter = 1
 
-        # Department structure
+        # Department structure (16 correct departments)
         self.departments = {
             "HOTEL": [
-                ("Front Desk", "FD"),
-                ("Housekeeping", "HK"),
-                ("Food & Beverage", "FB"),
-                ("Bar Service", "BR"),
-                ("Guest Services", "GS"),
-                ("Cabin Service", "CS"),
-                ("Auxiliary Service", "AX"),
-                ("Laundry", "LN"),
-                ("Photo", "PH"),
-                ("Provisions", "PV")
+                ("AUX SERV", "AUX"),
+                ("BEVERAGE GUEST SERV", "BGS"),
+                ("CULINARY ARTS", "CUL"),
+                ("GUEST SERVICES", "GSV"),
+                ("HOUSEKEEPING", "HSK"),
+                ("LAUNDRY", "LND"),
+                ("PHOTO", "PHT"),
+                ("PROVISIONS", "PRV"),
+                ("REST. SERVICE", "RST"),
+                ("SHORE EXCURS", "SHR")
             ],
             "MARINE": [
-                ("Deck Department", "DK"),
-                ("Engine Department", "EN"),
-                ("Security Department", "SC")
+                ("Deck", "DCK"),
+                ("Engine", "ENG"),
+                ("Security Services", "SEC")
             ],
             "CASINO": [
-                ("Table Games", "TG"),
-                ("Slot Machines", "SM"),
-                ("Casino Services", "CV")
+                ("Table Games", "TBL"),
+                ("Slot Machines", "SLT"),
+                ("Casino Services", "CSN")
             ]
         }
 

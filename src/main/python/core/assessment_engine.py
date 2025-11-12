@@ -123,15 +123,18 @@ class AssessmentEngine:
             "speaking": []
         }
 
-        # Questions per module (total 84 points + 20 speaking = 104 points, but max 100)
+        # Questions per module (21 questions total = 100 points)
         questions_per_module = {
-            ModuleType.LISTENING: 4,      # 4 questions × 4 points = 16 points
-            ModuleType.TIME_NUMBERS: 4,   # 4 questions × 4 points = 16 points
-            ModuleType.GRAMMAR: 4,        # 4 questions × 4 points = 16 points
-            ModuleType.VOCABULARY: 4,     # 4 questions × 4 points = 16 points
-            ModuleType.READING: 4,        # 4 questions × 4 points = 16 points
-            ModuleType.SPEAKING: 1        # 1 scenario × 20 points = 20 points
+            ModuleType.LISTENING: 3,      # 3 questions: 5+5+6 = 16 points
+            ModuleType.TIME_NUMBERS: 3,   # 3 questions: 5+5+6 = 16 points
+            ModuleType.GRAMMAR: 4,        # 4 questions: 4+4+4+4 = 16 points
+            ModuleType.VOCABULARY: 4,     # 4 questions: 4+4+4+4 = 16 points
+            ModuleType.READING: 4,        # 4 questions: 4+4+4+4 = 16 points
+            ModuleType.SPEAKING: 3        # 3 questions: 7+7+6 = 20 points
         }
+        
+        # Enhanced: Ensure diversity by sampling from different departments and scenarios
+        # This prevents getting all questions from same scenario
 
         # OPTIMIZATION: Fetch all questions for this division in ONE query
         result = await self.db.execute(

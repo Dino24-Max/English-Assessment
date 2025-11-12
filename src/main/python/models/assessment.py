@@ -91,6 +91,11 @@ class Question(BaseModel):
     difficulty_level = Column(Integer, default=1)  # 1-5 scale
     is_safety_related = Column(Boolean, default=False, index=True)
     points = Column(Integer, nullable=False)
+    
+    # Department & Scenario Info (for 1600-question bank)
+    department = Column(String(100), nullable=True, index=True)  # e.g., "HOUSEKEEPING", "Deck", "Table Games"
+    scenario_id = Column(Integer, nullable=True, index=True)  # 1-10 for each department
+    scenario_description = Column(Text, nullable=True)  # Description of the scenario
 
     # Question specific data
     question_metadata = Column(JSON, nullable=True)  # Additional question-specific data (renamed from 'metadata' to avoid SQLAlchemy reserved word)
@@ -100,6 +105,10 @@ class Question(BaseModel):
         Index('ix_questions_module_division', 'module_type', 'division'),
         Index('ix_questions_division_difficulty', 'division', 'difficulty_level'),
         Index('ix_questions_safety', 'is_safety_related'),
+        # New indexes for 1600-question bank
+        Index('ix_questions_department', 'department', 'module_type'),
+        Index('ix_questions_scenario', 'department', 'scenario_id'),
+        Index('ix_questions_division_dept', 'division', 'department'),
     )
 
 
@@ -225,3 +234,39 @@ class AssessmentConfig(BaseModel):
     config_value = Column(JSON, nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+
+
+class InvitationCode(BaseModel):
+    """Invitation code for user registration"""
+    __tablename__ = "invitation_codes"
+
+    # Invitation Code
+    code = Column(String(16), unique=True, nullable=False, index=True)
+    
+    # Target User
+    email = Column(String(255), nullable=False, index=True)
+    
+    # Assignment
+    operation = Column(Enum(DivisionType), nullable=False, index=True)
+    department = Column(String(100), nullable=True)  # Optional specific department
+    
+    # Creation Info
+    created_by = Column(String(100), nullable=False)  # Admin identifier
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Optional expiration
+    
+    # Usage Tracking
+    is_used = Column(Boolean, default=False, nullable=False, index=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    used_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Relationships
+    used_by_user = relationship("User", foreign_keys=[used_by_user_id])
+    
+    # Indexes for common queries
+    __table_args__ = (
+        Index('ix_invitation_code', 'code'),
+        Index('ix_invitation_email', 'email'),
+        Index('ix_invitation_used', 'is_used', 'created_at'),
+        Index('ix_invitation_operation', 'operation', 'is_used'),
+    )

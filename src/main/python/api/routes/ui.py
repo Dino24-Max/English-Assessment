@@ -884,39 +884,81 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
 
 
 @router.get("/register", response_class=HTMLResponse)
-async def registration_page(request: Request):
+async def registration_page(request: Request, code: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     """
     Registration page - Candidate information form
+    Supports invitation code for controlled registration
+    
+    Args:
+        code: Optional invitation code from admin
     """
     try:
+        # Initialize variables
+        invitation_data = None
+        pre_selected_operation = None
+        pre_selected_department = None
+        
+        # If invitation code provided, validate it
+        if code:
+            from models.assessment import InvitationCode
+            from sqlalchemy import select
+            
+            result = await db.execute(
+                select(InvitationCode).where(InvitationCode.code == code)
+            )
+            invitation = result.scalar_one_or_none()
+            
+            if not invitation:
+                raise HTTPException(status_code=404, detail="Invalid invitation code")
+            
+            if invitation.is_used:
+                raise HTTPException(status_code=400, detail="Invitation code already used")
+            
+            # Check expiration
+            if invitation.expires_at and invitation.expires_at < datetime.now():
+                raise HTTPException(status_code=400, detail="Invitation code expired")
+            
+            # Store invitation data for pre-filling form
+            invitation_data = {
+                "code": invitation.code,
+                "email": invitation.email,
+                "operation": invitation.operation.value,
+                "department": invitation.department
+            }
+            pre_selected_operation = invitation.operation.value
+            pre_selected_department = invitation.department
+        
+        # Updated departments list (16 correct departments)
         divisions_data = {
             "hotel": {
                 "name": "Hotel Operations",
                 "departments": [
-                    "Front Desk / Guest Services",
-                    "Housekeeping",
-                    "Food & Beverage Service",
-                    "Kitchen / Culinary",
-                    "Bar Service",
-                    "Entertainment",
-                    "Spa & Wellness",
-                    "Youth Staff"
+                    "AUX SERV",
+                    "BEVERAGE GUEST SERV",
+                    "CULINARY ARTS",
+                    "GUEST SERVICES",
+                    "HOUSEKEEPING",
+                    "LAUNDRY",
+                    "PHOTO",
+                    "PROVISIONS",
+                    "REST. SERVICE",
+                    "SHORE EXCURS"
                 ]
             },
             "marine": {
                 "name": "Marine Operations",
                 "departments": [
-                    "Deck Department",
-                    "Engine Department",
-                    "Technical Services"
+                    "Deck",
+                    "Engine",
+                    "Security Services"
                 ]
             },
             "casino": {
                 "name": "Casino Operations",
                 "departments": [
-                    "Gaming Tables",
+                    "Table Games",
                     "Slot Machines",
-                    "Casino Administration"
+                    "Casino Services"
                 ]
             }
         }
@@ -925,7 +967,11 @@ async def registration_page(request: Request):
             "registration.html",
             {
                 "request": request,
-                "divisions": divisions_data
+                "divisions": divisions_data,
+                "invitation_data": invitation_data,
+                "pre_selected_operation": pre_selected_operation,
+                "pre_selected_department": pre_selected_department,
+                "invitation_code": code
             }
         )
 
@@ -985,6 +1031,22 @@ async def debug_session(request: Request):
         }
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/admin/invitations", response_class=HTMLResponse)
+async def admin_invitation_page(request: Request):
+    """
+    Admin invitation management page
+    """
+    try:
+        return templates.TemplateResponse(
+            "admin_invitation.html",
+            {
+                "request": request
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering admin page: {str(e)}")
+
 
 @router.get("/health")
 async def health_check():

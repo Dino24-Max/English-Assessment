@@ -2,15 +2,39 @@
 Admin API endpoints
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from core.database import get_db
-from models.assessment import Assessment, User
+from models.assessment import Assessment, User, InvitationCode, DivisionType
 from utils.anti_cheating import AntiCheatingService
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+from pydantic import BaseModel, EmailStr
+import secrets
+import string
 
 router = APIRouter()
+
+
+# Pydantic models for invitation API
+class InvitationCreateRequest(BaseModel):
+    """Request model for creating invitation code"""
+    email: EmailStr
+    operation: str
+    department: Optional[str] = None
+    admin_key: str
+    expires_in_days: int = 7
+
+
+class InvitationCreateResponse(BaseModel):
+    """Response model for created invitation"""
+    code: str
+    link: str
+    email: str
+    operation: str
+    expires_at: Optional[datetime]
+
 
 @router.get("/stats")
 async def get_admin_stats():
@@ -122,4 +146,262 @@ async def get_assessment_cheating_details(
                 "changed": analytics.get("initial_user_agent") != assessment.user_agent if analytics.get("initial_user_agent") else False
             }
         }
+    }
+
+
+# ==================== INVITATION CODE MANAGEMENT ====================
+
+def generate_invitation_code(length: int = 16) -> str:
+    """
+    Generate secure random invitation code
+    
+    Args:
+        length: Length of code (default 16)
+        
+    Returns:
+        Random alphanumeric code
+    """
+    alphabet = string.ascii_letters + string.digits
+    code = ''.join(secrets.choice(alphabet) for _ in range(length))
+    return code
+
+
+@router.post("/invitation/create", response_model=InvitationCreateResponse)
+async def create_invitation_code(
+    request_data: InvitationCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create invitation code for user registration
+    
+    Admin generates a unique code and link to send to candidate's email
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key:
+        raise HTTPException(status_code=500, detail="Admin authentication not configured")
+    
+    if request_data.admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized - Invalid admin key")
+    
+    # Validate operation
+    try:
+        operation_enum = DivisionType(request_data.operation.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid operation. Must be: hotel, marine, or casino"
+        )
+    
+    # Generate unique code
+    code = generate_invitation_code(16)
+    
+    # Ensure code is unique
+    existing = await db.execute(
+        select(InvitationCode).where(InvitationCode.code == code)
+    )
+    while existing.scalar_one_or_none():
+        code = generate_invitation_code(16)
+        existing = await db.execute(
+            select(InvitationCode).where(InvitationCode.code == code)
+        )
+    
+    # Calculate expiration
+    expires_at = datetime.now() + timedelta(days=request_data.expires_in_days)
+    
+    # Create invitation record
+    invitation = InvitationCode(
+        code=code,
+        email=request_data.email,
+        operation=operation_enum,
+        department=request_data.department,
+        created_by="admin",  # Could be enhanced with admin user ID
+        expires_at=expires_at,
+        is_used=False
+    )
+    
+    db.add(invitation)
+    await db.commit()
+    await db.refresh(invitation)
+    
+    # Generate registration link
+    base_url = str(request.base_url).rstrip('/')
+    registration_link = f"{base_url}/register?code={code}"
+    
+    return InvitationCreateResponse(
+        code=code,
+        link=registration_link,
+        email=request_data.email,
+        operation=operation_enum.value,
+        expires_at=expires_at
+    )
+
+
+@router.get("/invitations")
+async def get_all_invitations(
+    show_used: bool = True,
+    show_expired: bool = True,
+    operation: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all invitation codes with filtering options
+    
+    Query parameters:
+    - show_used: Include used codes (default True)
+    - show_expired: Include expired codes (default True)
+    - operation: Filter by operation (hotel/marine/casino)
+    """
+    query = select(InvitationCode)
+    
+    # Apply filters
+    filters = []
+    
+    if not show_used:
+        filters.append(InvitationCode.is_used == False)
+    
+    if not show_expired:
+        filters.append(
+            (InvitationCode.expires_at.is_(None)) | 
+            (InvitationCode.expires_at > datetime.now())
+        )
+    
+    if operation:
+        try:
+            op_enum = DivisionType(operation.lower())
+            filters.append(InvitationCode.operation == op_enum)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid operation")
+    
+    if filters:
+        query = query.where(and_(*filters))
+    
+    query = query.order_by(InvitationCode.created_at.desc())
+    
+    result = await db.execute(query)
+    invitations = result.scalars().all()
+    
+    # Format response
+    invitation_list = []
+    for inv in invitations:
+        # Check if expired
+        is_expired = False
+        if inv.expires_at:
+            is_expired = inv.expires_at < datetime.now()
+        
+        invitation_list.append({
+            "id": inv.id,
+            "code": inv.code,
+            "email": inv.email,
+            "operation": inv.operation.value,
+            "department": inv.department,
+            "created_by": inv.created_by,
+            "created_at": inv.created_at.isoformat(),
+            "expires_at": inv.expires_at.isoformat() if inv.expires_at else None,
+            "is_used": inv.is_used,
+            "used_at": inv.used_at.isoformat() if inv.used_at else None,
+            "used_by_user_id": inv.used_by_user_id,
+            "is_expired": is_expired,
+            "status": "used" if inv.is_used else ("expired" if is_expired else "active")
+        })
+    
+    return {
+        "total": len(invitation_list),
+        "invitations": invitation_list
+    }
+
+
+@router.get("/invitation/{code}/status")
+async def get_invitation_status(
+    code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get status of a specific invitation code
+    """
+    result = await db.execute(
+        select(InvitationCode).where(InvitationCode.code == code)
+    )
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation code not found")
+    
+    # Check if expired
+    is_expired = False
+    if invitation.expires_at:
+        is_expired = invitation.expires_at < datetime.now()
+    
+    # Get user info if used
+    user_info = None
+    if invitation.used_by_user_id:
+        user_result = await db.execute(
+            select(User).where(User.id == invitation.used_by_user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if user:
+            user_info = {
+                "id": user.id,
+                "name": f"{user.first_name} {user.last_name}",
+                "email": user.email
+            }
+    
+    return {
+        "code": invitation.code,
+        "email": invitation.email,
+        "operation": invitation.operation.value,
+        "department": invitation.department,
+        "created_at": invitation.created_at.isoformat(),
+        "expires_at": invitation.expires_at.isoformat() if invitation.expires_at else None,
+        "is_used": invitation.is_used,
+        "used_at": invitation.used_at.isoformat() if invitation.used_at else None,
+        "is_expired": is_expired,
+        "status": "used" if invitation.is_used else ("expired" if is_expired else "active"),
+        "used_by": user_info
+    }
+
+
+@router.delete("/invitation/{code}")
+async def revoke_invitation(
+    code: str,
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Revoke/delete an invitation code (only if not used)
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    # Find invitation
+    result = await db.execute(
+        select(InvitationCode).where(InvitationCode.code == code)
+    )
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation code not found")
+    
+    if invitation.is_used:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot revoke used invitation code"
+        )
+    
+    # Delete invitation
+    await db.delete(invitation)
+    await db.commit()
+    
+    return {
+        "message": "Invitation code revoked successfully",
+        "code": code
     }

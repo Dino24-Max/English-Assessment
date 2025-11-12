@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Code Management - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-copy {
+            background: #34c759;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        .btn-revoke {
+            background: #ff3b30;
+            color: white;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .result-box {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .code-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #666;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-used {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-expired {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-item label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .filter-item select, .filter-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎫 Invitation Code Management</h1>
+            <p>Create and manage invitation codes for candidate registration</p>
+        </div>
+
+        <!-- Create Invitation Form -->
+        <div class="card">
+            <div class="card-title">Create New Invitation</div>
+            
+            <form id="createInvitationForm">
+                <div class="form-group">
+                    <label class="form-label">Candidate Email</label>
+                    <input type="email" id="email" class="form-input" placeholder="candidate@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Operation</label>
+                    <select id="operation" class="form-select" required>
+                        <option value="">Select Operation</option>
+                        <option value="hotel">Hotel Operations</option>
+                        <option value="marine">Marine Operations</option>
+                        <option value="casino">Casino Operations</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Department (Optional)</label>
+                    <input type="text" id="department" class="form-input" placeholder="e.g., HOUSEKEEPING">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Expires In (Days)</label>
+                    <input type="number" id="expires_days" class="form-input" value="7" min="1" max="90">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Admin Key</label>
+                    <input type="password" id="admin_key" class="form-input" placeholder="Enter admin key" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Generate Invitation Code</button>
+            </form>
+
+            <!-- Result Display -->
+            <div id="resultBox" class="result-box">
+                <h3 style="margin-bottom: 15px;">✅ Invitation Code Created</h3>
+                <p><strong>Code:</strong></p>
+                <div class="code-display" id="generatedCode"></div>
+                <button class="btn btn-copy" onclick="copyCode()">📋 Copy Code</button>
+                
+                <p style="margin-top: 20px;"><strong>Registration Link:</strong></p>
+                <div class="code-display" id="generatedLink" style="font-size: 1rem;"></div>
+                <button class="btn btn-copy" onclick="copyLink()">🔗 Copy Link</button>
+                
+                <p style="margin-top: 20px; color: #666;">
+                    <strong>Email:</strong> <span id="invitationEmail"></span><br>
+                    <strong>Operation:</strong> <span id="invitationOperation"></span><br>
+                    <strong>Expires:</strong> <span id="invitationExpires"></span>
+                </p>
+            </div>
+
+            <div id="errorBox" class="error-message" style="display: none;"></div>
+        </div>
+
+        <!-- Invitations List -->
+        <div class="card">
+            <div class="card-title">Invitation Codes</div>
+            
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-item">
+                    <label>Operation:</label>
+                    <select id="filterOperation" onchange="loadInvitations()">
+                        <option value="">All</option>
+                        <option value="hotel">Hotel</option>
+                        <option value="marine">Marine</option>
+                        <option value="casino">Casino</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <input type="checkbox" id="showUsed" checked onchange="loadInvitations()">
+                    <label for="showUsed">Show Used</label>
+                </div>
+                <div class="filter-item">
+                    <input type="checkbox" id="showExpired" checked onchange="loadInvitations()">
+                    <label for="showExpired">Show Expired</label>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div id="invitationsTable">
+                <div class="loading">Loading invitations...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Create invitation
+        document.getElementById('createInvitationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const operation = document.getElementById('operation').value;
+            const department = document.getElementById('department').value;
+            const expires_days = parseInt(document.getElementById('expires_days').value);
+            const admin_key = document.getElementById('admin_key').value;
+            
+            try {
+                const response = await fetch('/api/v1/admin/invitation/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        operation,
+                        department: department || null,
+                        expires_in_days: expires_days,
+                        admin_key
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to create invitation');
+                }
+                
+                // Display result
+                document.getElementById('generatedCode').textContent = data.code;
+                document.getElementById('generatedLink').textContent = data.link;
+                document.getElementById('invitationEmail').textContent = data.email;
+                document.getElementById('invitationOperation').textContent = data.operation.toUpperCase();
+                document.getElementById('invitationExpires').textContent = new Date(data.expires_at).toLocaleString();
+                
+                document.getElementById('resultBox').classList.add('show');
+                document.getElementById('errorBox').style.display = 'none';
+                
+                // Clear form
+                document.getElementById('createInvitationForm').reset();
+                
+                // Reload invitations list
+                loadInvitations();
+                
+            } catch (error) {
+                document.getElementById('errorBox').textContent = error.message;
+                document.getElementById('errorBox').style.display = 'block';
+                document.getElementById('resultBox').classList.remove('show');
+            }
+        });
+        
+        // Copy functions
+        function copyCode() {
+            const code = document.getElementById('generatedCode').textContent;
+            navigator.clipboard.writeText(code);
+            alert('Code copied to clipboard!');
+        }
+        
+        function copyLink() {
+            const link = document.getElementById('generatedLink').textContent;
+            navigator.clipboard.writeText(link);
+            alert('Link copied to clipboard!');
+        }
+        
+        // Load invitations list
+        async function loadInvitations() {
+            const showUsed = document.getElementById('showUsed').checked;
+            const showExpired = document.getElementById('showExpired').checked;
+            const filterOperation = document.getElementById('filterOperation').value;
+            
+            let url = `/api/v1/admin/invitations?show_used=${showUsed}&show_expired=${showExpired}`;
+            if (filterOperation) {
+                url += `&operation=${filterOperation}`;
+            }
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                const tableHtml = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Email</th>
+                                <th>Operation</th>
+                                <th>Department</th>
+                                <th>Created</th>
+                                <th>Expires</th>
+                                <th>Status</th>
+                                <th>Used By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.invitations.map(inv => `
+                                <tr>
+                                    <td><code>${inv.code}</code></td>
+                                    <td>${inv.email}</td>
+                                    <td>${inv.operation.toUpperCase()}</td>
+                                    <td>${inv.department || '-'}</td>
+                                    <td>${new Date(inv.created_at).toLocaleDateString()}</td>
+                                    <td>${inv.expires_at ? new Date(inv.expires_at).toLocaleDateString() : 'Never'}</td>
+                                    <td><span class="badge badge-${inv.status}">${inv.status.toUpperCase()}</span></td>
+                                    <td>${inv.used_by_user_id ? `User #${inv.used_by_user_id}` : '-'}</td>
+                                    <td>
+                                        ${inv.status === 'active' ? `
+                                            <button class="btn btn-copy" onclick="copyInvitationLink('${inv.code}')">Copy Link</button>
+                                            <button class="btn btn-revoke" onclick="revokeInvitation('${inv.code}')">Revoke</button>
+                                        ` : '-'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 15px; color: #666;">Total: ${data.total} invitation(s)</p>
+                `;
+                
+                document.getElementById('invitationsTable').innerHTML = tableHtml;
+                
+            } catch (error) {
+                document.getElementById('invitationsTable').innerHTML = `
+                    <div class="error-message">Error loading invitations: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function copyInvitationLink(code) {
+            const link = `${window.location.origin}/register?code=${code}`;
+            navigator.clipboard.writeText(link);
+            alert('Registration link copied!');
+        }
+        
+        async function revokeInvitation(code) {
+            if (!confirm(`Are you sure you want to revoke invitation code: ${code}?`)) {
+                return;
+            }
+            
+            const admin_key = prompt('Enter admin key to confirm:');
+            if (!admin_key) return;
+            
+            try {
+                const response = await fetch(`/api/v1/admin/invitation/${code}?admin_key=${admin_key}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to revoke invitation');
+                }
+                
+                alert('Invitation code revoked successfully');
+                loadInvitations();
+                
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Load invitations on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInvitations();
+        });
+    </script>
+</body>
+</html>
+
