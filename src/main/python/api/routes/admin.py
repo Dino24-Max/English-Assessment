@@ -75,6 +75,23 @@ async def get_admin_stats():
     return {"message": "Admin stats endpoint"}
 
 
+@router.get("/check-config")
+async def check_admin_config():
+    """Debug endpoint to check admin configuration"""
+    from core.config import settings
+    import os
+    
+    env_key = os.getenv("ADMIN_API_KEY")
+    settings_key = settings.ADMIN_API_KEY
+    
+    return {
+        "env_admin_key": env_key if env_key else "NOT SET",
+        "settings_admin_key": settings_key if settings_key else "NOT SET",
+        "final_key": env_key or settings_key,
+        "is_configured": bool(env_key or settings_key)
+    }
+
+
 @router.get("/anti-cheating/assessments", response_model=List[Dict[str, Any]])
 async def get_all_assessments_with_cheating_data(db: AsyncSession = Depends(get_db)):
     """

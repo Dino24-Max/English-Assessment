@@ -1032,6 +1032,14 @@ async def debug_session(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
+@router.get("/admin")
+async def admin_home(request: Request):
+    """
+    Admin home - redirect to invitations management
+    """
+    return RedirectResponse(url="/admin/invitations", status_code=303)
+
+
 @router.get("/admin/invitations", response_class=HTMLResponse)
 async def admin_invitation_page(request: Request):
     """

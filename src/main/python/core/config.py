@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     INPUT_VALIDATION_ENABLED: bool = True
 
     # Admin API Key for question bank management
-    ADMIN_API_KEY: str = ""
+    ADMIN_API_KEY: str = "admin123"  # Default admin key for demo/development
 
     class Config:
         env_file = ".env"
