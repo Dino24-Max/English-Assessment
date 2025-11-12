@@ -89,7 +89,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             }
         
         question_data = questions[question_key]
-        correct_answer = question_data.get("correct_answer", "")
+        correct_answer = question_data.get("correct", "")  # FIXED: Use "correct" not "correct_answer"
         points = question_data.get("points", 4)
         question_type = question_data.get("type", "multiple_choice")
         module = question_data.get("module", "unknown")
