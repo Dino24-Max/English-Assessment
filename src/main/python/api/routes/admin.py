@@ -456,3 +456,77 @@ async def revoke_invitation(
         "message": "Invitation code revoked successfully",
         "code": code
     }
+
+
+@router.get("/invitation/{code}/validate")
+async def validate_invitation_code(
+    code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Validate invitation code for frontend verification (no admin key required)
+    
+    Used by invitation verification page for real-time validation.
+    Returns validity status and basic information without sensitive data.
+    
+    Args:
+        code: Invitation code to validate
+        db: Database session
+        
+    Returns:
+        Validation result with status and message
+    """
+    try:
+        # Find invitation code
+        result = await db.execute(
+            select(InvitationCode).where(InvitationCode.code == code)
+        )
+        invitation = result.scalar_one_or_none()
+        
+        # Check if code exists
+        if not invitation:
+            return {
+                "valid": False,
+                "message": "Invalid invitation code",
+                "email": None,
+                "operation": None,
+                "department": None
+            }
+        
+        # Check if already used
+        if invitation.is_used:
+            return {
+                "valid": False,
+                "message": "This invitation code has already been used",
+                "email": None,
+                "operation": None,
+                "department": None
+            }
+        
+        # Check if expired
+        if invitation.expires_at and invitation.expires_at < datetime.now():
+            return {
+                "valid": False,
+                "message": "This invitation code has expired",
+                "email": None,
+                "operation": None,
+                "department": None
+            }
+        
+        # Valid invitation code
+        return {
+            "valid": True,
+            "message": "Valid invitation code",
+            "email": invitation.email,
+            "operation": invitation.operation.value,
+            "department": invitation.department
+        }
+        
+    except Exception as e:
+        return {
+            "valid": False,
+            "message": f"Error validating code: {str(e)}",
+            "email": None,
+            "operation": None,
+            "department": None
+        }

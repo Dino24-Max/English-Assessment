@@ -883,6 +883,29 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
         raise HTTPException(status_code=500, detail=f"Error rendering instructions: {str(e)}")
 
 
+@router.get("/invitation", response_class=HTMLResponse)
+async def invitation_verify_page(request: Request, code: Optional[str] = None):
+    """
+    Invitation code verification page
+    
+    Users must verify their invitation code before accessing registration.
+    Supports both URL-based code (auto-verify) and manual input.
+    
+    Args:
+        code: Optional invitation code from URL (auto-verify)
+    """
+    try:
+        return templates.TemplateResponse(
+            "invitation_verify.html",
+            {
+                "request": request,
+                "code": code
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering invitation page: {str(e)}")
+
+
 @router.get("/register", response_class=HTMLResponse)
 async def registration_page(request: Request, code: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     """

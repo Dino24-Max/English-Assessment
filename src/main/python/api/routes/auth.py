@@ -27,7 +27,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     nationality: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=6, max_length=100)
-    invitation_code: str | None = None  # Optional invitation code
+    invitation_code: str = Field(..., min_length=16, max_length=16)  # Required invitation code
 
 
 class LoginRequest(BaseModel):
@@ -66,38 +66,42 @@ async def register(
         HTTPException: If email already exists or registration fails
     """
     try:
-        # Validate invitation code if provided
-        invitation = None
-        division = None
-        department = None
+        # Validate invitation code (required)
+        # Find invitation code
+        inv_result = await db.execute(
+            select(InvitationCode).where(InvitationCode.code == request_data.invitation_code)
+        )
+        invitation = inv_result.scalar_one_or_none()
         
-        if request_data.invitation_code:
-            # Find invitation code
-            inv_result = await db.execute(
-                select(InvitationCode).where(InvitationCode.code == request_data.invitation_code)
+        if not invitation:
+            raise HTTPException(
+                status_code=404, 
+                detail="Invalid invitation code. Please contact administrator for a new code."
             )
-            invitation = inv_result.scalar_one_or_none()
-            
-            if not invitation:
-                raise HTTPException(status_code=404, detail="Invalid invitation code")
-            
-            if invitation.is_used:
-                raise HTTPException(status_code=400, detail="Invitation code already used")
-            
-            # Check expiration
-            if invitation.expires_at and invitation.expires_at < datetime.now():
-                raise HTTPException(status_code=400, detail="Invitation code expired")
-            
-            # Verify email matches
-            if invitation.email.lower() != request_data.email.lower():
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Email does not match invitation code"
-                )
-            
-            # Get operation and department from invitation
-            division = invitation.operation
-            department = invitation.department
+        
+        if invitation.is_used:
+            raise HTTPException(
+                status_code=400, 
+                detail="This invitation code has already been used. Please request a new code from administrator."
+            )
+        
+        # Check expiration
+        if invitation.expires_at and invitation.expires_at < datetime.now():
+            raise HTTPException(
+                status_code=400, 
+                detail="This invitation code has expired. Please contact administrator for a new code."
+            )
+        
+        # Verify email matches
+        if invitation.email.lower() != request_data.email.lower():
+            raise HTTPException(
+                status_code=400, 
+                detail="Email does not match invitation code. Please use the email associated with your invitation."
+            )
+        
+        # Get operation and department from invitation
+        division = invitation.operation
+        department = invitation.department
         
         # Check if email already exists
         result = await db.execute(
@@ -129,11 +133,10 @@ async def register(
         db.add(new_user)
         await db.flush()  # Get user ID before marking invitation as used
         
-        # Mark invitation code as used
-        if invitation:
-            invitation.is_used = True
-            invitation.used_at = datetime.now()
-            invitation.used_by_user_id = new_user.id
+        # Mark invitation code as used (invitation is always present now)
+        invitation.is_used = True
+        invitation.used_at = datetime.now()
+        invitation.used_by_user_id = new_user.id
         
         await db.commit()
         await db.refresh(new_user)
@@ -142,7 +145,7 @@ async def register(
             "success": True,
             "message": "Registration successful! Please login with your credentials.",
             "redirect": "/login?registered=true",
-            "invitation_used": invitation is not None
+            "invitation_used": True
         }
 
     except HTTPException:

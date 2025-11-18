@@ -362,7 +362,10 @@
                 <div style="margin-top: 20px; margin-bottom: 15px;">
                     <label style="font-size: 0.9rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px;">Registration Link:</label>
                     <div class="code-display" id="generatedLink"></div>
-                    <button class="btn btn-copy" onclick="copyLink()" style="margin-top: 8px;">🔗 Copy Link</button>
+                    <div style="margin-top: 8px;">
+                        <button class="btn btn-copy" onclick="copyLink()">🔗 Copy Link</button>
+                        <button class="btn btn-copy" onclick="copyEmailContent()">📧 Copy Email Content</button>
+                    </div>
                 </div>
                 
                 <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0; font-size: 0.9rem; color: #666;">
@@ -475,6 +478,32 @@
             alert('Link copied to clipboard!');
         }
         
+        function copyEmailContent() {
+            const code = document.getElementById('generatedCode').textContent;
+            const link = document.getElementById('generatedLink').textContent;
+            const email = document.getElementById('invitationEmail').textContent;
+            const expires = document.getElementById('invitationExpires').textContent;
+            
+            // Format the email content
+            const emailContent = `Subject: English Assessment Invitation
+
+Dear Candidate,
+
+You have been invited to complete the Carnival Cruise Line English Assessment.
+
+Your invitation code: ${code}
+Registration link: ${link}
+
+This invitation will expire on: ${expires}
+
+Please click the link above to begin your registration.
+
+Best regards,`;
+            
+            navigator.clipboard.writeText(emailContent);
+            alert('Email content copied to clipboard! You can now paste it into your email client.');
+        }
+        
         // Load invitations list
         async function loadInvitations() {
             const showUsed = document.getElementById('showUsed').checked;
@@ -541,7 +570,7 @@
         }
         
         function copyInvitationLink(code) {
-            const link = `${window.location.origin}/register?code=${code}`;
+            const link = `${window.location.origin}/invitation?code=${code}`;
             navigator.clipboard.writeText(link);
             alert('Registration link copied!');
         }

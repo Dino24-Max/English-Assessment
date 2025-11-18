@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Invitation Code - CCL English Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .verify-container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 50px 40px;
+            text-align: center;
+        }
+
+        .verify-header {
+            margin-bottom: 35px;
+        }
+
+        .verify-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .verify-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .verify-subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .code-input-group {
+            margin: 30px 0;
+        }
+
+        .code-label {
+            display: block;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .code-input {
+            width: 100%;
+            padding: 18px 20px;
+            font-size: 1.3rem;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .code-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .code-input.valid {
+            border-color: #34c759;
+            background: #f0fff4;
+        }
+
+        .code-input.invalid {
+            border-color: #ff3b30;
+            background: #fff5f5;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .status-message.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+
+        .verify-btn {
+            width: 100%;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .verify-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .verify-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .help-text {
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .help-text strong {
+            color: #333;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 576px) {
+            .verify-container {
+                padding: 35px 25px;
+            }
+
+            .verify-title {
+                font-size: 2rem;
+            }
+
+            .code-input {
+                font-size: 1.1rem;
+                padding: 15px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-container">
+        <div class="verify-header">
+            <div class="verify-icon">🎫</div>
+            <h1 class="verify-title">Verify Invitation</h1>
+            <p class="verify-subtitle">Enter your 16-character invitation code to begin registration</p>
+        </div>
+
+        <div class="code-input-group">
+            <label class="code-label" for="invitation_code">Invitation Code</label>
+            <input 
+                type="text" 
+                id="invitation_code" 
+                class="code-input" 
+                maxlength="16" 
+                placeholder="XXXXXXXXXXXXXXXX"
+                autocomplete="off"
+            >
+            <div id="status-message" class="status-message"></div>
+        </div>
+
+        <button id="verify-btn" class="verify-btn" disabled>
+            Verify Code
+        </button>
+
+        <div class="help-text">
+            <strong>Need help?</strong><br>
+            If you don't have an invitation code or encounter any issues, please contact your administrator for assistance.
+        </div>
+    </div>
+
+    <script>
+        const codeInput = document.getElementById('invitation_code');
+        const statusMessage = document.getElementById('status-message');
+        const verifyBtn = document.getElementById('verify-btn');
+        let validationTimeout = null;
+
+        // Get code from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCode = urlParams.get('code');
+
+        // Auto-verify if code is in URL
+        if (urlCode && urlCode.length === 16) {
+            codeInput.value = urlCode.toUpperCase();
+            codeInput.disabled = true;
+            verifyCode(urlCode);
+        }
+
+        // Real-time validation as user types
+        codeInput.addEventListener('input', function() {
+            // Convert to uppercase and remove spaces
+            this.value = this.value.toUpperCase().replace(/\s/g, '');
+            
+            // Clear previous timeout
+            if (validationTimeout) {
+                clearTimeout(validationTimeout);
+            }
+            
+            // Reset status
+            statusMessage.className = 'status-message';
+            statusMessage.textContent = '';
+            codeInput.className = 'code-input';
+            verifyBtn.disabled = true;
+            
+            const code = this.value.trim();
+            
+            // Only validate when exactly 16 characters
+            if (code.length === 16) {
+                verifyBtn.disabled = false;
+                
+                // Auto-validate after 500ms
+                validationTimeout = setTimeout(() => {
+                    verifyCode(code);
+                }, 500);
+            }
+        });
+
+        // Manual verify button click
+        verifyBtn.addEventListener('click', function() {
+            const code = codeInput.value.trim();
+            if (code.length === 16) {
+                verifyCode(code);
+            }
+        });
+
+        // Enter key to verify
+        codeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && this.value.trim().length === 16) {
+                verifyCode(this.value.trim());
+            }
+        });
+
+        async function verifyCode(code) {
+            try {
+                // Show loading state
+                statusMessage.className = 'status-message loading';
+                statusMessage.innerHTML = '<span class="spinner"></span>Verifying code...';
+                verifyBtn.disabled = true;
+                
+                // Call validation API
+                const response = await fetch(`/api/v1/admin/invitation/${code}/validate`);
+                const data = await response.json();
+                
+                if (data.valid) {
+                    // Success - show message and redirect
+                    codeInput.className = 'code-input valid';
+                    statusMessage.className = 'status-message success';
+                    statusMessage.innerHTML = `✓ Valid invitation code!<br>Redirecting to registration...`;
+                    
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = `/register?code=${code}`;
+                    }, 2000);
+                    
+                } else {
+                    // Invalid - show error
+                    codeInput.className = 'code-input invalid';
+                    statusMessage.className = 'status-message error';
+                    statusMessage.innerHTML = `✗ ${data.message}<br><small>Please contact administrator for a new code.</small>`;
+                    verifyBtn.disabled = false;
+                    
+                    // Re-enable input if it was from URL
+                    if (urlCode) {
+                        codeInput.disabled = false;
+                        codeInput.value = '';
+                        codeInput.focus();
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                codeInput.className = 'code-input invalid';
+                statusMessage.className = 'status-message error';
+                statusMessage.innerHTML = '✗ Unable to verify code. Please check your connection and try again.';
+                verifyBtn.disabled = false;
+                
+                // Re-enable input if it was from URL
+                if (urlCode) {
+                    codeInput.disabled = false;
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+            }
+        }
+
+        // Focus input on load (if not auto-verifying)
+        if (!urlCode) {
+            codeInput.focus();
+        }
+    </script>
+</body>
+</html>
+
