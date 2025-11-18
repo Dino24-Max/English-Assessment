@@ -14,49 +14,51 @@
 
         body {
             font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: #f5f7fa;
             min-height: 100vh;
-            padding: 40px 20px;
+            padding: 30px 20px;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
         .header {
             background: white;
-            padding: 30px 40px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 25px 35px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .header h1 {
-            font-size: 3.5rem;
+            font-size: 2.2rem;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
 
         .header p {
             color: #666;
-            font-size: 1.6rem;
+            font-size: 1rem;
         }
 
         .card {
             background: white;
-            border-radius: 16px;
+            border-radius: 12px;
             padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .card-title {
-            font-size: 2.4rem;
-            font-weight: 700;
+            font-size: 1.5rem;
+            font-weight: 600;
             color: #1a1a1a;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
         }
 
         .form-group {
@@ -65,58 +67,83 @@
 
         .form-label {
             display: block;
-            font-weight: 600;
+            font-weight: 500;
             color: #333;
-            margin-bottom: 10px;
-            font-size: 1.4rem;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
         }
 
         .form-input, .form-select {
             width: 100%;
-            padding: 16px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1.4rem;
-            transition: all 0.3s ease;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            background: #fff;
         }
 
         .form-input:focus, .form-select:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
         }
 
         .btn {
-            padding: 16px 40px;
-            border-radius: 8px;
-            font-size: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 6px;
+            font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             border: none;
+            display: inline-block;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #667eea;
             color: white;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         .btn-copy {
             background: #34c759;
             color: white;
-            padding: 12px 24px;
-            font-size: 1.3rem;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            margin-right: 8px;
+        }
+
+        .btn-copy:hover {
+            background: #2fb04a;
         }
 
         .btn-revoke {
             background: #ff3b30;
             color: white;
-            padding: 10px 20px;
-            font-size: 1.2rem;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        .btn-revoke:hover {
+            background: #e6342a;
         }
 
         .result-box {
@@ -132,51 +159,53 @@
             display: block;
         }
 
-        .code-display {
-            font-family: 'Courier New', monospace;
-            font-size: 2rem;
-            font-weight: 700;
-            color: #667eea;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-            word-break: break-all;
-        }
 
         .table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            font-size: 0.9rem;
         }
 
         .table th {
             background: #f8f9fa;
-            padding: 16px;
+            padding: 12px 16px;
             text-align: left;
             font-weight: 600;
             color: #333;
             border-bottom: 2px solid #e0e0e0;
-            font-size: 1.3rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .table td {
-            padding: 16px;
-            border-bottom: 1px solid #e0e0e0;
-            color: #666;
-            font-size: 1.3rem;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #555;
+            font-size: 0.9rem;
+            vertical-align: middle;
         }
 
         .table tr:hover {
             background: #f8f9fa;
         }
 
+        .table code {
+            font-family: 'Courier New', monospace;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
         .badge {
             display: inline-block;
-            padding: 6px 16px;
+            padding: 4px 12px;
             border-radius: 12px;
-            font-size: 1.2rem;
+            font-size: 0.75rem;
             font-weight: 600;
+            text-transform: uppercase;
         }
 
         .badge-active {
@@ -218,9 +247,12 @@
 
         .filters {
             display: flex;
-            gap: 15px;
+            gap: 20px;
             margin-bottom: 20px;
             flex-wrap: wrap;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f0f0f0;
         }
 
         .filter-item {
@@ -230,20 +262,39 @@
         }
 
         .filter-item label {
-            font-size: 1.3rem;
+            font-size: 0.9rem;
             color: #666;
             font-weight: 500;
+            white-space: nowrap;
         }
         
         .filter-item select {
             padding: 8px 12px;
-            font-size: 1.3rem;
-            border: 2px solid #e0e0e0;
+            font-size: 0.9rem;
+            border: 1px solid #ddd;
             border-radius: 6px;
+            background: white;
+            cursor: pointer;
         }
 
-        .filter-item select, .filter-item input[type="checkbox"] {
+        .filter-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
             cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .code-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #667eea;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+            word-break: break-all;
+            border: 1px solid #e0e0e0;
         }
     </style>
 </head>
@@ -260,29 +311,33 @@
             <div class="card-title">Create New Invitation</div>
             
             <form id="createInvitationForm">
-                <div class="form-group">
-                    <label class="form-label">Candidate Email</label>
-                    <input type="email" id="email" class="form-input" placeholder="candidate@example.com" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Candidate Email</label>
+                        <input type="email" id="email" class="form-input" placeholder="candidate@example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Operation</label>
+                        <select id="operation" class="form-select" required>
+                            <option value="">Select Operation</option>
+                            <option value="hotel">Hotel Operations</option>
+                            <option value="marine">Marine Operations</option>
+                            <option value="casino">Casino Operations</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Operation</label>
-                    <select id="operation" class="form-select" required>
-                        <option value="">Select Operation</option>
-                        <option value="hotel">Hotel Operations</option>
-                        <option value="marine">Marine Operations</option>
-                        <option value="casino">Casino Operations</option>
-                    </select>
-                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Department (Optional)</label>
+                        <input type="text" id="department" class="form-input" placeholder="e.g., HOUSEKEEPING">
+                    </div>
 
-                <div class="form-group">
-                    <label class="form-label">Department (Optional)</label>
-                    <input type="text" id="department" class="form-input" placeholder="e.g., HOUSEKEEPING">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Expires In (Days)</label>
-                    <input type="number" id="expires_days" class="form-input" value="7" min="1" max="90">
+                    <div class="form-group">
+                        <label class="form-label">Expires In (Days)</label>
+                        <input type="number" id="expires_days" class="form-input" value="7" min="1" max="90">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -290,25 +345,31 @@
                     <input type="password" id="admin_key" class="form-input" placeholder="Enter admin key" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Generate Invitation Code</button>
+                <div style="margin-top: 25px;">
+                    <button type="submit" class="btn btn-primary">Generate Invitation Code</button>
+                </div>
             </form>
 
             <!-- Result Display -->
             <div id="resultBox" class="result-box">
-                <h3 style="margin-bottom: 15px;">✅ Invitation Code Created</h3>
-                <p><strong>Code:</strong></p>
-                <div class="code-display" id="generatedCode"></div>
-                <button class="btn btn-copy" onclick="copyCode()">📋 Copy Code</button>
+                <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: #333;">✅ Invitation Code Created</h3>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.9rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px;">Code:</label>
+                    <div class="code-display" id="generatedCode"></div>
+                    <button class="btn btn-copy" onclick="copyCode()" style="margin-top: 8px;">📋 Copy Code</button>
+                </div>
                 
-                <p style="margin-top: 20px;"><strong>Registration Link:</strong></p>
-                <div class="code-display" id="generatedLink" style="font-size: 1rem;"></div>
-                <button class="btn btn-copy" onclick="copyLink()">🔗 Copy Link</button>
+                <div style="margin-top: 20px; margin-bottom: 15px;">
+                    <label style="font-size: 0.9rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px;">Registration Link:</label>
+                    <div class="code-display" id="generatedLink"></div>
+                    <button class="btn btn-copy" onclick="copyLink()" style="margin-top: 8px;">🔗 Copy Link</button>
+                </div>
                 
-                <p style="margin-top: 20px; color: #666;">
-                    <strong>Email:</strong> <span id="invitationEmail"></span><br>
-                    <strong>Operation:</strong> <span id="invitationOperation"></span><br>
-                    <strong>Expires:</strong> <span id="invitationExpires"></span>
-                </p>
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0; font-size: 0.9rem; color: #666;">
+                    <p><strong>Email:</strong> <span id="invitationEmail"></span></p>
+                    <p><strong>Operation:</strong> <span id="invitationOperation"></span></p>
+                    <p><strong>Expires:</strong> <span id="invitationExpires"></span></p>
+                </div>
             </div>
 
             <div id="errorBox" class="error-message" style="display: none;"></div>
@@ -465,7 +526,9 @@
                             `).join('')}
                         </tbody>
                     </table>
-                    <p style="margin-top: 15px; color: #666;">Total: ${data.total} invitation(s)</p>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0; font-size: 0.9rem; color: #666; font-weight: 500;">
+                        Total: <strong style="color: #333;">${data.total}</strong> invitation(s)
+                    </div>
                 `;
                 
                 document.getElementById('invitationsTable').innerHTML = tableHtml;
