@@ -16,70 +16,70 @@
             font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f5f7fa;
             min-height: 100vh;
-            padding: 30px 20px;
-            font-size: 16px;
+            padding: 50px 40px;
+            font-size: 20px;
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 2400px;
             margin: 0 auto;
         }
 
         .header {
             background: white;
-            padding: 35px 45px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            padding: 60px 80px;
+            border-radius: 16px;
+            margin-bottom: 50px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
 
         .header h1 {
-            font-size: 2.8rem;
+            font-size: 4.5rem;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
 
         .header p {
             color: #666;
-            font-size: 1.2rem;
+            font-size: 2rem;
         }
 
         .card {
             background: white;
-            border-radius: 12px;
-            padding: 40px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border-radius: 16px;
+            padding: 70px;
+            margin-bottom: 50px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
 
         .card-title {
-            font-size: 1.8rem;
+            font-size: 3rem;
             font-weight: 600;
             color: #1a1a1a;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 3px solid #f0f0f0;
         }
 
         .form-group {
-            margin-bottom: 24px;
+            margin-bottom: 40px;
         }
 
         .form-label {
             display: block;
             font-weight: 500;
             color: #333;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
+            margin-bottom: 16px;
+            font-size: 1.8rem;
         }
 
         .form-input, .form-select {
             width: 100%;
-            padding: 14px 18px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 1.05rem;
+            padding: 22px 28px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.6rem;
             transition: all 0.2s ease;
             background: #fff;
         }
@@ -87,13 +87,13 @@
         .form-input:focus, .form-select:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 5px rgba(102, 126, 234, 0.15);
         }
 
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 35px;
         }
 
         @media (max-width: 768px) {
@@ -103,9 +103,9 @@
         }
 
         .btn {
-            padding: 14px 32px;
-            border-radius: 6px;
-            font-size: 1.05rem;
+            padding: 22px 50px;
+            border-radius: 10px;
+            font-size: 1.6rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -120,16 +120,16 @@
 
         .btn-primary:hover {
             background: #5568d3;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
 
         .btn-copy {
             background: #34c759;
             color: white;
-            padding: 10px 20px;
-            font-size: 1rem;
-            margin-right: 10px;
+            padding: 16px 32px;
+            font-size: 1.5rem;
+            margin-right: 15px;
         }
 
         .btn-copy:hover {
@@ -139,8 +139,8 @@
         .btn-revoke {
             background: #ff3b30;
             color: white;
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: 16px 32px;
+            font-size: 1.5rem;
         }
 
         .btn-revoke:hover {
@@ -164,27 +164,27 @@
         .table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 1rem;
+            margin-top: 30px;
+            font-size: 1.6rem;
         }
 
         .table th {
             background: #f8f9fa;
-            padding: 14px 18px;
+            padding: 22px 28px;
             text-align: left;
             font-weight: 600;
             color: #333;
-            border-bottom: 2px solid #e0e0e0;
-            font-size: 0.95rem;
+            border-bottom: 3px solid #e0e0e0;
+            font-size: 1.5rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
         }
 
         .table td {
-            padding: 14px 18px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 22px 28px;
+            border-bottom: 2px solid #f0f0f0;
             color: #555;
-            font-size: 1rem;
+            font-size: 1.6rem;
             vertical-align: middle;
         }
 
@@ -195,16 +195,16 @@
         .table code {
             font-family: 'Courier New', monospace;
             background: #f0f0f0;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.95rem;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 1.5rem;
         }
 
         .badge {
             display: inline-block;
-            padding: 5px 14px;
-            border-radius: 12px;
-            font-size: 0.85rem;
+            padding: 8px 22px;
+            border-radius: 16px;
+            font-size: 1.3rem;
             font-weight: 600;
             text-transform: uppercase;
         }
@@ -248,54 +248,54 @@
 
         .filters {
             display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 35px;
+            margin-bottom: 30px;
             flex-wrap: wrap;
             align-items: center;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
         }
 
         .filter-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
         }
 
         .filter-item label {
-            font-size: 1.05rem;
+            font-size: 1.6rem;
             color: #666;
             font-weight: 500;
             white-space: nowrap;
         }
         
         .filter-item select {
-            padding: 10px 14px;
-            font-size: 1.05rem;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 16px 22px;
+            font-size: 1.6rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             background: white;
             cursor: pointer;
         }
 
         .filter-item input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
+            width: 28px;
+            height: 28px;
             cursor: pointer;
             accent-color: #667eea;
         }
 
         .code-display {
             font-family: 'Courier New', monospace;
-            font-size: 1.15rem;
+            font-size: 1.8rem;
             font-weight: 600;
             color: #667eea;
             background: white;
-            padding: 14px 18px;
-            border-radius: 6px;
-            margin: 10px 0;
+            padding: 22px 28px;
+            border-radius: 8px;
+            margin: 15px 0;
             word-break: break-all;
-            border: 1px solid #e0e0e0;
+            border: 2px solid #e0e0e0;
         }
     </style>
 </head>
