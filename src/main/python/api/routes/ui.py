@@ -1066,6 +1066,22 @@ async def debug_session(request: Request):
     except Exception as e:
         return {"error": str(e)}
 
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """
+    Admin Dashboard - Main admin page
+    """
+    try:
+        return templates.TemplateResponse(
+            "admin_dashboard.html",
+            {
+                "request": request
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering admin dashboard: {str(e)}")
+
+
 @router.get("/admin/invitations", response_class=HTMLResponse)
 async def admin_invitation_page(request: Request):
     """
@@ -1080,6 +1096,22 @@ async def admin_invitation_page(request: Request):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error rendering admin page: {str(e)}")
+
+
+@router.get("/admin/scoreboard", response_class=HTMLResponse)
+async def admin_scoreboard_page(request: Request):
+    """
+    User Scoreboard - All test results
+    """
+    try:
+        return templates.TemplateResponse(
+            "admin_scoreboard.html",
+            {
+                "request": request
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering scoreboard page: {str(e)}")
 
 
 @router.get("/health")

@@ -71,8 +71,57 @@ class InvitationCreateResponse(BaseModel):
 
 
 @router.get("/stats")
-async def get_admin_stats():
-    return {"message": "Admin stats endpoint"}
+async def get_admin_stats(
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get dashboard statistics
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        # Count total users
+        users_result = await db.execute(select(func.count(User.id)))
+        total_users = users_result.scalar()
+        
+        # Count total assessments
+        assessments_result = await db.execute(select(func.count(Assessment.id)))
+        total_assessments = assessments_result.scalar()
+        
+        # Count passed assessments today
+        today = datetime.now().date()
+        passed_today_result = await db.execute(
+            select(func.count(Assessment.id)).where(
+                Assessment.passed == True,
+                func.date(Assessment.completed_at) == today
+            )
+        )
+        passed_today = passed_today_result.scalar()
+        
+        # Count pending (unused) invitations
+        pending_invitations_result = await db.execute(
+            select(func.count(InvitationCode.id)).where(
+                InvitationCode.is_used == False
+            )
+        )
+        pending_invitations = pending_invitations_result.scalar()
+        
+        return {
+            "total_users": total_users,
+            "total_assessments": total_assessments,
+            "passed_today": passed_today,
+            "pending_invitations": pending_invitations
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching stats: {str(e)}")
 
 
 @router.get("/check-config")
@@ -530,3 +579,184 @@ async def validate_invitation_code(
             "operation": None,
             "department": None
         }
+
+
+# ==================== USER SCOREBOARD API ====================
+
+@router.get("/assessments")
+async def get_all_assessments(
+    admin_key: str,
+    operation: Optional[str] = None,
+    department: Optional[str] = None,
+    passed: Optional[bool] = None,
+    search: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all user assessments with filtering
+    
+    Args:
+        admin_key: Admin authentication key
+        operation: Filter by operation (hotel/marine/casino)
+        department: Filter by department
+        passed: Filter by pass status (true/false)
+        search: Search in name or email
+        db: Database session
+        
+    Returns:
+        List of assessments with user information
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        # Build query - join User and Assessment tables
+        query = select(Assessment, User).join(
+            User, Assessment.user_id == User.id
+        ).where(Assessment.status == "completed")
+        
+        # Apply filters
+        if operation:
+            query = query.where(User.division == operation)
+        
+        if department:
+            query = query.where(User.department == department)
+        
+        if passed is not None:
+            query = query.where(Assessment.passed == passed)
+        
+        # Execute query
+        result = await db.execute(query)
+        rows = result.all()
+        
+        # Format results
+        assessments = []
+        for assessment, user in rows:
+            # Apply search filter in memory (for name/email)
+            if search:
+                search_lower = search.lower()
+                full_name = f"{user.first_name} {user.last_name}".lower()
+                email_lower = user.email.lower()
+                
+                if search_lower not in full_name and search_lower not in email_lower:
+                    continue
+            
+            assessments.append({
+                "assessment_id": assessment.id,
+                "user_id": user.id,
+                "full_name": f"{user.first_name} {user.last_name}",
+                "email": user.email,
+                "operation": user.division.value if user.division else None,
+                "department": user.department,
+                "listening_score": assessment.listening_score or 0,
+                "time_numbers_score": assessment.time_numbers_score or 0,
+                "grammar_score": assessment.grammar_score or 0,
+                "vocabulary_score": assessment.vocabulary_score or 0,
+                "reading_score": assessment.reading_score or 0,
+                "speaking_score": assessment.speaking_score or 0,
+                "total_score": assessment.total_score or 0,
+                "passed": assessment.passed or False,
+                "completed_at": assessment.completed_at.isoformat() if assessment.completed_at else None
+            })
+        
+        return {
+            "assessments": assessments,
+            "total": len(assessments)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching assessments: {str(e)}")
+
+
+@router.get("/assessments/export")
+async def export_assessments_csv(
+    admin_key: str,
+    operation: Optional[str] = None,
+    department: Optional[str] = None,
+    passed: Optional[bool] = None,
+    search: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Export assessments to CSV file
+    """
+    from core.config import settings
+    import os
+    import csv
+    from io import StringIO
+    from fastapi.responses import StreamingResponse
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        # Get assessments (reuse the logic from get_all_assessments)
+        query = select(Assessment, User).join(
+            User, Assessment.user_id == User.id
+        ).where(Assessment.status == "completed")
+        
+        if operation:
+            query = query.where(User.division == operation)
+        if department:
+            query = query.where(User.department == department)
+        if passed is not None:
+            query = query.where(Assessment.passed == passed)
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        # Create CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'User ID', 'Full Name', 'Email', 'Operation', 'Department',
+            'Listening', 'Time & Numbers', 'Grammar', 'Vocabulary', 'Reading', 'Speaking',
+            'Total Score', 'Status', 'Test Date'
+        ])
+        
+        # Write data
+        for assessment, user in rows:
+            # Apply search filter
+            if search:
+                search_lower = search.lower()
+                full_name = f"{user.first_name} {user.last_name}".lower()
+                email_lower = user.email.lower()
+                if search_lower not in full_name and search_lower not in email_lower:
+                    continue
+            
+            writer.writerow([
+                user.id,
+                f"{user.first_name} {user.last_name}",
+                user.email,
+                user.division.value if user.division else '',
+                user.department or '',
+                round(assessment.listening_score or 0),
+                round(assessment.time_numbers_score or 0),
+                round(assessment.grammar_score or 0),
+                round(assessment.vocabulary_score or 0),
+                round(assessment.reading_score or 0),
+                round(assessment.speaking_score or 0),
+                round(assessment.total_score or 0),
+                'PASSED' if assessment.passed else 'FAILED',
+                assessment.completed_at.strftime('%Y-%m-%d %H:%M:%S') if assessment.completed_at else ''
+            ])
+        
+        # Return CSV file
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=assessment_results.csv"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting CSV: {str(e)}")
