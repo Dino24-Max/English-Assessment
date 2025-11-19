@@ -14,15 +14,34 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: url('/static/images/homepage-background.png') center center / cover no-repeat fixed;
             min-height: 100vh;
             padding: 40px 20px;
             color: #1a1a1a;
+            margin: 0;
+            position: relative;
+        }
+
+        /* Same backdrop filter as homepage */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 248, 255, 0.65) 50%, rgba(255, 245, 245, 0.7) 100%);
+            backdrop-filter: blur(5px) saturate(115%) brightness(1.03);
+            -webkit-backdrop-filter: blur(5px) saturate(115%) brightness(1.03);
+            z-index: 0;
+            pointer-events: none;
         }
 
         .results-container {
             max-width: 1100px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
 
         /* Header Section */
@@ -129,14 +148,16 @@
         .module-card {
             background: #f8f9fa;
             border-radius: 16px;
-            padding: 25px 20px;
+            padding: 30px 20px;
             border: 2px solid #e9ecef;
             transition: all 0.3s ease;
             text-align: center;
-            min-height: 160px;
+            min-height: 140px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
         }
 
         .module-card:hover {
@@ -166,18 +187,11 @@
             white-space: nowrap;
         }
 
-        .module-score {
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: #333;
-            margin-bottom: 5px;
-            line-height: 1;
-        }
-
         .module-percentage {
-            font-size: 1.1rem;
-            color: #666;
-            font-weight: 600;
+            font-size: 2.8rem;
+            color: #333;
+            font-weight: 900;
+            margin-top: 15px;
         }
 
         /* Info Section */
@@ -243,15 +257,16 @@
             }
 
             .module-card {
-                min-height: 140px;
+                min-height: 120px;
+                gap: 15px;
             }
 
             .module-name {
                 font-size: 1rem;
             }
 
-            .module-score {
-                font-size: 2rem;
+            .module-percentage {
+                font-size: 2.2rem;
             }
 
             .info-title {
@@ -307,72 +322,54 @@
             <div class="modules-grid">
                 <!-- Listening Module -->
                 <div class="module-card">
-                    <div>
-                        <div class="module-header">
-                            <div class="module-icon">🎧</div>
-                            <div class="module-name">Listening</div>
-                        </div>
-                        <div class="module-score">{{ listening_score }}/16</div>
+                    <div class="module-header">
+                        <div class="module-icon">🎧</div>
+                        <div class="module-name">Listening</div>
                     </div>
                     <div class="module-percentage">{{ listening_percentage }}%</div>
                 </div>
 
                 <!-- Time & Numbers Module -->
                 <div class="module-card">
-                    <div>
-                        <div class="module-header">
-                            <div class="module-icon">🕐</div>
-                            <div class="module-name">Time & Numbers</div>
-                        </div>
-                        <div class="module-score">{{ time_numbers_score }}/16</div>
+                    <div class="module-header">
+                        <div class="module-icon">🕐</div>
+                        <div class="module-name">Time & Numbers</div>
                     </div>
                     <div class="module-percentage">{{ time_numbers_percentage }}%</div>
                 </div>
 
                 <!-- Grammar Module -->
                 <div class="module-card">
-                    <div>
-                        <div class="module-header">
-                            <div class="module-icon">📝</div>
-                            <div class="module-name">Grammar</div>
-                        </div>
-                        <div class="module-score">{{ grammar_score }}/16</div>
+                    <div class="module-header">
+                        <div class="module-icon">📝</div>
+                        <div class="module-name">Grammar</div>
                     </div>
                     <div class="module-percentage">{{ grammar_percentage }}%</div>
                 </div>
 
                 <!-- Vocabulary Module -->
                 <div class="module-card">
-                    <div>
-                        <div class="module-header">
-                            <div class="module-icon">📚</div>
-                            <div class="module-name">Vocabulary</div>
-                        </div>
-                        <div class="module-score">{{ vocabulary_score }}/16</div>
+                    <div class="module-header">
+                        <div class="module-icon">📚</div>
+                        <div class="module-name">Vocabulary</div>
                     </div>
                     <div class="module-percentage">{{ vocabulary_percentage }}%</div>
                 </div>
 
                 <!-- Reading Module -->
                 <div class="module-card">
-                    <div>
-                        <div class="module-header">
-                            <div class="module-icon">📖</div>
-                            <div class="module-name">Reading</div>
-                        </div>
-                        <div class="module-score">{{ reading_score }}/16</div>
+                    <div class="module-header">
+                        <div class="module-icon">📖</div>
+                        <div class="module-name">Reading</div>
                     </div>
                     <div class="module-percentage">{{ reading_percentage }}%</div>
                 </div>
 
                 <!-- Speaking Module -->
                 <div class="module-card">
-                    <div>
-                        <div class="module-header">
-                            <div class="module-icon">🗣️</div>
-                            <div class="module-name">Speaking</div>
-                        </div>
-                        <div class="module-score">{{ speaking_score }}/20</div>
+                    <div class="module-header">
+                        <div class="module-icon">🗣️</div>
+                        <div class="module-name">Speaking</div>
                     </div>
                     <div class="module-percentage">{{ speaking_percentage }}%</div>
                 </div>
