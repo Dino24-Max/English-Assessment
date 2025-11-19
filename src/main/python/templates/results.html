@@ -248,23 +248,136 @@
             margin-top: 12px;
         }
 
-        /* Print Styles */
+        /* Print Styles - Single Page PDF */
         @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+
             body {
                 background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
 
             body::before {
                 display: none !important;
             }
 
+            .results-container {
+                max-width: 100% !important;
+                transform: scale(0.68);
+                transform-origin: top center;
+                margin: -50px auto 0 auto !important;
+            }
+
+            .results-header {
+                margin-bottom: 30px !important;
+                padding: 40px 30px !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            .results-title {
+                font-size: 3.5rem !important;
+                margin-bottom: 10px !important;
+            }
+
+            .results-subtitle {
+                font-size: 1.3rem !important;
+            }
+
+            .score-card {
+                margin-bottom: 30px !important;
+                padding: 40px 30px !important;
+                box-shadow: none !important;
+                gap: 20px !important;
+                page-break-inside: avoid;
+            }
+
+            .circular-progress {
+                width: 200px !important;
+                height: 200px !important;
+            }
+
+            .circular-progress svg {
+                width: 200px !important;
+                height: 200px !important;
+            }
+
+            .circular-progress circle {
+                stroke-width: 10 !important;
+            }
+
+            .score-percentage {
+                font-size: 3.5rem !important;
+            }
+
+            .score-label {
+                font-size: 1.4rem !important;
+            }
+
+            .result-badge {
+                font-size: 1.4rem !important;
+                padding: 10px 30px !important;
+            }
+
             .download-btn {
                 display: none !important;
             }
 
-            .score-card, .modules-section, .info-section {
-                box-shadow: none;
+            .modules-section {
+                margin-bottom: 30px !important;
+                padding: 35px 30px !important;
+                box-shadow: none !important;
                 page-break-inside: avoid;
+            }
+
+            .section-title {
+                font-size: 2rem !important;
+                margin-bottom: 25px !important;
+            }
+
+            .modules-grid {
+                gap: 15px !important;
+            }
+
+            .module-card {
+                padding: 20px 15px !important;
+                min-height: auto !important;
+                gap: 10px !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            .module-icon {
+                font-size: 2rem !important;
+            }
+
+            .module-name {
+                font-size: 1.3rem !important;
+            }
+
+            .module-score {
+                font-size: 2.2rem !important;
+                margin-top: 5px !important;
+            }
+
+            .info-section {
+                padding: 30px 25px !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            .info-title {
+                font-size: 1.6rem !important;
+                margin-bottom: 20px !important;
+            }
+
+            .info-text {
+                font-size: 1rem !important;
+                line-height: 1.5 !important;
             }
         }
 
