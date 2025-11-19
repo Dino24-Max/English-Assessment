@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assessment Results - CCL English Assessment</title>
-    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,50 +13,52 @@
         }
 
         body {
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 40px 20px;
             color: #1a1a1a;
         }
 
         .results-container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
         }
 
+        /* Header Section */
         .results-header {
             text-align: center;
-            margin-bottom: 50px;
+            margin-bottom: 40px;
             background: white;
             padding: 50px 40px;
-            border-radius: 24px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
         }
 
         .results-title {
-            font-size: 4.5rem;
-            font-weight: 800;
+            font-size: 3.5rem;
+            font-weight: 900;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             letter-spacing: -1px;
         }
 
         .results-subtitle {
-            font-size: 1.8rem;
+            font-size: 1.3rem;
             color: #666;
-            font-weight: 400;
+            font-weight: 500;
         }
 
+        /* Overall Score Card */
         .score-card {
             background: white;
-            border-radius: 24px;
-            padding: 60px 40px;
+            border-radius: 20px;
+            padding: 50px;
             margin-bottom: 40px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -68,155 +70,218 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 6px;
+            height: 8px;
             background: {{ score_gradient }};
         }
 
         .score-number {
-            font-size: 7rem;
-            font-weight: 800;
+            font-size: 6rem;
+            font-weight: 900;
             color: #1a1a1a;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             line-height: 1;
         }
 
         .score-label {
-            font-size: 2rem;
+            font-size: 1.5rem;
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             font-weight: 500;
         }
 
         .result-badge {
             display: inline-block;
-            padding: 15px 40px;
+            padding: 12px 36px;
             border-radius: 50px;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 700;
             background: {{ score_gradient }};
             color: white;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
+        /* Module Performance Section */
         .modules-section {
             background: white;
-            border-radius: 24px;
-            padding: 50px 40px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border-radius: 20px;
+            padding: 45px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             margin-bottom: 40px;
         }
 
         .section-title {
-            font-size: 2.8rem;
-            font-weight: 700;
+            font-size: 2.2rem;
+            font-weight: 800;
             color: #1a1a1a;
             margin-bottom: 35px;
             text-align: center;
         }
 
+        /* Module Cards Grid */
         .modules-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
         }
 
         .module-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8f9fa;
             border-radius: 16px;
-            padding: 30px;
-            border: 2px solid #e0e0e0;
+            padding: 25px 20px;
+            border: 2px solid #e9ecef;
             transition: all 0.3s ease;
+            text-align: center;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .module-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
             border-color: #667eea;
+            background: #fff;
         }
 
         .module-header {
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 15px;
         }
 
         .module-icon {
-            font-size: 3rem;
+            font-size: 2.2rem;
             line-height: 1;
         }
 
         .module-name {
-            font-size: 1.8rem;
+            font-size: 1.15rem;
             font-weight: 700;
             color: #1a1a1a;
+            white-space: nowrap;
         }
 
         .module-score {
-            font-size: 2.2rem;
-            font-weight: 800;
+            font-size: 2.5rem;
+            font-weight: 900;
             color: #333;
-            margin-bottom: 8px;
-            line-height: 1.2;
+            margin-bottom: 5px;
+            line-height: 1;
         }
 
         .module-percentage {
-            font-size: 1.5rem;
+            font-size: 1.1rem;
             color: #666;
             font-weight: 600;
         }
 
+        /* Info Section */
         .info-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 24px;
-            padding: 50px 40px;
+            border-radius: 20px;
+            padding: 45px 40px;
             color: white;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             text-align: center;
         }
 
         .info-title {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .info-text {
-            font-size: 1.6rem;
+            font-size: 1.2rem;
             line-height: 1.8;
             color: rgba(255, 255, 255, 0.95);
-            max-width: 800px;
+            max-width: 850px;
             margin: 0 auto;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .modules-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (max-width: 768px) {
             .results-title {
-                font-size: 3rem;
+                font-size: 2.5rem;
             }
 
             .results-subtitle {
-                font-size: 1.4rem;
+                font-size: 1.1rem;
             }
 
             .score-number {
-                font-size: 5rem;
+                font-size: 4.5rem;
             }
 
             .score-label {
-                font-size: 1.5rem;
+                font-size: 1.2rem;
             }
 
             .result-badge {
-                font-size: 1.5rem;
-                padding: 12px 30px;
+                font-size: 1.2rem;
+                padding: 10px 28px;
             }
 
             .section-title {
-                font-size: 2rem;
+                font-size: 1.8rem;
             }
 
             .modules-grid {
                 grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .module-card {
+                min-height: 140px;
+            }
+
+            .module-name {
+                font-size: 1rem;
+            }
+
+            .module-score {
+                font-size: 2rem;
+            }
+
+            .info-title {
+                font-size: 1.6rem;
+            }
+
+            .info-text {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            body {
+                padding: 20px 15px;
+            }
+
+            .results-header {
+                padding: 35px 25px;
+            }
+
+            .score-card {
+                padding: 35px 25px;
+            }
+
+            .modules-section {
+                padding: 30px 20px;
+            }
+
+            .info-section {
+                padding: 35px 25px;
             }
         }
     </style>
@@ -231,29 +296,94 @@
 
         <!-- Overall Score Card -->
         <div class="score-card">
-            <div class="score-number">{{ total_score }}/{{ total_possible }}</div>
-            <div class="score-label">{{ percentage }}% Overall Score</div>
+            <div class="score-number">{{ total_score }}/100</div>
+            <div class="score-label">{{ score_percentage }}% Overall Score</div>
             <div class="result-badge">{{ result_status }}</div>
         </div>
 
-        <!-- Modules Breakdown -->
+        <!-- Module Performance Section -->
         <div class="modules-section">
             <div class="section-title">Module Performance</div>
             <div class="modules-grid">
-                {% for module_html in module_results %}
-                    {{ module_html|safe }}
-                {% endfor %}
+                <!-- Listening Module -->
+                <div class="module-card">
+                    <div>
+                        <div class="module-header">
+                            <div class="module-icon">🎧</div>
+                            <div class="module-name">Listening</div>
+                        </div>
+                        <div class="module-score">{{ listening_score }}/16</div>
+                    </div>
+                    <div class="module-percentage">{{ listening_percentage }}%</div>
+                </div>
+
+                <!-- Time & Numbers Module -->
+                <div class="module-card">
+                    <div>
+                        <div class="module-header">
+                            <div class="module-icon">🕐</div>
+                            <div class="module-name">Time & Numbers</div>
+                        </div>
+                        <div class="module-score">{{ time_numbers_score }}/16</div>
+                    </div>
+                    <div class="module-percentage">{{ time_numbers_percentage }}%</div>
+                </div>
+
+                <!-- Grammar Module -->
+                <div class="module-card">
+                    <div>
+                        <div class="module-header">
+                            <div class="module-icon">📝</div>
+                            <div class="module-name">Grammar</div>
+                        </div>
+                        <div class="module-score">{{ grammar_score }}/16</div>
+                    </div>
+                    <div class="module-percentage">{{ grammar_percentage }}%</div>
+                </div>
+
+                <!-- Vocabulary Module -->
+                <div class="module-card">
+                    <div>
+                        <div class="module-header">
+                            <div class="module-icon">📚</div>
+                            <div class="module-name">Vocabulary</div>
+                        </div>
+                        <div class="module-score">{{ vocabulary_score }}/16</div>
+                    </div>
+                    <div class="module-percentage">{{ vocabulary_percentage }}%</div>
+                </div>
+
+                <!-- Reading Module -->
+                <div class="module-card">
+                    <div>
+                        <div class="module-header">
+                            <div class="module-icon">📖</div>
+                            <div class="module-name">Reading</div>
+                        </div>
+                        <div class="module-score">{{ reading_score }}/16</div>
+                    </div>
+                    <div class="module-percentage">{{ reading_percentage }}%</div>
+                </div>
+
+                <!-- Speaking Module -->
+                <div class="module-card">
+                    <div>
+                        <div class="module-header">
+                            <div class="module-icon">🗣️</div>
+                            <div class="module-name">Speaking</div>
+                        </div>
+                        <div class="module-score">{{ speaking_score }}/20</div>
+                    </div>
+                    <div class="module-percentage">{{ speaking_percentage }}%</div>
+                </div>
             </div>
         </div>
 
-        <!-- Information Section -->
+        <!-- Thank You Section -->
         <div class="info-section">
             <div class="info-title">Thank You for Completing the Assessment</div>
             <div class="info-text">
-                Your results have been recorded and will be reviewed by our team.
-                This assessment evaluated your English proficiency across six key areas:
-                Listening, Time & Numbers, Grammar, Vocabulary, Reading, and Speaking.
-                The results will help determine your readiness for cruise ship operations.
+                Your results have been recorded and will be reviewed by our team. This assessment evaluated your English proficiency across six key areas: Listening, Time & Numbers, Grammar, Vocabulary, Reading, and Speaking. The results will help determine your readiness for cruise ship operations.
             </div>
         </div>
     </div>
