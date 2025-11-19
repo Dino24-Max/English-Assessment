@@ -220,25 +220,6 @@
             color: #333;
         }
 
-        .action-btn {
-            padding: 16px 32px;
-            font-size: 1.8rem;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .btn-view {
-            background: #007aff;
-            color: white;
-        }
-
-        .btn-view:hover {
-            background: #0056b3;
-        }
-
         .pagination {
             display: flex;
             justify-content: space-between;
@@ -496,7 +477,6 @@
                                 <th class="sortable" onclick="sortTable('total_score')">Total</th>
                                 <th class="sortable" onclick="sortTable('passed')">Status</th>
                                 <th class="sortable" onclick="sortTable('completed_at')">Date</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -520,9 +500,6 @@
                                         </span>
                                     </td>
                                     <td>${new Date(item.completed_at).toLocaleDateString()}</td>
-                                    <td>
-                                        <button class="action-btn btn-view" onclick="viewDetails(${item.assessment_id})">View</button>
-                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -574,12 +551,6 @@
             if (search) url += `&search=${search}`;
 
             window.location.href = url;
-        }
-
-        // View assessment details
-        function viewDetails(assessmentId) {
-            const adminKey = document.getElementById('adminKey').value;
-            window.open(`/api/v1/admin/assessment/${assessmentId}?admin_key=${adminKey}`, '_blank');
         }
     </script>
 </body>
