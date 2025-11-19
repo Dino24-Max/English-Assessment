@@ -4,7 +4,7 @@ Admin API endpoints
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from core.database import get_db
 from models.assessment import Assessment, User, InvitationCode, DivisionType
 from utils.anti_cheating import AntiCheatingService
@@ -89,21 +89,23 @@ async def get_admin_stats(
     try:
         # Count total users
         users_result = await db.execute(select(func.count(User.id)))
-        total_users = users_result.scalar()
+        total_users = users_result.scalar() or 0
         
         # Count total assessments
         assessments_result = await db.execute(select(func.count(Assessment.id)))
-        total_assessments = assessments_result.scalar()
+        total_assessments = assessments_result.scalar() or 0
         
         # Count passed assessments today
-        today = datetime.now().date()
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
         passed_today_result = await db.execute(
             select(func.count(Assessment.id)).where(
                 Assessment.passed == True,
-                func.date(Assessment.completed_at) == today
+                Assessment.completed_at >= today_start,
+                Assessment.completed_at < today_end
             )
         )
-        passed_today = passed_today_result.scalar()
+        passed_today = passed_today_result.scalar() or 0
         
         # Count pending (unused) invitations
         pending_invitations_result = await db.execute(
@@ -111,7 +113,7 @@ async def get_admin_stats(
                 InvitationCode.is_used == False
             )
         )
-        pending_invitations = pending_invitations_result.scalar()
+        pending_invitations = pending_invitations_result.scalar() or 0
         
         return {
             "total_users": total_users,

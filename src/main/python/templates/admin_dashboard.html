@@ -227,18 +227,26 @@
         // Load dashboard statistics
         async function loadStats() {
             try {
-                // This endpoint will be implemented
                 const response = await fetch('/api/v1/admin/stats?admin_key=dev-admin-key-123');
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Stats API error:', errorData);
+                    // Show error or keep default values
+                    return;
+                }
+                
                 const data = await response.json();
                 
-                if (response.ok) {
-                    document.getElementById('totalUsers').textContent = data.total_users || 0;
-                    document.getElementById('totalAssessments').textContent = data.total_assessments || 0;
-                    document.getElementById('passedToday').textContent = data.passed_today || 0;
-                    document.getElementById('pendingInvitations').textContent = data.pending_invitations || 0;
-                }
+                // Update stats with actual data
+                document.getElementById('totalUsers').textContent = data.total_users ?? 0;
+                document.getElementById('totalAssessments').textContent = data.total_assessments ?? 0;
+                document.getElementById('passedToday').textContent = data.passed_today ?? 0;
+                document.getElementById('pendingInvitations').textContent = data.pending_invitations ?? 0;
+                
             } catch (error) {
                 console.error('Error loading stats:', error);
+                // Keep default "-" values on error
             }
         }
 
