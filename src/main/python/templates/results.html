@@ -118,7 +118,6 @@
         }
 
         .circle-progress {
-            stroke: url(#gradient);
             stroke-linecap: round;
             stroke-dasharray: 754;
             stroke-dashoffset: 754;
@@ -148,7 +147,6 @@
             border-radius: 50px;
             font-size: 1.5rem;
             font-weight: 700;
-            background: {{ score_gradient }};
             color: white;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             text-transform: uppercase;
@@ -358,9 +356,15 @@
             <div class="circular-progress">
                 <svg width="320" height="320">
                     <defs>
-                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                        <!-- Green gradient for passing (>=70%) -->
+                        <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#34c759;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#30d158;stop-opacity:1" />
+                        </linearGradient>
+                        <!-- Purple/Red gradient for failing (<70%) -->
+                        <linearGradient id="gradient-red" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#ff3b30;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#ff453a;stop-opacity:1" />
                         </linearGradient>
                     </defs>
                     <circle class="circle-bg" cx="160" cy="160" r="120"></circle>
@@ -373,12 +377,26 @@
         </div>
 
         <script>
-            // Animate circular progress on load
+            // Animate circular progress on load with dynamic color
             window.addEventListener('load', function() {
                 const percentage = {{ score_percentage }};
                 const circle = document.getElementById('progressCircle');
+                const badge = document.querySelector('.result-badge');
                 const circumference = 754; // 2 * PI * 120
                 const offset = circumference - (percentage / 100 * circumference);
+                
+                // Change color based on percentage
+                if (percentage >= 70) {
+                    circle.style.stroke = 'url(#gradient-green)';
+                    if (badge) {
+                        badge.style.background = 'linear-gradient(135deg, #34c759 0%, #30d158 100%)';
+                    }
+                } else {
+                    circle.style.stroke = 'url(#gradient-red)';
+                    if (badge) {
+                        badge.style.background = 'linear-gradient(135deg, #ff3b30 0%, #ff453a 100%)';
+                    }
+                }
                 
                 setTimeout(() => {
                     circle.style.strokeDashoffset = offset;
