@@ -574,11 +574,59 @@
                 }, 100);
             });
 
-            // Download PDF function
-            function downloadPDF() {
-                window.print();
+            // Download PDF function using html2canvas
+            async function downloadPDF() {
+                const button = document.querySelector('.download-btn');
+                if (button) button.style.display = 'none';
+                
+                try {
+                    // Import html2canvas and jsPDF from CDN
+                    const html2canvas = (await import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')).default;
+                    const { jsPDF } = await import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                    
+                    // Capture the page as canvas
+                    const canvas = await html2canvas(document.querySelector('.results-container'), {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: null
+                    });
+                    
+                    // Create PDF
+                    const imgWidth = 190; // A4 width in mm
+                    const pageHeight = 277; // A4 height in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgData = canvas.toDataURL('image/png');
+                    
+                    // Scale to fit in one page
+                    let finalWidth = imgWidth;
+                    let finalHeight = imgHeight;
+                    
+                    if (imgHeight > pageHeight) {
+                        finalHeight = pageHeight;
+                        finalWidth = (canvas.width * pageHeight) / canvas.height;
+                    }
+                    
+                    const xOffset = (210 - finalWidth) / 2; // Center horizontally on A4
+                    pdf.addImage(imgData, 'PNG', xOffset, 5, finalWidth, finalHeight);
+                    
+                    pdf.save('Assessment_Results.pdf');
+                    
+                } catch (error) {
+                    console.error('PDF generation error:', error);
+                    alert('PDF generation failed. Using fallback print method...');
+                    window.print();
+                } finally {
+                    if (button) button.style.display = 'inline-block';
+                }
             }
         </script>
+        
+        <!-- Load html2canvas and jsPDF libraries -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
         <!-- Module Performance Section -->
         <div class="modules-section">
