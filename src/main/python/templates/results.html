@@ -252,13 +252,19 @@
         @media print {
             @page {
                 size: A4;
-                margin: 10mm;
+                margin: 8mm;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             body {
                 background: white !important;
                 padding: 0 !important;
                 margin: 0 !important;
+                overflow: hidden !important;
             }
 
             body::before {
@@ -267,60 +273,58 @@
 
             .results-container {
                 max-width: 100% !important;
-                transform: scale(0.68);
+                transform: scale(0.42);
                 transform-origin: top center;
-                margin: -50px auto 0 auto !important;
+                margin: -180px auto 0 auto !important;
+                page-break-after: avoid !important;
             }
 
             .results-header {
-                margin-bottom: 30px !important;
-                padding: 40px 30px !important;
+                margin-bottom: 20px !important;
+                padding: 25px 20px !important;
                 box-shadow: none !important;
-                page-break-inside: avoid;
+                border: 1px solid #e0e0e0 !important;
             }
 
             .results-title {
-                font-size: 3.5rem !important;
-                margin-bottom: 10px !important;
+                font-size: 3rem !important;
+                margin-bottom: 8px !important;
             }
 
             .results-subtitle {
-                font-size: 1.3rem !important;
+                font-size: 1.1rem !important;
             }
 
             .score-card {
-                margin-bottom: 30px !important;
-                padding: 40px 30px !important;
+                margin-bottom: 20px !important;
+                padding: 25px 20px !important;
                 box-shadow: none !important;
-                gap: 20px !important;
-                page-break-inside: avoid;
+                border: 1px solid #e0e0e0 !important;
+                gap: 15px !important;
+                page-break-inside: avoid !important;
             }
 
             .circular-progress {
-                width: 200px !important;
-                height: 200px !important;
+                width: 180px !important;
+                height: 180px !important;
             }
 
             .circular-progress svg {
-                width: 200px !important;
-                height: 200px !important;
-            }
-
-            .circular-progress circle {
-                stroke-width: 10 !important;
+                width: 180px !important;
+                height: 180px !important;
             }
 
             .score-percentage {
-                font-size: 3.5rem !important;
+                font-size: 3rem !important;
             }
 
             .score-label {
-                font-size: 1.4rem !important;
+                font-size: 1.2rem !important;
             }
 
             .result-badge {
-                font-size: 1.4rem !important;
-                padding: 10px 30px !important;
+                font-size: 1.2rem !important;
+                padding: 8px 24px !important;
             }
 
             .download-btn {
@@ -328,56 +332,63 @@
             }
 
             .modules-section {
-                margin-bottom: 30px !important;
-                padding: 35px 30px !important;
+                margin-bottom: 20px !important;
+                padding: 25px 20px !important;
                 box-shadow: none !important;
-                page-break-inside: avoid;
+                border: 1px solid #e0e0e0 !important;
+                page-break-inside: avoid !important;
             }
 
             .section-title {
-                font-size: 2rem !important;
-                margin-bottom: 25px !important;
+                font-size: 1.8rem !important;
+                margin-bottom: 18px !important;
             }
 
             .modules-grid {
-                gap: 15px !important;
+                gap: 12px !important;
             }
 
             .module-card {
-                padding: 20px 15px !important;
+                padding: 15px 12px !important;
                 min-height: auto !important;
-                gap: 10px !important;
+                gap: 8px !important;
                 box-shadow: none !important;
-                page-break-inside: avoid;
+                border: 1px solid #e0e0e0 !important;
+            }
+
+            .module-header {
+                gap: 8px !important;
+                margin-bottom: 8px !important;
             }
 
             .module-icon {
-                font-size: 2rem !important;
+                font-size: 1.6rem !important;
             }
 
             .module-name {
-                font-size: 1.3rem !important;
+                font-size: 1.1rem !important;
             }
 
             .module-score {
-                font-size: 2.2rem !important;
-                margin-top: 5px !important;
+                font-size: 1.8rem !important;
+                margin-top: 4px !important;
             }
 
             .info-section {
-                padding: 30px 25px !important;
+                padding: 20px 18px !important;
                 box-shadow: none !important;
-                page-break-inside: avoid;
+                border: 1px solid #667eea !important;
+                page-break-inside: avoid !important;
             }
 
             .info-title {
-                font-size: 1.6rem !important;
-                margin-bottom: 20px !important;
+                font-size: 1.4rem !important;
+                margin-bottom: 15px !important;
             }
 
             .info-text {
-                font-size: 1rem !important;
-                line-height: 1.5 !important;
+                font-size: 0.85rem !important;
+                line-height: 1.4 !important;
             }
         }
 
