@@ -100,8 +100,8 @@
         /* Circular Progress */
         .circular-progress {
             position: relative;
-            width: 280px;
-            height: 280px;
+            width: 320px;
+            height: 320px;
         }
 
         .circular-progress svg {
@@ -110,7 +110,7 @@
 
         .circular-progress circle {
             fill: none;
-            stroke-width: 12;
+            stroke-width: 14;
         }
 
         .circle-bg {
@@ -120,9 +120,9 @@
         .circle-progress {
             stroke: url(#gradient);
             stroke-linecap: round;
-            stroke-dasharray: 628;
-            stroke-dashoffset: 628;
-            transition: stroke-dashoffset 2s ease-in-out;
+            stroke-dasharray: 754;
+            stroke-dashoffset: 754;
+            transition: stroke-dashoffset 1s ease-in-out;
         }
 
         .score-percentage {
@@ -130,7 +130,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 5rem;
+            font-size: 4.5rem;
             font-weight: 900;
             color: #1a1a1a;
         }
@@ -269,17 +269,17 @@
             }
 
             .circular-progress {
-                width: 220px;
-                height: 220px;
+                width: 260px;
+                height: 260px;
             }
 
             .circular-progress svg {
-                width: 220px;
-                height: 220px;
+                width: 260px;
+                height: 260px;
             }
 
             .score-percentage {
-                font-size: 4rem;
+                font-size: 3.5rem;
             }
 
             .score-label {
@@ -356,15 +356,15 @@
         <!-- Overall Score Card -->
         <div class="score-card">
             <div class="circular-progress">
-                <svg width="280" height="280">
+                <svg width="320" height="320">
                     <defs>
                         <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
                             <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
                         </linearGradient>
                     </defs>
-                    <circle class="circle-bg" cx="140" cy="140" r="100"></circle>
-                    <circle class="circle-progress" cx="140" cy="140" r="100" id="progressCircle"></circle>
+                    <circle class="circle-bg" cx="160" cy="160" r="120"></circle>
+                    <circle class="circle-progress" cx="160" cy="160" r="120" id="progressCircle"></circle>
                 </svg>
                 <div class="score-percentage">{{ score_percentage }}%</div>
             </div>
@@ -377,7 +377,7 @@
             window.addEventListener('load', function() {
                 const percentage = {{ score_percentage }};
                 const circle = document.getElementById('progressCircle');
-                const circumference = 628; // 2 * PI * 100
+                const circumference = 754; // 2 * PI * 120
                 const offset = circumference - (percentage / 100 * circumference);
                 
                 setTimeout(() => {
