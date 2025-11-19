@@ -81,6 +81,10 @@
             text-align: center;
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
         }
 
         .score-card::before {
@@ -93,18 +97,48 @@
             background: {{ score_gradient }};
         }
 
-        .score-number {
-            font-size: 6rem;
+        /* Circular Progress */
+        .circular-progress {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+
+        .circular-progress svg {
+            transform: rotate(-90deg);
+        }
+
+        .circular-progress circle {
+            fill: none;
+            stroke-width: 12;
+        }
+
+        .circle-bg {
+            stroke: #e9ecef;
+        }
+
+        .circle-progress {
+            stroke: url(#gradient);
+            stroke-linecap: round;
+            stroke-dasharray: 628;
+            stroke-dashoffset: 628;
+            transition: stroke-dashoffset 2s ease-in-out;
+        }
+
+        .score-percentage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
             font-weight: 900;
             color: #1a1a1a;
-            margin-bottom: 10px;
-            line-height: 1;
         }
 
         .score-label {
             font-size: 1.5rem;
             color: #666;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             font-weight: 500;
         }
 
@@ -187,8 +221,8 @@
             white-space: nowrap;
         }
 
-        .module-percentage {
-            font-size: 2.8rem;
+        .module-score {
+            font-size: 3rem;
             color: #333;
             font-weight: 900;
             margin-top: 15px;
@@ -234,8 +268,18 @@
                 font-size: 1.1rem;
             }
 
-            .score-number {
-                font-size: 4.5rem;
+            .circular-progress {
+                width: 220px;
+                height: 220px;
+            }
+
+            .circular-progress svg {
+                width: 220px;
+                height: 220px;
+            }
+
+            .score-percentage {
+                font-size: 4rem;
             }
 
             .score-label {
@@ -265,8 +309,8 @@
                 font-size: 1rem;
             }
 
-            .module-percentage {
-                font-size: 2.2rem;
+            .module-score {
+                font-size: 2.5rem;
             }
 
             .info-title {
@@ -311,10 +355,36 @@
 
         <!-- Overall Score Card -->
         <div class="score-card">
-            <div class="score-number">{{ total_score }}/100</div>
-            <div class="score-label">{{ score_percentage }}% Overall Score</div>
+            <div class="circular-progress">
+                <svg width="280" height="280">
+                    <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <circle class="circle-bg" cx="140" cy="140" r="100"></circle>
+                    <circle class="circle-progress" cx="140" cy="140" r="100" id="progressCircle"></circle>
+                </svg>
+                <div class="score-percentage">{{ score_percentage }}%</div>
+            </div>
+            <div class="score-label">Overall Score</div>
             <div class="result-badge">{{ result_status }}</div>
         </div>
+
+        <script>
+            // Animate circular progress on load
+            window.addEventListener('load', function() {
+                const percentage = {{ score_percentage }};
+                const circle = document.getElementById('progressCircle');
+                const circumference = 628; // 2 * PI * 100
+                const offset = circumference - (percentage / 100 * circumference);
+                
+                setTimeout(() => {
+                    circle.style.strokeDashoffset = offset;
+                }, 100);
+            });
+        </script>
 
         <!-- Module Performance Section -->
         <div class="modules-section">
@@ -326,7 +396,7 @@
                         <div class="module-icon">🎧</div>
                         <div class="module-name">Listening</div>
                     </div>
-                    <div class="module-percentage">{{ listening_percentage }}%</div>
+                    <div class="module-score">{{ listening_score }}/16</div>
                 </div>
 
                 <!-- Time & Numbers Module -->
@@ -335,7 +405,7 @@
                         <div class="module-icon">🕐</div>
                         <div class="module-name">Time & Numbers</div>
                     </div>
-                    <div class="module-percentage">{{ time_numbers_percentage }}%</div>
+                    <div class="module-score">{{ time_numbers_score }}/16</div>
                 </div>
 
                 <!-- Grammar Module -->
@@ -344,7 +414,7 @@
                         <div class="module-icon">📝</div>
                         <div class="module-name">Grammar</div>
                     </div>
-                    <div class="module-percentage">{{ grammar_percentage }}%</div>
+                    <div class="module-score">{{ grammar_score }}/16</div>
                 </div>
 
                 <!-- Vocabulary Module -->
@@ -353,7 +423,7 @@
                         <div class="module-icon">📚</div>
                         <div class="module-name">Vocabulary</div>
                     </div>
-                    <div class="module-percentage">{{ vocabulary_percentage }}%</div>
+                    <div class="module-score">{{ vocabulary_score }}/16</div>
                 </div>
 
                 <!-- Reading Module -->
@@ -362,7 +432,7 @@
                         <div class="module-icon">📖</div>
                         <div class="module-name">Reading</div>
                     </div>
-                    <div class="module-percentage">{{ reading_percentage }}%</div>
+                    <div class="module-score">{{ reading_score }}/16</div>
                 </div>
 
                 <!-- Speaking Module -->
@@ -371,7 +441,7 @@
                         <div class="module-icon">🗣️</div>
                         <div class="module-name">Speaking</div>
                     </div>
-                    <div class="module-percentage">{{ speaking_percentage }}%</div>
+                    <div class="module-score">{{ speaking_score }}/20</div>
                 </div>
             </div>
         </div>
