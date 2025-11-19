@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assessment Results - CCL English Assessment</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -248,146 +250,10 @@
             margin-top: 12px;
         }
 
-        /* Print Styles - Single Page PDF */
+        /* Simple Print Styles (Fallback only) */
         @media print {
-            @page {
-                size: A4 portrait;
-                margin: 12mm 10mm;
-            }
-
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            body {
-                background: white !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-
-            body::before {
-                display: none !important;
-            }
-
-            .results-container {
-                max-width: 100% !important;
-                transform: scale(0.52);
-                transform-origin: top center;
-                margin: -150px auto -200px auto !important;
-            }
-
-            .results-header {
-                margin-bottom: 25px !important;
-                padding: 30px 25px !important;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-            }
-
-            .results-title {
-                font-size: 3.2rem !important;
-                margin-bottom: 10px !important;
-            }
-
-            .results-subtitle {
-                font-size: 1.2rem !important;
-            }
-
-            .score-card {
-                margin-bottom: 25px !important;
-                padding: 35px !important;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-                gap: 20px !important;
-            }
-
-            .score-card::before {
-                height: 6px !important;
-            }
-
-            .circular-progress {
-                width: 220px !important;
-                height: 220px !important;
-            }
-
-            .circular-progress svg {
-                width: 220px !important;
-                height: 220px !important;
-            }
-
-            .circular-progress circle {
-                stroke-width: 12 !important;
-            }
-
-            .score-percentage {
-                font-size: 3.8rem !important;
-            }
-
-            .score-label {
-                font-size: 1.4rem !important;
-            }
-
-            .result-badge {
-                font-size: 1.4rem !important;
-                padding: 10px 28px !important;
-            }
-
             .download-btn {
                 display: none !important;
-            }
-
-            .modules-section {
-                margin-bottom: 25px !important;
-                padding: 35px 30px !important;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-            }
-
-            .section-title {
-                font-size: 2rem !important;
-                margin-bottom: 22px !important;
-            }
-
-            .modules-grid {
-                gap: 14px !important;
-            }
-
-            .module-card {
-                padding: 22px 18px !important;
-                min-height: 120px !important;
-                gap: 12px !important;
-                box-shadow: none !important;
-                border: 2px solid #e9ecef !important;
-            }
-
-            .module-header {
-                gap: 10px !important;
-                margin-bottom: 10px !important;
-            }
-
-            .module-icon {
-                font-size: 2rem !important;
-            }
-
-            .module-name {
-                font-size: 1.4rem !important;
-            }
-
-            .module-score {
-                font-size: 2.5rem !important;
-                margin-top: 6px !important;
-            }
-
-            .info-section {
-                padding: 25px 20px !important;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-            }
-
-            .info-title {
-                font-size: 1.6rem !important;
-                margin-bottom: 12px !important;
-            }
-
-            .info-text {
-                font-size: 1rem !important;
-                line-height: 1.5 !important;
             }
         }
 
@@ -577,19 +443,22 @@
             // Download PDF function using html2canvas
             async function downloadPDF() {
                 const button = document.querySelector('.download-btn');
-                if (button) button.style.display = 'none';
+                if (button) button.textContent = '⏳ Generating PDF...';
                 
                 try {
-                    // Import html2canvas and jsPDF from CDN
-                    const html2canvas = (await import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')).default;
-                    const { jsPDF } = await import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                    // Check if libraries are loaded
+                    if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+                        throw new Error('PDF libraries not loaded');
+                    }
                     
                     // Capture the page as canvas
                     const canvas = await html2canvas(document.querySelector('.results-container'), {
                         scale: 2,
                         useCORS: true,
                         logging: false,
-                        backgroundColor: null
+                        backgroundColor: '#f5f7fa',
+                        windowWidth: document.querySelector('.results-container').scrollWidth,
+                        windowHeight: document.querySelector('.results-container').scrollHeight
                     });
                     
                     // Create PDF
@@ -597,8 +466,9 @@
                     const pageHeight = 277; // A4 height in mm
                     const imgHeight = (canvas.height * imgWidth) / canvas.width;
                     
+                    const { jsPDF } = jspdf;
                     const pdf = new jsPDF('p', 'mm', 'a4');
-                    const imgData = canvas.toDataURL('image/png');
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
                     
                     // Scale to fit in one page
                     let finalWidth = imgWidth;
@@ -610,23 +480,21 @@
                     }
                     
                     const xOffset = (210 - finalWidth) / 2; // Center horizontally on A4
-                    pdf.addImage(imgData, 'PNG', xOffset, 5, finalWidth, finalHeight);
+                    const yOffset = 5;
                     
+                    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
                     pdf.save('Assessment_Results.pdf');
+                    
+                    if (button) button.textContent = '📥 Download as PDF';
                     
                 } catch (error) {
                     console.error('PDF generation error:', error);
                     alert('PDF generation failed. Using fallback print method...');
                     window.print();
-                } finally {
-                    if (button) button.style.display = 'inline-block';
+                    if (button) button.textContent = '📥 Download as PDF';
                 }
             }
         </script>
-        
-        <!-- Load html2canvas and jsPDF libraries -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
         <!-- Module Performance Section -->
         <div class="modules-section">
