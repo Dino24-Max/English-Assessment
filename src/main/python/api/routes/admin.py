@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from core.database import get_db
-from models.assessment import Assessment, User, InvitationCode, DivisionType
+from models.assessment import Assessment, User, InvitationCode, DivisionType, AssessmentStatus
 from utils.anti_cheating import AntiCheatingService
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -91,8 +91,12 @@ async def get_admin_stats(
         users_result = await db.execute(select(func.count(User.id)))
         total_users = users_result.scalar() or 0
         
-        # Count total assessments
-        assessments_result = await db.execute(select(func.count(Assessment.id)))
+        # Count total completed assessments only
+        assessments_result = await db.execute(
+            select(func.count(Assessment.id)).where(
+                Assessment.status == AssessmentStatus.COMPLETED
+            )
+        )
         total_assessments = assessments_result.scalar() or 0
         
         # Count passed assessments today
