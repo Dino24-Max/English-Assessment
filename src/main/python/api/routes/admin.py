@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from core.database import get_db
-from models.assessment import Assessment, User, InvitationCode, DivisionType, AssessmentStatus
+from models.assessment import Assessment, User, InvitationCode, DivisionType, AssessmentStatus, AssessmentResponse, ModuleType
 from utils.anti_cheating import AntiCheatingService
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -766,3 +766,125 @@ async def export_assessments_csv(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error exporting CSV: {str(e)}")
+
+
+@router.get("/assessment/{assessment_id}")
+async def get_assessment_detail(
+    assessment_id: int,
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get detailed assessment report for single user
+    
+    Returns complete assessment information including:
+    - User details
+    - Assessment scores (all modules)
+    - Individual question responses
+    - Completion status and dates
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        # Get assessment with user
+        result = await db.execute(
+            select(Assessment, User).join(
+                User, Assessment.user_id == User.id
+            ).where(Assessment.id == assessment_id)
+        )
+        row = result.first()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Assessment not found")
+        
+        assessment, user = row
+        
+        # Get all responses for this assessment
+        responses_result = await db.execute(
+            select(AssessmentResponse).where(
+                AssessmentResponse.assessment_id == assessment_id
+            ).order_by(AssessmentResponse.question_id)
+        )
+        responses = responses_result.scalars().all()
+        
+        # Format responses
+        question_responses = []
+        for response in responses:
+            question_responses.append({
+                "question_id": response.question_id,
+                "module_type": response.module_type.value if response.module_type else None,
+                "answer": response.answer,
+                "is_correct": response.is_correct,
+                "points_earned": response.points_earned,
+                "points_possible": response.points_possible,
+                "time_spent": response.time_spent,
+                "feedback": response.feedback
+            })
+        
+        # Return detailed assessment data
+        return {
+            "assessment_id": assessment.id,
+            "user": {
+                "id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "nationality": user.nationality,
+                "division": user.division.value if user.division else None,
+                "department": user.department
+            },
+            "assessment": {
+                "session_id": assessment.session_id,
+                "division": assessment.division.value if assessment.division else None,
+                "status": assessment.status.value if assessment.status else None,
+                "started_at": assessment.started_at.isoformat() if assessment.started_at else None,
+                "completed_at": assessment.completed_at.isoformat() if assessment.completed_at else None,
+                "expires_at": assessment.expires_at.isoformat() if assessment.expires_at else None,
+                "passed": assessment.passed,
+                "safety_questions_passed": assessment.safety_questions_passed,
+                "speaking_threshold_passed": assessment.speaking_threshold_passed
+            },
+            "scores": {
+                "listening": {
+                    "score": assessment.listening_score or 0,
+                    "max": 16
+                },
+                "time_numbers": {
+                    "score": assessment.time_numbers_score or 0,
+                    "max": 16
+                },
+                "grammar": {
+                    "score": assessment.grammar_score or 0,
+                    "max": 16
+                },
+                "vocabulary": {
+                    "score": assessment.vocabulary_score or 0,
+                    "max": 16
+                },
+                "reading": {
+                    "score": assessment.reading_score or 0,
+                    "max": 16
+                },
+                "speaking": {
+                    "score": assessment.speaking_score or 0,
+                    "max": 20
+                },
+                "total": {
+                    "score": assessment.total_score or 0,
+                    "max": 100
+                }
+            },
+            "responses": question_responses,
+            "total_responses": len(question_responses)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching assessment details: {str(e)}")
