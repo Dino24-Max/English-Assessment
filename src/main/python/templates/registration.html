@@ -243,7 +243,11 @@
                 <div class="form-group">
                     <label class="form-label" for="email">Email Address <span class="required">*</span></label>
                     <input type="email" id="email" name="email" class="form-input" required>
+                    <div id="email-status" style="margin-top: 8px; font-size: 1.3rem; font-weight: 600;"></div>
                 </div>
+                
+                <!-- Hidden field for invitation code -->
+                <input type="hidden" id="invitation_code" name="invitation_code" value="">
 
                 <div class="form-group">
                     <label class="form-label" for="nationality">Nationality <span class="required">*</span></label>
@@ -256,7 +260,6 @@
                         <input type="password" id="password" name="password" class="form-input" required minlength="6" placeholder="Minimum 6 characters">
                         <button type="button" class="toggle-password" onclick="togglePassword()" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.4rem; color: rgba(0, 0, 0, 0.5);">👁️</button>
                     </div>
-                    <div id="email-status" style="margin-top: 8px; font-size: 1.3rem; font-weight: 600;"></div>
                 </div>
 
                 <button type="submit" class="submit-btn">Register Account</button>
@@ -271,6 +274,35 @@
     </div>
 
     <script>
+        // Check if invitation code is in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const invitationCode = urlParams.get('code');
+        let isFromInvitation = false;
+
+        // If invitation code exists, validate and prefill email
+        if (invitationCode) {
+            document.getElementById('invitation_code').value = invitationCode;
+            
+            // Validate invitation code and get email
+            fetch(`/api/v1/admin/invitation/${invitationCode}/validate`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.valid && data.email) {
+                        isFromInvitation = true;
+                        const emailInput = document.getElementById('email');
+                        emailInput.value = data.email;
+                        emailInput.readOnly = true;
+                        emailInput.style.backgroundColor = '#f5f5f5';
+                        emailInput.style.cursor = 'not-allowed';
+                        
+                        // Hide email status for invitation users
+                        const emailStatus = document.getElementById('email-status');
+                        emailStatus.style.display = 'none';
+                    }
+                })
+                .catch(error => console.error('Error validating invitation code:', error));
+        }
+    
         // Toggle password visibility
         function togglePassword() {
             const passwordInput = document.getElementById('password');
@@ -291,6 +323,11 @@
         const emailStatus = document.getElementById('email-status');
 
         emailInput.addEventListener('input', function() {
+            // Skip email validation if user came from invitation
+            if (isFromInvitation) {
+                return;
+            }
+            
             const email = this.value.trim();
 
             // Clear previous timeout
@@ -343,7 +380,8 @@
                 last_name: formData.get('last_name'),
                 email: formData.get('email'),
                 nationality: formData.get('nationality'),
-                password: formData.get('password')
+                password: formData.get('password'),
+                invitation_code: formData.get('invitation_code')
             };
 
             try {
