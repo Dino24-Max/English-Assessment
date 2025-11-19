@@ -646,34 +646,45 @@ async def results_page(request: Request):
             result_status = "❌ NOT PASSED"
             score_gradient = "linear-gradient(135deg, #ff3b30 0%, #ff453a 100%)"
 
-        # Generate module HTML
-        module_results = []
-        for module in modules:
-            # Convert scores to integers for display
-            module_score_int = int(round(module["score"]))
-            module_percentage = int(round((module["score"] / module["possible"]) * 100)) if module["possible"] > 0 else 0
-            module_html = f'''
-            <div class="module-card">
-                <div class="module-header">
-                    <span class="module-icon">{module["icon"]}</span>
-                    <span class="module-name">{module["name"]}</span>
-                </div>
-                <div class="module-score">{module_score_int}/{module["possible"]}</div>
-                <div class="module-percentage">{module_percentage}%</div>
-            </div>
-            '''
-            module_results.append(module_html)
+        # Prepare individual module scores for template
+        listening_score = int(round(modules[0]["score"]))
+        listening_percentage = int(round((modules[0]["score"] / modules[0]["possible"]) * 100))
+        
+        time_numbers_score = int(round(modules[1]["score"]))
+        time_numbers_percentage = int(round((modules[1]["score"] / modules[1]["possible"]) * 100))
+        
+        grammar_score = int(round(modules[2]["score"]))
+        grammar_percentage = int(round((modules[2]["score"] / modules[2]["possible"]) * 100))
+        
+        vocabulary_score = int(round(modules[3]["score"]))
+        vocabulary_percentage = int(round((modules[3]["score"] / modules[3]["possible"]) * 100))
+        
+        reading_score = int(round(modules[4]["score"]))
+        reading_percentage = int(round((modules[4]["score"] / modules[4]["possible"]) * 100))
+        
+        speaking_score = int(round(modules[5]["score"]))
+        speaking_percentage = int(round((modules[5]["score"] / modules[5]["possible"]) * 100))
 
         return templates.TemplateResponse(
             "results.html",
             {
                 "request": request,
                 "total_score": total_score_int,
-                "total_possible": total_possible,
-                "percentage": percentage,
+                "score_percentage": percentage,
                 "score_gradient": score_gradient,
                 "result_status": result_status,
-                "module_results": module_results
+                "listening_score": listening_score,
+                "listening_percentage": listening_percentage,
+                "time_numbers_score": time_numbers_score,
+                "time_numbers_percentage": time_numbers_percentage,
+                "grammar_score": grammar_score,
+                "grammar_percentage": grammar_percentage,
+                "vocabulary_score": vocabulary_score,
+                "vocabulary_percentage": vocabulary_percentage,
+                "reading_score": reading_score,
+                "reading_percentage": reading_percentage,
+                "speaking_score": speaking_score,
+                "speaking_percentage": speaking_percentage
             }
         )
 
