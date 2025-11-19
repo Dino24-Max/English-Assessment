@@ -16,7 +16,7 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: url('/static/images/homepage-background.png') center center / cover no-repeat fixed;
             min-height: 100vh;
-            padding: 60px 30px;
+            padding: 50px 25px;
             color: #1a1a1a;
             margin: 0;
             position: relative;
@@ -38,7 +38,7 @@
         }
 
         .results-container {
-            max-width: 1650px;
+            max-width: 1375px;
             margin: 0 auto;
             position: relative;
             z-index: 1;
@@ -47,26 +47,26 @@
         /* Header Section */
         .results-header {
             text-align: center;
-            margin-bottom: 60px;
+            margin-bottom: 50px;
             background: white;
-            padding: 75px 60px;
-            border-radius: 30px;
+            padding: 62px 50px;
+            border-radius: 25px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
         }
 
         .results-title {
-            font-size: 5.25rem;
+            font-size: 4.4rem;
             font-weight: 900;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 18px;
-            letter-spacing: -1.5px;
+            margin-bottom: 15px;
+            letter-spacing: -1.2px;
         }
 
         .results-subtitle {
-            font-size: 1.95rem;
+            font-size: 1.6rem;
             color: #666;
             font-weight: 500;
         }
@@ -74,9 +74,9 @@
         /* Overall Score Card */
         .score-card {
             background: white;
-            border-radius: 30px;
-            padding: 75px;
-            margin-bottom: 60px;
+            border-radius: 25px;
+            padding: 62px;
+            margin-bottom: 50px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             text-align: center;
             position: relative;
@@ -84,7 +84,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 40px;
+            gap: 35px;
         }
 
         .score-card::before {
@@ -93,15 +93,15 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 10px;
+            height: 8px;
             background: {{ score_gradient }};
         }
 
         /* Circular Progress */
         .circular-progress {
             position: relative;
-            width: 380px;
-            height: 380px;
+            width: 320px;
+            height: 320px;
         }
 
         .circular-progress svg {
@@ -110,7 +110,7 @@
 
         .circular-progress circle {
             fill: none;
-            stroke-width: 16;
+            stroke-width: 14;
         }
 
         .circle-bg {
@@ -119,8 +119,8 @@
 
         .circle-progress {
             stroke-linecap: round;
-            stroke-dasharray: 1068;
-            stroke-dashoffset: 1068;
+            stroke-dasharray: 880;
+            stroke-dashoffset: 880;
             transition: stroke-dashoffset 1s ease-in-out;
         }
 
@@ -129,44 +129,66 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 6.5rem;
+            font-size: 5.5rem;
             font-weight: 900;
             color: #1a1a1a;
         }
 
         .score-label {
-            font-size: 2.25rem;
+            font-size: 1.9rem;
             color: #666;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             font-weight: 500;
         }
 
         .result-badge {
             display: inline-block;
-            padding: 18px 54px;
+            padding: 15px 45px;
             border-radius: 50px;
-            font-size: 2.25rem;
+            font-size: 1.9rem;
             font-weight: 700;
             color: white;
-            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.22);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 1.2px;
+        }
+
+        /* Download PDF Button */
+        .download-btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.6rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
         }
 
         /* Module Performance Section */
         .modules-section {
             background: white;
-            border-radius: 30px;
-            padding: 68px;
+            border-radius: 25px;
+            padding: 56px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-            margin-bottom: 60px;
+            margin-bottom: 50px;
         }
 
         .section-title {
-            font-size: 3.3rem;
+            font-size: 2.75rem;
             font-weight: 800;
             color: #1a1a1a;
-            margin-bottom: 52px;
+            margin-bottom: 44px;
             text-align: center;
         }
 
@@ -174,79 +196,99 @@
         .modules-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 30px;
+            gap: 25px;
         }
 
         .module-card {
-            background: #f8f9fa;
-            border-radius: 24px;
-            padding: 45px 30px;
-            border: 3px solid #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 20px;
+            padding: 38px 25px;
+            border: 2px solid #e0e6ed;
             transition: all 0.3s ease;
             text-align: center;
-            min-height: 210px;
+            min-height: 175px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            gap: 22px;
+            gap: 18px;
         }
 
         .module-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.13);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.15);
             border-color: #667eea;
-            background: #fff;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
         }
 
         .module-header {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
         .module-icon {
-            font-size: 3.3rem;
+            font-size: 2.75rem;
             line-height: 1;
         }
 
         .module-name {
-            font-size: 1.72rem;
+            font-size: 2rem;
             font-weight: 700;
             color: #1a1a1a;
             white-space: nowrap;
         }
 
         .module-score {
-            font-size: 4.5rem;
+            font-size: 3.5rem;
             color: #333;
             font-weight: 900;
-            margin-top: 15px;
+            margin-top: 12px;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white !important;
+            }
+
+            body::before {
+                display: none !important;
+            }
+
+            .download-btn {
+                display: none !important;
+            }
+
+            .score-card, .modules-section, .info-section {
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
         }
 
         /* Info Section */
         .info-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 30px;
-            padding: 68px 60px;
+            border-radius: 25px;
+            padding: 56px 50px;
             color: white;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             text-align: center;
         }
 
         .info-title {
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 38px;
+            margin-bottom: 32px;
         }
 
         .info-text {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             line-height: 1.8;
             color: rgba(255, 255, 255, 0.95);
-            max-width: 1275px;
+            max-width: 1060px;
             margin: 0 auto;
         }
 
@@ -359,7 +401,7 @@
         <!-- Overall Score Card -->
         <div class="score-card">
             <div class="circular-progress">
-                <svg width="380" height="380">
+                <svg width="320" height="320">
                     <defs>
                         <!-- Green gradient for passing (>=70%) -->
                         <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -372,13 +414,14 @@
                             <stop offset="100%" style="stop-color:#ff453a;stop-opacity:1" />
                         </linearGradient>
                     </defs>
-                    <circle class="circle-bg" cx="190" cy="190" r="170"></circle>
-                    <circle class="circle-progress" cx="190" cy="190" r="170" id="progressCircle"></circle>
+                    <circle class="circle-bg" cx="160" cy="160" r="140"></circle>
+                    <circle class="circle-progress" cx="160" cy="160" r="140" id="progressCircle"></circle>
                 </svg>
                 <div class="score-percentage">{{ score_percentage }}%</div>
             </div>
             <div class="score-label">Overall Score</div>
             <div class="result-badge">{{ result_status }}</div>
+            <button class="download-btn" onclick="downloadPDF()">📥 Download as PDF</button>
         </div>
 
         <script>
@@ -387,7 +430,7 @@
                 const percentage = {{ score_percentage }};
                 const circle = document.getElementById('progressCircle');
                 const badge = document.querySelector('.result-badge');
-                const circumference = 1068; // 2 * PI * 170
+                const circumference = 880; // 2 * PI * 140
                 const offset = circumference - (percentage / 100 * circumference);
                 
                 // Change color based on percentage
@@ -407,6 +450,11 @@
                     circle.style.strokeDashoffset = offset;
                 }, 100);
             });
+
+            // Download PDF function
+            function downloadPDF() {
+                window.print();
+            }
         </script>
 
         <!-- Module Performance Section -->
