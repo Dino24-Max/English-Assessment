@@ -61,15 +61,15 @@ body::before {
 .hero-title {
     font-size: 7.5rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #007aff 0%, #5856d6 35%, #ff0000 100%);
+    background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     line-height: 1.15;
     margin-bottom: 45px;
-    filter: drop-shadow(0 6px 20px rgba(0, 122, 255, 0.35)) drop-shadow(0 2px 8px rgba(255, 0, 0, 0.2));
+    filter: drop-shadow(0 6px 20px rgba(182, 27, 56, 0.35)) drop-shadow(0 2px 8px rgba(1, 78, 143, 0.2));
     letter-spacing: -1.5px;
-    text-shadow: 0 0 40px rgba(0, 122, 255, 0.15);
+    text-shadow: 0 0 40px rgba(182, 27, 56, 0.15);
 }
 
 .hero-subtitle {
@@ -144,7 +144,7 @@ body::before {
 }
 
 .start-btn {
-    background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
+    background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%);
     color: white;
     border: none;
     border-radius: 90px;
@@ -155,8 +155,8 @@ body::before {
     transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     text-decoration: none;
     display: inline-block;
-    box-shadow: 0 28px 65px rgba(0, 122, 255, 0.42),
-                0 15px 35px rgba(255, 0, 0, 0.32),
+    box-shadow: 0 28px 65px rgba(182, 27, 56, 0.42),
+                0 15px 35px rgba(1, 78, 143, 0.32),
                 0 0 0 1px rgba(255, 255, 255, 0.2) inset,
                 0 2px 4px rgba(255, 255, 255, 0.3) inset;
     text-transform: uppercase;
@@ -178,8 +178,8 @@ body::before {
 
 .start-btn:hover {
     transform: translateY(-6px) scale(1.1);
-    box-shadow: 0 35px 70px rgba(0, 122, 255, 0.45),
-                0 18px 40px rgba(255, 0, 0, 0.35),
+    box-shadow: 0 35px 70px rgba(182, 27, 56, 0.45),
+                0 18px 40px rgba(1, 78, 143, 0.35),
                 0 0 0 1px rgba(255, 255, 255, 0.3) inset,
                 0 2px 6px rgba(255, 255, 255, 0.4) inset;
     filter: brightness(1.08);

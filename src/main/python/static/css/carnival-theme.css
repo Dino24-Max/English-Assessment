@@ -1,0 +1,419 @@
+/* Carnival Cruise Line Brand Theme */
+/* Brand Colors: #B61B38 (Red), #014E8F (Blue) */
+
+:root {
+    --carnival-red: #B61B38;
+    --carnival-blue: #014E8F;
+    --carnival-red-dark: #9a1630;
+    --carnival-blue-dark: #013a72;
+    --carnival-red-light: rgba(182, 27, 56, 0.1);
+    --carnival-blue-light: rgba(1, 78, 143, 0.1);
+    --carnival-red-medium: rgba(182, 27, 56, 0.25);
+    --carnival-blue-medium: rgba(1, 78, 143, 0.25);
+    --carnival-gradient: linear-gradient(135deg, #B61B38 0%, #014E8F 100%);
+    --carnival-gradient-reverse: linear-gradient(135deg, #014E8F 0%, #B61B38 100%);
+}
+
+/* ========================================
+   Carnival Header with Logo
+   ======================================== */
+
+.carnival-header {
+    position: relative;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 20px 40px;
+    border-bottom: 3px solid var(--carnival-red);
+    box-shadow: 0 4px 20px rgba(182, 27, 56, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 40px;
+}
+
+/* For pages with ship background */
+body.has-ship-background .carnival-header {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-bottom: 4px solid var(--carnival-red);
+}
+
+.carnival-logo {
+    height: 70px;
+    width: auto;
+    object-fit: contain;
+}
+
+.carnival-header-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: var(--carnival-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+/* ========================================
+   Brand Buttons
+   ======================================== */
+
+.btn-carnival-primary,
+.carnival-btn-primary {
+    background: var(--carnival-red);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(182, 27, 56, 0.25);
+}
+
+.btn-carnival-primary:hover,
+.carnival-btn-primary:hover {
+    background: var(--carnival-red-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(182, 27, 56, 0.35);
+}
+
+.btn-carnival-secondary,
+.carnival-btn-secondary {
+    background: var(--carnival-blue);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(1, 78, 143, 0.25);
+}
+
+.btn-carnival-secondary:hover,
+.carnival-btn-secondary:hover {
+    background: var(--carnival-blue-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(1, 78, 143, 0.35);
+}
+
+.btn-carnival-outline {
+    background: transparent;
+    color: var(--carnival-red);
+    border: 2px solid var(--carnival-red);
+    padding: 14px 32px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-carnival-outline:hover {
+    background: var(--carnival-red);
+    color: white;
+}
+
+/* ========================================
+   Brand Cards
+   ======================================== */
+
+.carnival-card {
+    background: white;
+    border: 3px solid var(--carnival-red-light);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 24px rgba(182, 27, 56, 0.1),
+                0 2px 8px rgba(1, 78, 143, 0.08);
+    transition: all 0.3s ease;
+}
+
+.carnival-card:hover {
+    border-color: var(--carnival-red-medium);
+    box-shadow: 0 12px 32px rgba(182, 27, 56, 0.15),
+                0 4px 12px rgba(1, 78, 143, 0.12);
+    transform: translateY(-4px);
+}
+
+.carnival-card-header {
+    border-bottom: 3px solid var(--carnival-red);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.carnival-card-title {
+    font-size: 2rem;
+    font-weight: 700;
+    background: var(--carnival-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+/* ========================================
+   Brand Forms
+   ======================================== */
+
+.carnival-form-input {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.carnival-form-input:focus {
+    outline: none;
+    border-color: var(--carnival-red);
+    box-shadow: 0 0 0 4px var(--carnival-red-light);
+}
+
+.carnival-form-label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.carnival-form-select {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 1rem;
+    background: white;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.carnival-form-select:focus {
+    outline: none;
+    border-color: var(--carnival-blue);
+    box-shadow: 0 0 0 4px var(--carnival-blue-light);
+}
+
+/* ========================================
+   Brand Badges & Tags
+   ======================================== */
+
+.carnival-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.carnival-badge-red {
+    background: var(--carnival-red);
+    color: white;
+}
+
+.carnival-badge-blue {
+    background: var(--carnival-blue);
+    color: white;
+}
+
+.carnival-badge-outline-red {
+    background: transparent;
+    color: var(--carnival-red);
+    border: 2px solid var(--carnival-red);
+}
+
+.carnival-badge-outline-blue {
+    background: transparent;
+    color: var(--carnival-blue);
+    border: 2px solid var(--carnival-blue);
+}
+
+/* ========================================
+   Brand Progress Bar
+   ======================================== */
+
+.carnival-progress-bar {
+    width: 100%;
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.carnival-progress-fill {
+    height: 100%;
+    background: var(--carnival-gradient);
+    transition: width 0.3s ease;
+}
+
+/* ========================================
+   Brand Stats/Numbers
+   ======================================== */
+
+.carnival-stat-number {
+    font-size: 3.5rem;
+    font-weight: 800;
+    background: var(--carnival-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.carnival-stat-label {
+    font-size: 1.1rem;
+    color: #666;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+/* ========================================
+   Brand Tables
+   ======================================== */
+
+.carnival-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.carnival-table thead {
+    background: var(--carnival-gradient);
+    color: white;
+}
+
+.carnival-table th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.carnival-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.carnival-table tbody tr:hover {
+    background: var(--carnival-red-light);
+}
+
+/* ========================================
+   Brand Alerts & Messages
+   ======================================== */
+
+.carnival-alert {
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border-left: 5px solid;
+}
+
+.carnival-alert-success {
+    background: rgba(52, 199, 89, 0.1);
+    border-left-color: #34c759;
+    color: #1a7a3a;
+}
+
+.carnival-alert-error {
+    background: var(--carnival-red-light);
+    border-left-color: var(--carnival-red);
+    color: var(--carnival-red-dark);
+}
+
+.carnival-alert-info {
+    background: var(--carnival-blue-light);
+    border-left-color: var(--carnival-blue);
+    color: var(--carnival-blue-dark);
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+
+.text-carnival-red {
+    color: var(--carnival-red);
+}
+
+.text-carnival-blue {
+    color: var(--carnival-blue);
+}
+
+.bg-carnival-red {
+    background: var(--carnival-red);
+}
+
+.bg-carnival-blue {
+    background: var(--carnival-blue);
+}
+
+.bg-carnival-gradient {
+    background: var(--carnival-gradient);
+}
+
+.border-carnival-red {
+    border-color: var(--carnival-red);
+}
+
+.border-carnival-blue {
+    border-color: var(--carnival-blue);
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+    .carnival-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 15px 20px;
+    }
+    
+    .carnival-logo {
+        height: 50px;
+        margin-bottom: 10px;
+    }
+    
+    .carnival-header-title {
+        font-size: 1.8rem;
+    }
+    
+    .carnival-stat-number {
+        font-size: 2.5rem;
+    }
+    
+    .btn-carnival-primary,
+    .btn-carnival-secondary,
+    .carnival-btn-primary,
+    .carnival-btn-secondary {
+        padding: 12px 24px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .carnival-logo {
+        height: 40px;
+    }
+    
+    .carnival-header-title {
+        font-size: 1.5rem;
+    }
+    
+    .carnival-card {
+        padding: 20px;
+    }
+}
+
