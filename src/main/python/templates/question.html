@@ -13,14 +13,17 @@
     <!-- Version: 2025-11-20-CARNIVAL -->
 </head>
 <body class="has-ship-background">
-    <div class="header" style="border-bottom: 3px solid #B61B38;">
-        <div class="header-content">
-            <div class="question-info" style="display: flex; align-items: center; gap: 15px;">
-                <img src="/static/images/carnival-logo.png" alt="Carnival" style="height: 45px; width: auto;">
-                <div>
-                    <div class="question-number">Question {{ question_num }} of 21</div>
-                    <div class="module-badge" style="background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%); color: white;">{{ question_data.module|title }}</div>
-                </div>
+    <div class="header" style="border-bottom: 3px solid #B61B38; display: flex; align-items: center; gap: 30px; padding: 20px 30px;">
+        <!-- Logo on far left -->
+        <div style="flex-shrink: 0;">
+            <img src="/static/images/carnival-logo.png" alt="Carnival" style="height: 50px; width: auto;">
+        </div>
+
+        <!-- Header content -->
+        <div class="header-content" style="flex-grow: 1; display: flex; align-items: center; justify-content: space-between;">
+            <div class="question-info">
+                <div class="question-number">Question {{ question_num }} of 21</div>
+                <div class="module-badge" style="background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%); color: white;">{{ question_data.module|title }}</div>
             </div>
 
             <div class="timer-section">

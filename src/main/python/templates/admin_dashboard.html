@@ -37,14 +37,14 @@
             border-bottom: 3px solid rgba(182, 27, 56, 0.28);
             display: flex;
             align-items: center;
-            justify-content: space-between;
             position: relative;
         }
 
         .carnival-logo-header {
-            flex-shrink: 0;
-            margin-left: -20px;
-            margin-top: -15px;
+            position: absolute;
+            left: 40px;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
         .carnival-logo-header img {
@@ -55,6 +55,7 @@
         .header-content {
             flex-grow: 1;
             text-align: center;
+            width: 100%;
         }
 
         .header h1 {
