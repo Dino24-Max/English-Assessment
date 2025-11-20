@@ -485,7 +485,7 @@ body::before {
 }
 
 .progress-fill {
-    background: linear-gradient(90deg, #007aff, #ff0000);
+    background: linear-gradient(90deg, #B61B38, #014E8F);
     height: 100%;
     border-radius: 6px;
     transition: width 0.5s ease;
@@ -1024,7 +1024,7 @@ body::before {
 }
 
 .submit-btn {
-    background: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff0000 100%);
+    background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%);
     color: white;
     border: none;
     border-radius: 90px;
@@ -1033,7 +1033,7 @@ body::before {
     font-weight: 800;
     cursor: pointer;
     transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 25px 60px rgba(0, 122, 255, 0.4),
+    box-shadow: 0 25px 60px rgba(182, 27, 56, 0.4),
                 0 12px 28px rgba(255, 0, 0, 0.3),
                 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
     text-transform: uppercase;
@@ -1042,7 +1042,7 @@ body::before {
 
 .submit-btn:hover:not(:disabled) {
     transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 25px 50px rgba(0, 122, 255, 0.4), 0 0 80px rgba(0, 122, 255, 0.3);
+    box-shadow: 0 25px 50px rgba(182, 27, 56, 0.4), 0 0 80px rgba(182, 27, 56, 0.3);
 }
 
 .submit-btn:disabled {
