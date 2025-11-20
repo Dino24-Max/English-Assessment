@@ -31,49 +31,58 @@
 
         .header {
             background: white;
-            padding: 75px 100px;
-            border-radius: 28px;
-            margin: 40px;
-            margin-bottom: 62.5px;
-            box-shadow: 0 28px 75px rgba(182, 27, 56, 0.09),
-                        0 10px 30px rgba(1, 78, 143, 0.12);
-            border: 3px solid rgba(182, 27, 56, 0.28);
-            text-align: center;
+            padding: 40px 60px;
+            margin: 0;
+            box-shadow: 0 4px 12px rgba(182, 27, 56, 0.09);
+            border-bottom: 3px solid rgba(182, 27, 56, 0.28);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             position: relative;
         }
 
         .carnival-logo-header {
-            text-align: center;
-            margin-bottom: 30px;
+            flex-shrink: 0;
         }
 
         .carnival-logo-header img {
-            height: 90px;
+            height: 70px;
             width: auto;
         }
 
+        .header-content {
+            flex-grow: 1;
+            text-align: center;
+        }
+
         .header h1 {
-            font-size: 5.6rem;
+            font-size: 4.5rem;
             font-weight: 700;
             background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 19px;
+            margin-bottom: 10px;
         }
 
         .header p {
             color: #666;
-            font-size: 2.5rem;
-            margin-bottom: 37.5px;
+            font-size: 2rem;
+        }
+
+        .stats-section {
+            background: white;
+            padding: 50px 60px;
+            margin: 40px;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            border: 2px solid rgba(182, 27, 56, 0.15);
         }
 
         .stats {
             display: flex;
             gap: 50px;
             justify-content: center;
-            padding-top: 37.5px;
-            border-top: 3px solid rgba(182, 27, 56, 0.25);
         }
 
         .stat-item {
@@ -204,9 +213,14 @@
             <div class="carnival-logo-header">
                 <img src="/static/images/carnival-logo.jpg" alt="Carnival Cruise Line">
             </div>
-            <h1>🎯 Admin Dashboard</h1>
-            <p>English Assessment Platform</p>
-            
+            <div class="header-content">
+                <h1>Admin Dashboard</h1>
+                <p>English Assessment Platform</p>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="stats-section">
             <div class="stats" id="stats">
                 <div class="stat-item">
                     <div class="stat-number" id="totalUsers">-</div>
@@ -231,7 +245,6 @@
         <div class="modules-grid">
             <!-- Invitation Code Management -->
             <a href="/admin/invitations" class="module-card invitation">
-                <div class="module-icon">🎫</div>
                 <div class="module-title">Invitation Code Management</div>
                 <div class="module-description">
                     Create, manage, and track invitation codes for candidate registration. 
@@ -242,7 +255,6 @@
 
             <!-- User Scoreboard -->
             <a href="/admin/scoreboard" class="module-card scoreboard">
-                <div class="module-icon">📊</div>
                 <div class="module-title">User Scoreboard</div>
                 <div class="module-description">
                     View all user test results, scores, and performance analytics. 
