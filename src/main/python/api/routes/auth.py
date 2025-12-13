@@ -6,13 +6,15 @@ Handles user registration, login, and authentication-related endpoints
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from typing import Dict, Any, Optional
+import secrets
+import hashlib
 
 from core.database import get_db
-from models.assessment import User, InvitationCode, DivisionType
+from models.assessment import User, InvitationCode, DivisionType, PasswordResetToken
 from utils.auth import hash_password, verify_password
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 # Initialize router
@@ -308,22 +310,9 @@ async def login(
                 detail="Account is inactive. Please contact support."
             )
         
-        # Check admin role match
+        # Admin login checkbox removed from UI
+        # All users can login normally, admin status is checked from user record
         user_is_admin = getattr(user, 'is_admin', False)
-        
-        if login_data.is_admin and not user_is_admin:
-            # User checked "Admin Login" but is not admin
-            raise HTTPException(
-                status_code=403,
-                detail="You do not have admin privileges. Please uncheck 'Admin Login' or contact the administrator."
-            )
-        
-        if user_is_admin and not login_data.is_admin:
-            # User is admin but didn't check "Admin Login"
-            raise HTTPException(
-                status_code=400,
-                detail="This is an admin account. Please check the '🔐 Admin Login' checkbox to continue."
-            )
 
         # Create session
         if not hasattr(request, 'session'):

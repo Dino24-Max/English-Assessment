@@ -1213,7 +1213,7 @@ async def registration_page(request: Request, code: Optional[str] = None, db: As
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering registration: {str(e)}") HTTPException(status_code=500, detail=f"Error rendering registration: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error rendering registration: {str(e)}")
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -1232,6 +1232,41 @@ async def login_page(request: Request):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error rendering login page: {str(e)}")
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    """
+    Forgot password page - Request password reset
+    """
+    try:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {
+                "request": request,
+                "title": "Forgot Password - CCL English Assessment"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering forgot password page: {str(e)}")
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(request: Request, token: Optional[str] = None):
+    """
+    Reset password page - Set new password using token
+    """
+    try:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            {
+                "request": request,
+                "title": "Reset Password - CCL English Assessment",
+                "token": token
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rendering reset password page: {str(e)}")
 
 
 # Health check endpoint

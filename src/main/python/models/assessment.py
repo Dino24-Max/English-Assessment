@@ -238,6 +238,25 @@ class AssessmentConfig(BaseModel):
     is_active = Column(Boolean, default=True)
 
 
+class PasswordResetToken(BaseModel):
+    """Password reset token model"""
+    __tablename__ = "password_reset_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    used = Column(Boolean, default=False, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="password_reset_tokens")
+    
+    __table_args__ = (
+        Index('ix_reset_token_user_expires', 'user_id', 'expires_at'),
+    )
+
+
 class InvitationCode(BaseModel):
     """Invitation code for user registration"""
     __tablename__ = "invitation_codes"
