@@ -360,6 +360,32 @@
     </div>
 
     <script>
+        // Initialize page - ensure button is always enabled on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginBtn = document.getElementById('login-btn');
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        });
+
+        // Also ensure button is enabled when page is shown (for browser back button)
+        window.addEventListener('pageshow', function(event) {
+            // If page was loaded from cache (back button), reset button state
+            if (event.persisted) {
+                const loginBtn = document.getElementById('login-btn');
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
+                // Clear any success/error messages
+                const errorMessage = document.getElementById('error-message');
+                const successMessage = document.getElementById('success-message');
+                if (errorMessage) errorMessage.style.display = 'none';
+                if (successMessage) successMessage.style.display = 'none';
+            }
+        });
+
         // Toggle password visibility
         function togglePassword() {
             const passwordInput = document.getElementById('password');
