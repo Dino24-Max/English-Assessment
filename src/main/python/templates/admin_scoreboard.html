@@ -323,12 +323,7 @@
                     <label class="filter-label">Department</label>
                     <select id="filterDepartment" class="filter-select" onchange="applyFilters()">
                         <option value="">All Departments</option>
-                        <option value="HOUSEKEEPING">HOUSEKEEPING</option>
-                        <option value="GUEST SERVICES">GUEST SERVICES</option>
-                        <option value="Deck">Deck</option>
-                        <option value="Engine">Engine</option>
-                        <option value="Table Games">Table Games</option>
-                        <!-- Add more departments -->
+                        <!-- Options populated dynamically based on operation -->
                     </select>
                 </div>
                 <div class="filter-group">
@@ -365,6 +360,56 @@
         let pageSize = 20;
         let sortColumn = 'created_at';
         let sortOrder = 'desc';
+
+        // Department mapping by operation
+        const departmentMapping = {
+            'hotel': [
+                'AUX SERV', 'BEVERAGE GUEST SERV', 'CULINARY ARTS', 
+                'GUEST SERVICES', 'HOUSEKEEPING', 'LAUNDRY', 
+                'PHOTO', 'PROVISIONS', 'REST. SERVICE', 'SHORE EXCURS'
+            ],
+            'marine': ['Deck', 'Engine', 'Security Services'],
+            'casino': ['Table Games', 'Slot Machines', 'Casino Services']
+        };
+
+        // Update department dropdown when operation changes
+        document.getElementById('filterOperation').addEventListener('change', function() {
+            const departmentSelect = document.getElementById('filterDepartment');
+            const operation = this.value;
+            
+            // Clear existing options
+            departmentSelect.innerHTML = '<option value="">All Departments</option>';
+            
+            if (operation && departmentMapping[operation]) {
+                departmentMapping[operation].forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    departmentSelect.appendChild(option);
+                });
+            } else if (!operation) {
+                // Show all departments when no operation selected
+                Object.values(departmentMapping).flat().forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    departmentSelect.appendChild(option);
+                });
+            }
+            
+            applyFilters();
+        });
+
+        // Initialize department dropdown with all departments
+        document.addEventListener('DOMContentLoaded', function() {
+            const departmentSelect = document.getElementById('filterDepartment');
+            Object.values(departmentMapping).flat().forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                departmentSelect.appendChild(option);
+            });
+        });
 
         // Load assessment data
         async function loadData() {

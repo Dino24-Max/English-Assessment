@@ -462,3 +462,122 @@ async def get_current_user(
             status_code=500,
             detail=f"Failed to fetch user: {str(e)}"
         )
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Forgot password request model"""
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password request model"""
+    token: str
+    new_password: str = Field(..., min_length=6, max_length=100)
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Initiate password reset process.
+    Generates a reset token and sends a reset link.
+    """
+    try:
+        result = await db.execute(
+            select(User).where(User.email == request_data.email)
+        )
+        user = result.scalar_one_or_none()
+
+        # Always return success message to prevent email enumeration
+        if not user:
+            return {"success": True, "message": "If an account with that email exists, a password reset link has been sent."}
+
+        # Prevent invitation-only users from resetting password
+        if user.password_hash and user.password_hash.startswith("INVITATION_ONLY_"):
+            return {"success": True, "message": "If an account with that email exists, a password reset link has been sent."}
+
+        # Invalidate any existing tokens for this user
+        from sqlalchemy import update
+        await db.execute(
+            update(PasswordResetToken).where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used == False,
+                PasswordResetToken.expires_at > datetime.now()
+            ).values(used=True)
+        )
+        await db.commit()
+
+        # Generate a new token
+        token_value = secrets.token_urlsafe(32)
+        hashed_token = hashlib.sha256(token_value.encode()).hexdigest()
+        expires_at = datetime.now() + timedelta(hours=1)
+
+        new_token = PasswordResetToken(
+            user_id=user.id,
+            token=hashed_token,
+            expires_at=expires_at
+        )
+        db.add(new_token)
+        await db.commit()
+
+        reset_link = f"http://127.0.0.1:8000/reset-password?token={token_value}"
+        print(f"Password reset link for {user.email}: {reset_link}")
+
+        return {
+            "success": True,
+            "message": "If an account with that email exists, a password reset link has been sent.",
+            "reset_link": reset_link  # For demo purposes only - remove in production
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to initiate password reset: {str(e)}")
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Reset user's password using a valid token.
+    """
+    try:
+        # Hash the incoming token to match what's stored
+        hashed_token = hashlib.sha256(request_data.token.encode()).hexdigest()
+
+        result = await db.execute(
+            select(PasswordResetToken).where(
+                PasswordResetToken.token == hashed_token,
+                PasswordResetToken.used == False,
+                PasswordResetToken.expires_at > datetime.now()
+            )
+        )
+        reset_token = result.scalar_one_or_none()
+
+        if not reset_token:
+            raise HTTPException(status_code=400, detail="Invalid or expired password reset token.")
+
+        # Mark token as used
+        reset_token.used = True
+        
+        # Update user's password
+        user = await db.get(User, reset_token.user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found.")
+        
+        user.password_hash = hash_password(request_data.new_password)
+        
+        await db.commit()
+
+        return {"success": True, "message": "Your password has been reset successfully."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")

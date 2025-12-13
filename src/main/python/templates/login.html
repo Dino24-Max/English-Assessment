@@ -445,82 +445,72 @@
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'Logging in...';
 
-            try {
-                const response = await fetch('/api/v1/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(loginData)
-                });
-
-                let data;
                 try {
-                    data = await response.json();
-                } catch (jsonError) {
-                    // If response is not JSON, restore button and show error
-                    errorMessage.textContent = 'Invalid response from server. Please try again.';
-                    errorMessage.style.display = 'block';
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = 'Login';
-                    return;
-                }
+                    const response = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(loginData)
+                    });
 
-                if (response.ok) {
-                    // Success!
-                    const isAdmin = data.is_admin || false;
-                    
-                    successMessage.textContent = isAdmin ? 
-                        '✅ Admin login successful! Redirecting to admin panel...' : 
-                        '✅ Login successful! Redirecting...';
-                    successMessage.style.display = 'block';
-
-                    // Store user info
-                    if (data.user_id) {
-                        localStorage.setItem('user_id', data.user_id);
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (jsonError) {
+                        // If response is not JSON, restore button and show error
+                        errorMessage.textContent = 'Invalid response from server. Please try again.';
+                        errorMessage.style.display = 'block';
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = 'Login';
+                        return;
                     }
-                    if (data.email) {
-                        localStorage.setItem('user_email', data.email);
-                    }
-                    localStorage.setItem('is_admin', isAdmin);
 
-                    // Keep button visible but update text
-                    loginBtn.textContent = 'Redirecting...';
-                    loginBtn.disabled = true;
+                    if (response.ok) {
+                        // Success!
+                        const isAdmin = data.is_admin || false;
+                        
+                        successMessage.textContent = isAdmin ? 
+                            'Admin login successful! Redirecting to admin panel...' : 
+                            'Login successful! Redirecting...';
+                        successMessage.style.display = 'block';
 
-                    // Redirect based on user role
-                    setTimeout(() => {
-                        try {
+                        // Store user info
+                        if (data.user_id) {
+                            localStorage.setItem('user_id', data.user_id);
+                        }
+                        if (data.email) {
+                            localStorage.setItem('user_email', data.email);
+                        }
+                        localStorage.setItem('is_admin', isAdmin);
+
+                        // Keep button visible but update text
+                        loginBtn.textContent = 'Redirecting...';
+                        loginBtn.disabled = true;
+
+                        // Redirect based on user role
+                        setTimeout(() => {
                             if (isAdmin) {
                                 window.location.href = '/admin';
                             } else {
                                 window.location.href = '/select-operation';
                             }
-                        } catch (redirectError) {
-                            // If redirect fails, restore button
-                            loginBtn.disabled = false;
-                            loginBtn.textContent = 'Login';
-                            errorMessage.textContent = 'Redirect failed. Please navigate manually.';
-                            errorMessage.style.display = 'block';
-                        }
-                    }, 1000);
-                } else {
-                    // Error
-                    errorMessage.textContent = data.detail || 'Login failed. Please check your credentials.';
+                        }, 1000);
+                    } else {
+                        // Error
+                        errorMessage.textContent = data.detail || 'Login failed. Please check your credentials.';
+                        errorMessage.style.display = 'block';
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = 'Login';
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    errorMessage.textContent = 'An error occurred. Please try again.';
                     errorMessage.style.display = 'block';
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'Login';
                 }
-            } catch (error) {
-                console.error('Login error:', error);
-                errorMessage.textContent = 'An error occurred. Please try again.';
-                errorMessage.style.display = 'block';
-                if (loginBtn) {
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = 'Login';
-                }
-            }
-        });
+            });
         }
 
         // Input validation feedback
