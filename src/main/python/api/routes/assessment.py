@@ -23,49 +23,23 @@ from utils.anti_cheating import AntiCheatingService
 router = APIRouter()
 
 
+# DEPRECATED: This endpoint is deprecated. Use /api/v1/auth/register instead.
+# This endpoint is kept for backward compatibility but should not be used.
 @router.post("/register")
 async def register_candidate(
     candidate_data: Dict[str, Any],
     db: AsyncSession = Depends(get_db)
 ):
-    """Register a new candidate for assessment"""
-
-    try:
-        # Validate required fields
-        required_fields = ["first_name", "last_name", "email", "nationality", "division", "department"]
-        for field in required_fields:
-            if field not in candidate_data:
-                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
-
-        # Check if email already exists
-        existing_user = await db.execute(
-            select(User).where(User.email == candidate_data["email"])
-        )
-        if existing_user.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Email already registered")
-
-        # Create new user
-        user = User(
-            first_name=candidate_data["first_name"],
-            last_name=candidate_data["last_name"],
-            email=candidate_data["email"],
-            nationality=candidate_data["nationality"],
-            division=DivisionType(candidate_data["division"]),
-            department=candidate_data["department"]
-        )
-
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-
-        return {
-            "user_id": user.id,
-            "message": "Candidate registered successfully",
-            "next_step": "create_assessment"
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """
+    DEPRECATED: Register a new candidate for assessment
+    
+    This endpoint is deprecated. Please use /api/v1/auth/register instead.
+    This endpoint will be removed in a future version.
+    """
+    raise HTTPException(
+        status_code=410,  # Gone - resource is no longer available
+        detail="This endpoint is deprecated. Please use /api/v1/auth/register instead."
+    )
 
 
 @router.post("/create")

@@ -29,7 +29,10 @@
 
             <div class="operations-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; max-width: 1800px; width: 100%;">
                 <!-- Hotel Operations Card -->
-                <a href="/?operation=HOTEL" class="operation-card" style="text-decoration: none;">
+                <a href="/?operation=HOTEL" class="operation-card {% if recommended_operation == 'HOTEL' %}recommended{% endif %}" style="text-decoration: none;">
+                    {% if recommended_operation == 'HOTEL' %}
+                    <div class="recommended-badge">✨ Recommended</div>
+                    {% endif %}
                     <div class="operation-icon" style="font-size: 8rem; margin-bottom: 30px; display: block; text-align: center;">
                         🏨
                     </div>
@@ -60,7 +63,10 @@
                 </a>
 
                 <!-- Marine Operations Card -->
-                <a href="/?operation=MARINE" class="operation-card" style="text-decoration: none;">
+                <a href="/?operation=MARINE" class="operation-card {% if recommended_operation == 'MARINE' %}recommended{% endif %}" style="text-decoration: none;">
+                    {% if recommended_operation == 'MARINE' %}
+                    <div class="recommended-badge">✨ Recommended</div>
+                    {% endif %}
                     <div class="operation-icon" style="font-size: 8rem; margin-bottom: 30px; display: block; text-align: center;">
                         ⚓
                     </div>
@@ -84,7 +90,10 @@
                 </a>
 
                 <!-- Casino Operations Card -->
-                <a href="/?operation=CASINO" class="operation-card" style="text-decoration: none;">
+                <a href="/?operation=CASINO" class="operation-card {% if recommended_operation == 'CASINO' %}recommended{% endif %}" style="text-decoration: none;">
+                    {% if recommended_operation == 'CASINO' %}
+                    <div class="recommended-badge">✨ Recommended</div>
+                    {% endif %}
                     <div class="operation-icon" style="font-size: 8rem; margin-bottom: 30px; display: block; text-align: center;">
                         🎰
                     </div>
@@ -111,6 +120,36 @@
     </div>
 
     <style>
+        /* Recommended Badge */
+        .recommended-badge {
+            position: absolute;
+            top: -15px;
+            right: 25px;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4),
+                        0 0 0 3px rgba(255, 215, 0, 0.2);
+            z-index: 10;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4),
+                            0 0 0 3px rgba(255, 215, 0, 0.2),
+                            0 0 20px rgba(255, 215, 0, 0.3);
+            }
+            50% { 
+                box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6),
+                            0 0 0 3px rgba(255, 215, 0, 0.3),
+                            0 0 30px rgba(255, 215, 0, 0.5);
+            }
+        }
+    
         .operation-card {
             background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 255, 0.94) 100%);
             backdrop-filter: blur(40px) saturate(120%);
@@ -125,6 +164,23 @@
             overflow: visible;
             transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             display: block;
+        }
+        
+        /* Recommended Operation Card Highlight */
+        .operation-card.recommended {
+            border: 4px solid #FFD700;
+            background: linear-gradient(145deg, rgba(255, 250, 235, 0.98) 0%, rgba(255, 247, 220, 0.96) 100%);
+            box-shadow: 0 30px 80px rgba(255, 215, 0, 0.15),
+                        0 15px 40px rgba(0, 122, 255, 0.15),
+                        0 0 0 1px rgba(255, 215, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transform: scale(1.05);
+        }
+        
+        .operation-card.recommended::before {
+            background: linear-gradient(90deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            height: 6px;
         }
 
         .operation-card::before {
@@ -146,6 +202,15 @@
                         0 0 0 1px rgba(0, 122, 255, 0.2),
                         inset 0 1px 0 rgba(255, 255, 255, 0.9);
             border-color: rgba(0, 122, 255, 0.4);
+        }
+        
+        .operation-card.recommended:hover {
+            transform: translateY(-15px) scale(1.08);
+            box-shadow: 0 40px 90px rgba(255, 215, 0, 0.2),
+                        0 20px 50px rgba(0, 122, 255, 0.2),
+                        0 0 0 1px rgba(255, 215, 0, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+            border-color: rgba(255, 215, 0, 0.8);
         }
 
         .operation-card:hover .operation-icon {

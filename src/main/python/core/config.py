@@ -19,12 +19,12 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Security - REQUIRED environment variables (no defaults for security)
-    SECRET_KEY: str  # Must be set via environment variable
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-please-use-secure-key-in-production")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:8000", "http://127.0.0.1:8080"]
 
     # Database - REQUIRED environment variable (no default for security)
-    DATABASE_URL: str  # Must be set via environment variable
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/assessment.db")
 
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> str:

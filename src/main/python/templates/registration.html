@@ -231,8 +231,8 @@
                 <div class="carnival-logo-header">
                     <img src="/static/images/carnival-logo.png" alt="Carnival Cruise Line">
                 </div>
-                <h1 class="registration-title">Register for Assessment</h1>
-                <p class="registration-subtitle">Complete your profile to begin the English assessment</p>
+                <h1 class="registration-title" id="page-title">Fill Out Personal Information</h1>
+                <p class="registration-subtitle" id="page-subtitle">Please provide your information to begin the assessment</p>
             </div>
 
             <div class="info-box">
@@ -241,7 +241,7 @@
 
             <div id="error-message" class="error-message"></div>
 
-            <form id="registration-form" action="/api/v1/assessment/register" method="POST">
+            <form id="registration-form" action="/api/v1/auth/register" method="POST">
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label" for="first_name">First Name <span class="required">*</span></label>
@@ -268,20 +268,12 @@
                     <input type="text" id="nationality" name="nationality" class="form-input" required placeholder="e.g., USA, Mexico, Philippines">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="password">Password <span class="required">*</span></label>
-                    <div class="password-container" style="position: relative;">
-                        <input type="password" id="password" name="password" class="form-input" required minlength="6" placeholder="Minimum 6 characters">
-                        <button type="button" class="toggle-password" onclick="togglePassword()" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.4rem; color: rgba(0, 0, 0, 0.5);">👁️</button>
-                    </div>
-                </div>
-
-                <button type="submit" class="submit-btn">Register Account</button>
+                <button type="submit" class="submit-btn" id="submit-btn">Continue to Assessment</button>
             </form>
 
             <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(0, 0, 0, 0.1);">
                 <p style="font-size: 1.5rem; color: rgba(0, 0, 0, 0.7);">
-                    Already have an account? <a href="/login" style="color: #007aff; text-decoration: none; font-weight: 700;">Login here</a>
+                    <a href="/login?admin=true" style="color: #007aff; text-decoration: none; font-weight: 700;">Admin Login</a>
                 </p>
             </div>
         </div>
@@ -296,13 +288,13 @@
         // If invitation code exists, validate and prefill email
         if (invitationCode) {
             document.getElementById('invitation_code').value = invitationCode;
+            isFromInvitation = true;
             
             // Validate invitation code and get email
             fetch(`/api/v1/admin/invitation/${invitationCode}/validate`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.valid && data.email) {
-                        isFromInvitation = true;
                         const emailInput = document.getElementById('email');
                         emailInput.value = data.email;
                         emailInput.readOnly = true;
@@ -311,24 +303,12 @@
                         
                         // Hide email status for invitation users
                         const emailStatus = document.getElementById('email-status');
-                        emailStatus.style.display = 'none';
+                        if (emailStatus) {
+                            emailStatus.style.display = 'none';
+                        }
                     }
                 })
                 .catch(error => console.error('Error validating invitation code:', error));
-        }
-    
-        // Toggle password visibility
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const toggleBtn = document.querySelector('.toggle-password');
-
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleBtn.textContent = '🙈';
-            } else {
-                passwordInput.type = 'password';
-                toggleBtn.textContent = '👁️';
-            }
         }
 
         // Real-time email availability check
@@ -394,9 +374,13 @@
                 last_name: formData.get('last_name'),
                 email: formData.get('email'),
                 nationality: formData.get('nationality'),
-                password: formData.get('password'),
                 invitation_code: formData.get('invitation_code')
             };
+            
+            // Ensure invitation_code is not empty string
+            if (!registrationData.invitation_code || registrationData.invitation_code.trim() === '') {
+                registrationData.invitation_code = null;
+            }
 
             try {
                 const response = await fetch('/api/v1/auth/register', {
@@ -410,8 +394,13 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Redirect to login page with success message
-                    window.location.href = '/login?registered=true';
+                    // If auto_start is true, redirect to assessment
+                    if (data.auto_start && data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        // Regular registration - redirect to login
+                        window.location.href = '/login?registered=true';
+                    }
                 } else {
                     errorMessage.textContent = data.detail || 'Registration failed. Please try again.';
                     errorMessage.style.display = 'block';

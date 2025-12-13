@@ -151,34 +151,43 @@
 
         .remember-forgot {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
+            flex-direction: column;
+            gap: 18px;
+            margin-bottom: 30px;
         }
 
         .remember-me {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 1.4rem;
+            gap: 12px;
+            font-size: 1.5rem;
             color: rgba(0, 0, 0, 0.7);
-        }
-
-        .remember-me input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
+            font-weight: 500;
             cursor: pointer;
         }
 
-        .forgot-password {
-            font-size: 1.4rem;
-            color: #007aff;
-            text-decoration: none;
-            font-weight: 600;
+        .remember-me input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            transform: scale(1.5);
+            margin-right: 5px;
         }
 
-        .forgot-password:hover {
-            text-decoration: underline;
+        .admin-login-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .admin-login-checkbox input[type="checkbox"] {
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            transform: scale(1.5);
+            margin-right: 5px;
         }
 
         .submit-btn {
@@ -340,7 +349,13 @@
                         <input type="checkbox" id="remember" name="remember">
                         <span>Remember me</span>
                     </label>
-                    <a href="/forgot-password" class="forgot-password">Forgot password?</a>
+                    
+                    <label class="admin-login-checkbox">
+                        <input type="checkbox" id="is_admin" name="is_admin">
+                        <span style="display: flex; align-items: center; gap: 8px; font-size: 1.6rem; color: #B61B38;">
+                            🔐 <span>Admin Login</span>
+                        </span>
+                    </label>
                 </div>
 
                 <button type="submit" class="submit-btn" id="login-btn">Login</button>
@@ -357,6 +372,18 @@
     </div>
 
     <script>
+        // Check if accessed from admin login link
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') {
+            // Hide admin login checkbox when accessed from admin link
+            const adminCheckbox = document.querySelector('.admin-login-checkbox');
+            if (adminCheckbox) {
+                adminCheckbox.style.display = 'none';
+            }
+            // Auto-check admin login
+            document.getElementById('is_admin').checked = true;
+        }
+
         // Toggle password visibility
         function togglePassword() {
             const passwordInput = document.getElementById('password');
@@ -384,9 +411,11 @@
 
             // Get form data
             const formData = new FormData(this);
+            const isAdminChecked = document.getElementById('is_admin').checked;
             const loginData = {
                 email: formData.get('email'),
                 password: formData.get('password'),
+                is_admin: isAdminChecked,
                 remember: formData.get('remember') === 'on'
             };
 
@@ -407,16 +436,25 @@
 
                 if (response.ok) {
                     // Success!
-                    successMessage.textContent = 'Login successful! Redirecting...';
+                    const isAdmin = data.is_admin || false;
+                    
+                    successMessage.textContent = isAdmin ? 
+                        '✅ Admin login successful! Redirecting to admin panel...' : 
+                        '✅ Login successful! Redirecting...';
                     successMessage.style.display = 'block';
 
                     // Store user info
                     localStorage.setItem('user_id', data.user_id);
                     localStorage.setItem('user_email', data.email);
+                    localStorage.setItem('is_admin', isAdmin);
 
-                    // Redirect to select-operation after 1 second
+                    // Redirect based on user role
                     setTimeout(() => {
-                        window.location.href = '/select-operation';
+                        if (isAdmin) {
+                            window.location.href = '/admin';
+                        } else {
+                            window.location.href = '/select-operation';
+                        }
                     }, 1000);
                 } else {
                     // Error

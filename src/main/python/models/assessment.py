@@ -62,6 +62,7 @@ class User(BaseModel):
 
     # Status
     is_active = Column(Boolean, default=True, index=True)
+    is_admin = Column(Boolean, default=False, index=True)  # Admin role flag
 
     # Relationships
     assessments = relationship("Assessment", back_populates="user")
@@ -69,6 +70,7 @@ class User(BaseModel):
     # Composite indexes for common query patterns
     __table_args__ = (
         Index('ix_users_active_division', 'is_active', 'division'),
+        Index('ix_users_admin', 'is_admin', 'is_active'),
     )
 
 
@@ -259,6 +261,7 @@ class InvitationCode(BaseModel):
     is_used = Column(Boolean, default=False, nullable=False, index=True)
     used_at = Column(DateTime(timezone=True), nullable=True)
     used_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assessment_completed = Column(Boolean, default=False, nullable=False, index=True)  # Track if assessment was fully completed
     
     # Relationships
     used_by_user = relationship("User", foreign_keys=[used_by_user_id])

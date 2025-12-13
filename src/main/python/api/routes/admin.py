@@ -548,7 +548,17 @@ async def validate_invitation_code(
                 "department": None
             }
         
-        # Check if already used
+        # Check if assessment already completed
+        if invitation.assessment_completed:
+            return {
+                "valid": False,
+                "message": "This invitation link has already been used and the assessment has been completed",
+                "email": None,
+                "operation": None,
+                "department": None
+            }
+        
+        # Check if already used (but assessment not completed)
         if invitation.is_used:
             return {
                 "valid": False,

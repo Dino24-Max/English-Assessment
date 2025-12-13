@@ -166,6 +166,45 @@
 
     <script>
         // ======================================
+        // PREVENT BACK NAVIGATION
+        // ======================================
+        // Prevent back navigation - users cannot go back to previous questions
+        (function() {
+            // Track answered questions in sessionStorage
+            const currentQuestion = {{ question_num }};
+            const answeredQuestions = JSON.parse(sessionStorage.getItem('answeredQuestions') || '[]');
+            
+            // If this question has been answered, prevent viewing it again
+            if (answeredQuestions.includes(currentQuestion)) {
+                // Redirect to next unanswered question or results
+                const allQuestions = Array.from({length: 21}, (_, i) => i + 1);
+                const unanswered = allQuestions.filter(q => !answeredQuestions.includes(q));
+                
+                if (unanswered.length > 0) {
+                    window.location.href = `/question/${unanswered[0]}`;
+                } else {
+                    window.location.href = '/results';
+                }
+            }
+            
+            // Disable browser back button
+            history.pushState(null, null, location.href);
+            window.onpopstate = function(event) {
+                history.pushState(null, null, location.href);
+                // Show warning
+                alert('You cannot go back to previous questions. Please continue forward.');
+            };
+            
+            // Also prevent backspace key from navigating back
+            document.addEventListener('keydown', function(e) {
+                // Disable backspace key when not in input fields
+                if (e.key === 'Backspace' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                    e.preventDefault();
+                }
+            });
+        })();
+        
+        // ======================================
         // ANTI-CHEATING DETECTION
         // ======================================
         let tabSwitchCount = 0;
@@ -310,45 +349,99 @@
         let recordingTimer = null;
         let recordingSeconds = 0;
         let audioBlob = null;
+        let speechRecognition = null;
+        let transcribedText = '';
 
-        // Audio playback using Web Speech API
+        // Audio playback - prefer pre-generated MP3, fallback to TTS
         function playAudio() {
             if (isPlaying) return;
 
             {% if question_data.audio_text %}
-            const text = {{ question_data.audio_text|tojson }};
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
-
-            utterance.onstart = function() {
+            const questionNum = {{ question_num }};
+            const module = {{ question_data.module|tojson }};
+            
+            // Try to load pre-generated audio file first
+            const audioFile = `/static/audio/q${questionNum}_${module}.mp3`;
+            const audio = new Audio(audioFile);
+            
+            // Check if audio file exists
+            audio.addEventListener('canplaythrough', function() {
+                // Audio file exists, use it
+                currentAudio = audio;
+                audio.play();
                 isPlaying = true;
                 document.getElementById('playBtn').style.display = 'none';
                 document.getElementById('pauseBtn').style.display = 'inline-block';
-            };
+                
+                audio.onended = function() {
+                    isPlaying = false;
+                    currentAudio = null;
+                    document.getElementById('playBtn').style.display = 'inline-block';
+                    document.getElementById('pauseBtn').style.display = 'none';
+                    
+                    {% if question_data.module == "listening" or question_data.module == "time_numbers" %}
+                    playsRemaining--;
+                    document.getElementById('playsLeft').textContent = playsRemaining;
+                    if (playsRemaining <= 0) {
+                        document.getElementById('playBtn').disabled = true;
+                        document.getElementById('playBtn').style.opacity = '0.5';
+                    }
+                    {% endif %}
+                };
+            });
+            
+            // If audio file doesn't exist, fallback to TTS
+            audio.addEventListener('error', function() {
+                console.log('Pre-generated audio not found, using TTS fallback');
+                // Fallback to Web Speech Synthesis
+                const text = {{ question_data.audio_text|tojson }};
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
 
-            utterance.onend = function() {
-                isPlaying = false;
-                document.getElementById('playBtn').style.display = 'inline-block';
-                document.getElementById('pauseBtn').style.display = 'none';
+                utterance.onstart = function() {
+                    isPlaying = true;
+                    document.getElementById('playBtn').style.display = 'none';
+                    document.getElementById('pauseBtn').style.display = 'inline-block';
+                };
 
-                {% if question_data.module == "listening" or question_data.module == "time_numbers" %}
-                playsRemaining--;
-                document.getElementById('playsLeft').textContent = playsRemaining;
-                if (playsRemaining <= 0) {
-                    document.getElementById('playBtn').disabled = true;
-                    document.getElementById('playBtn').style.opacity = '0.5';
-                }
-                {% endif %}
-            };
+                utterance.onend = function() {
+                    isPlaying = false;
+                    document.getElementById('playBtn').style.display = 'inline-block';
+                    document.getElementById('pauseBtn').style.display = 'none';
 
-            window.speechSynthesis.speak(utterance);
+                    {% if question_data.module == "listening" or question_data.module == "time_numbers" %}
+                    playsRemaining--;
+                    document.getElementById('playsLeft').textContent = playsRemaining;
+                    if (playsRemaining <= 0) {
+                        document.getElementById('playBtn').disabled = true;
+                        document.getElementById('playBtn').style.opacity = '0.5';
+                    }
+                    {% endif %}
+                };
+
+                window.speechSynthesis.speak(utterance);
+            });
+            
+            // Try to load the audio file
+            audio.load();
             {% endif %}
         }
 
+        let currentAudio = null; // Track current audio element
+        
         function pauseAudio() {
+            // Stop TTS if playing
             window.speechSynthesis.cancel();
+            
+            // Stop audio file if playing
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+            
             isPlaying = false;
             document.getElementById('playBtn').style.display = 'inline-block';
             document.getElementById('pauseBtn').style.display = 'none';
@@ -423,6 +516,46 @@
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
                 recordingSeconds = 0;
+                transcribedText = '';
+
+                // Initialize Web Speech API for speech recognition
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    speechRecognition = new SpeechRecognition();
+                    speechRecognition.continuous = true;
+                    speechRecognition.interimResults = true;
+                    speechRecognition.lang = 'en-US';
+
+                    speechRecognition.onresult = (event) => {
+                        let interimTranscript = '';
+                        let finalTranscript = '';
+
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            const transcript = event.results[i][0].transcript;
+                            if (event.results[i].isFinal) {
+                                finalTranscript += transcript + ' ';
+                            } else {
+                                interimTranscript += transcript;
+                            }
+                        }
+
+                        transcribedText = finalTranscript.trim();
+                        if (interimTranscript) {
+                            document.getElementById('status').textContent = `Recording... (${interimTranscript.substring(0, 50)})`;
+                        } else if (transcribedText) {
+                            document.getElementById('status').textContent = `Recording... (${transcribedText.substring(0, 50)})`;
+                        }
+                    };
+
+                    speechRecognition.onerror = (event) => {
+                        console.log('Speech recognition error:', event.error);
+                        // Continue recording even if speech recognition fails
+                    };
+
+                    speechRecognition.start();
+                } else {
+                    console.log('Speech recognition not supported in this browser');
+                }
 
                 mediaRecorder.ondataavailable = (event) => {
                     audioChunks.push(event.data);
@@ -435,11 +568,22 @@
                     audioPlayback.src = audioUrl;
                     audioPlayback.style.display = 'block';
 
-                    selectedAnswer = 'recorded_' + recordingSeconds + 's';
+                    // Stop speech recognition
+                    if (speechRecognition) {
+                        speechRecognition.stop();
+                    }
+
+                    // Format answer: "recorded_DURATION|TRANSCRIPT"
+                    selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText || ''}`;
 
                     {% if question_data.min_duration %}
                     if (recordingSeconds >= {{ question_data.min_duration }}) {
                         document.getElementById('submitBtn').disabled = false;
+                        if (transcribedText) {
+                            document.getElementById('status').textContent = `Recording complete. Transcribed: "${transcribedText.substring(0, 100)}"`;
+                        } else {
+                            document.getElementById('status').textContent = 'Recording complete (no speech detected)';
+                        }
                     }
                     {% endif %}
                 };
@@ -447,7 +591,7 @@
                 mediaRecorder.start();
                 document.getElementById('recordBtn').innerHTML = '<span class="record-icon">⏹</span> Stop Recording';
                 document.getElementById('recordBtn').classList.add('recording');
-                document.getElementById('status').textContent = 'Recording...';
+                document.getElementById('status').textContent = 'Recording... (listening for speech)';
 
                 recordingTimer = setInterval(() => {
                     recordingSeconds++;
@@ -466,9 +610,20 @@
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 clearInterval(recordingTimer);
+                
+                // Stop speech recognition
+                if (speechRecognition) {
+                    speechRecognition.stop();
+                }
+                
                 document.getElementById('recordBtn').innerHTML = '<span class="record-icon">⏺</span> Record Again';
                 document.getElementById('recordBtn').classList.remove('recording');
-                document.getElementById('status').textContent = 'Recording complete';
+                
+                if (transcribedText) {
+                    document.getElementById('status').textContent = `Recording complete. Transcribed: "${transcribedText.substring(0, 100)}"`;
+                } else {
+                    document.getElementById('status').textContent = 'Recording complete (no speech detected)';
+                }
             }
         }
 
@@ -494,6 +649,14 @@
             if (!selectedAnswer || !selectedAnswer.trim()) {
                 alert('Please provide an answer before continuing');
                 return;
+            }
+
+            // Mark this question as answered to prevent going back
+            const currentQuestion = {{ question_num }};
+            const answeredQuestions = JSON.parse(sessionStorage.getItem('answeredQuestions') || '[]');
+            if (!answeredQuestions.includes(currentQuestion)) {
+                answeredQuestions.push(currentQuestion);
+                sessionStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
             }
 
             // Show loading state

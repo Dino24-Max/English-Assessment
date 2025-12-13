@@ -508,6 +508,23 @@ class AssessmentEngine:
         # Generate feedback
         feedback = await self._generate_assessment_feedback(scores, final_pass)
         assessment.feedback = feedback
+        
+        # Mark invitation code as completed if this assessment was from an invitation
+        from models.assessment import InvitationCode
+        from sqlalchemy import select
+        
+        # Find invitation code by user_id
+        inv_result = await self.db.execute(
+            select(InvitationCode).where(
+                InvitationCode.used_by_user_id == assessment.user_id,
+                InvitationCode.is_used == True,
+                InvitationCode.assessment_completed == False
+            )
+        )
+        invitation = inv_result.scalar_one_or_none()
+        
+        if invitation:
+            invitation.assessment_completed = True
 
         await self.db.commit()
 
