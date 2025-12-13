@@ -339,8 +339,10 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Department (Optional)</label>
-                        <input type="text" id="department" class="form-input" placeholder="e.g., HOUSEKEEPING">
+                        <label class="form-label">Department</label>
+                        <select id="department" class="form-select" required disabled>
+                            <option value="">Select Operation First</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -420,6 +422,67 @@
     </div>
 
     <script>
+        // Department mapping by operation
+        const departmentMapping = {
+            'hotel': [
+                'AUX SERV',
+                'BEVERAGE GUEST SERV',
+                'CULINARY ARTS',
+                'GUEST SERVICES',
+                'HOUSEKEEPING',
+                'LAUNDRY',
+                'PHOTO',
+                'PROVISIONS',
+                'REST. SERVICE',
+                'SHORE EXCURS'
+            ],
+            'marine': [
+                'Deck',
+                'Engine',
+                'Security Services'
+            ],
+            'casino': [
+                'Table Games',
+                'Slot Machines',
+                'Casino Services'
+            ]
+        };
+
+        // Update department dropdown when operation changes
+        document.getElementById('operation').addEventListener('change', function() {
+            const departmentSelect = document.getElementById('department');
+            const operation = this.value;
+            
+            // Clear existing options
+            departmentSelect.innerHTML = '';
+            
+            if (operation && departmentMapping[operation]) {
+                // Enable the dropdown
+                departmentSelect.disabled = false;
+                
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select Department';
+                departmentSelect.appendChild(defaultOption);
+                
+                // Add department options
+                departmentMapping[operation].forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    departmentSelect.appendChild(option);
+                });
+            } else {
+                // Disable the dropdown if no operation selected
+                departmentSelect.disabled = true;
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select Operation First';
+                departmentSelect.appendChild(defaultOption);
+            }
+        });
+
         // Create invitation
         document.getElementById('createInvitationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
