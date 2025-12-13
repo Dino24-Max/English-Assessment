@@ -689,6 +689,85 @@ async def get_all_assessments(
         raise HTTPException(status_code=500, detail=f"Error fetching assessments: {str(e)}")
 
 
+@router.delete("/assessments/cleanup")
+async def cleanup_assessments(
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Cleanup assessments - keep only first and last two completed assessments
+    
+    Args:
+        admin_key: Admin authentication key
+        db: Database session
+        
+    Returns:
+        Cleanup result with deleted and kept record counts
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        # Query completed assessments using EXACT same query as get_all_assessments API
+        # API uses: select(Assessment, User).join(User).where(Assessment.status == "completed")
+        query = select(Assessment, User).join(
+            User, Assessment.user_id == User.id
+        ).where(Assessment.status == "completed").order_by(Assessment.id)
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        # Extract assessments from joined results
+        all_assessments = [row[0] for row in rows]
+        
+        total_count = len(all_assessments)
+        
+        if total_count <= 3:
+            return {
+                "success": True,
+                "message": f"Only {total_count} records found, no deletion needed",
+                "kept": total_count,
+                "deleted": 0,
+                "kept_ids": [a.id for a in all_assessments]
+            }
+        
+        # Get first and last two IDs
+        first_id = all_assessments[0].id
+        last_two_ids = [all_assessments[-2].id, all_assessments[-1].id]
+        keep_ids = [first_id] + last_two_ids
+        
+        # Find IDs to delete
+        delete_ids = [a.id for a in all_assessments if a.id not in keep_ids]
+        
+        # Delete assessments (CASCADE will auto-delete AssessmentResponse)
+        deleted_count = 0
+        for assessment_id in delete_ids:
+            assessment = await db.get(Assessment, assessment_id)
+            if assessment:
+                await db.delete(assessment)
+                deleted_count += 1
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Successfully deleted {deleted_count} assessments",
+            "kept": len(keep_ids),
+            "deleted": deleted_count,
+            "kept_ids": keep_ids,
+            "deleted_ids": delete_ids
+        }
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error cleaning up assessments: {str(e)}")
+
+
 @router.get("/assessments/export")
 async def export_assessments_csv(
     admin_key: str,

@@ -32,12 +32,43 @@ async def cleanup_assessments():
     
     async with async_session() as session:
         try:
-            # Query all assessment records, ordered by ID
+            # Query completed assessments (matching API query exactly)
+            # API uses: Assessment.status == "completed" (string comparison)
+            from models.assessment import AssessmentStatus
+            from sqlalchemy import and_
+            
+            # Try enum first
             result = await session.execute(
                 select(Assessment)
+                .where(Assessment.status == AssessmentStatus.COMPLETED)
                 .order_by(Assessment.id)
             )
             all_assessments = result.scalars().all()
+            
+            # If that doesn't work, try string comparison (like API does)
+            if len(all_assessments) == 0:
+                from sqlalchemy import cast, String
+                result = await session.execute(
+                    select(Assessment)
+                    .where(cast(Assessment.status, String) == "completed")
+                    .order_by(Assessment.id)
+                )
+                all_assessments = result.scalars().all()
+            
+            # Also check all assessments
+            result_all = await session.execute(
+                select(Assessment)
+                .order_by(Assessment.id)
+            )
+            all_status = result_all.scalars().all()
+            
+            print(f"All assessments (any status): {len(all_status)}")
+            print(f"Completed assessments (enum): {len(all_assessments)}")
+            
+            # If still no results, use all assessments
+            if len(all_assessments) == 0 and len(all_status) > 0:
+                print("No completed assessments found, using all assessments")
+                all_assessments = all_status
             
             total_count = len(all_assessments)
             print(f"Found {total_count} assessment records")
