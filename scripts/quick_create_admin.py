@@ -39,7 +39,7 @@ async def create_default_admin():
                 existing_user.is_admin = True
                 existing_user.password_hash = hash_password(password)
                 await db.commit()
-                print(f"✅ Updated existing user {email} to admin")
+                print(f"[OK] Updated existing user {email} to admin")
             else:
                 # Create new admin user
                 admin_user = User(
@@ -56,7 +56,7 @@ async def create_default_admin():
                 
                 db.add(admin_user)
                 await db.commit()
-                print(f"✅ Created admin user {email}")
+                print(f"[OK] Created admin user {email}")
             
             print("\n" + "=" * 70)
             print("Admin Account Ready!")
@@ -64,11 +64,11 @@ async def create_default_admin():
             print(f"Email: {email}")
             print(f"Password: {password}")
             print("\nLogin at: http://127.0.0.1:8000/login")
-            print("✅ Check the '🔐 Admin Login' checkbox when logging in")
+            print("Note: Admin login checkbox has been removed. Admin status is detected automatically.")
             print("=" * 70)
             
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         import traceback
         traceback.print_exc()
 
