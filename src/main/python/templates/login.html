@@ -400,28 +400,50 @@
         }
 
         // Form submission
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        const loginForm = document.getElementById('login-form');
+        if (!loginForm) {
+            console.error('Login form not found!');
+        } else {
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                console.log('Form submitted'); // Debug log
 
-            const errorMessage = document.getElementById('error-message');
-            const successMessage = document.getElementById('success-message');
-            const loginBtn = document.getElementById('login-btn');
+                const errorMessage = document.getElementById('error-message');
+                const successMessage = document.getElementById('success-message');
+                const loginBtn = document.getElementById('login-btn');
 
-            errorMessage.style.display = 'none';
-            successMessage.style.display = 'none';
+                if (!loginBtn) {
+                    console.error('Login button not found!');
+                    return;
+                }
 
-            // Get form data
-            const formData = new FormData(this);
-            const loginData = {
-                email: formData.get('email'),
-                password: formData.get('password'),
-                is_admin: false,  // Admin login removed - use direct admin login page
-                remember: formData.get('remember') === 'on'
-            };
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
 
-            // Disable button during submission
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+                // Get form data
+                const formData = new FormData(this);
+                const email = formData.get('email');
+                const password = formData.get('password');
+                
+                // Validate inputs
+                if (!email || !password) {
+                    errorMessage.textContent = 'Please fill in all required fields.';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                const loginData = {
+                    email: email,
+                    password: password,
+                    is_admin: false,  // Admin login removed - use direct admin login page
+                    remember: formData.get('remember') === 'on'
+                };
+
+                console.log('Sending login request for:', email); // Debug log
+
+                // Disable button during submission
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Logging in...';
 
             try {
                 const response = await fetch('/api/v1/auth/login', {
@@ -493,10 +515,13 @@
                 console.error('Login error:', error);
                 errorMessage.textContent = 'An error occurred. Please try again.';
                 errorMessage.style.display = 'block';
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'Login';
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
             }
         });
+        }
 
         // Input validation feedback
         const inputs = document.querySelectorAll('.form-input');
