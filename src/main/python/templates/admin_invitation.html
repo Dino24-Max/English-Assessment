@@ -155,6 +155,43 @@
             background: #e6342a;
         }
 
+        .btn-delete {
+            background: #8B0000;
+            color: white;
+            padding: 16px 32px;
+            font-size: 1.5rem;
+        }
+
+        .btn-delete:hover {
+            background: #660000;
+        }
+
+        .btn-export {
+            background: #28a745;
+            color: white;
+            padding: 16px 32px;
+            font-size: 1.5rem;
+        }
+
+        .btn-export:hover {
+            background: #218838;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 3px solid rgba(182, 27, 56, 0.2);
+        }
+
+        .card-header .card-title {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
         .result-box {
             background: #f8f9fa;
             border: 2px solid #667eea;
@@ -363,14 +400,9 @@
 
             <!-- Result Display -->
             <div id="resultBox" class="result-box">
-                <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: #333;">✅ Invitation Code Created</h3>
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.9rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px;">Code:</label>
-                    <div class="code-display" id="generatedCode"></div>
-                    <button class="btn btn-copy" onclick="copyCode()" style="margin-top: 8px;">📋 Copy Code</button>
-                </div>
+                <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: #333;">✅ Invitation Link Created</h3>
                 
-                <div style="margin-top: 20px; margin-bottom: 15px;">
+                <div style="margin-bottom: 15px;">
                     <label style="font-size: 0.9rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px;">Registration Link:</label>
                     <div class="code-display" id="generatedLink"></div>
                     <div style="margin-top: 8px;">
@@ -391,7 +423,10 @@
 
         <!-- Invitations List -->
         <div class="card">
-            <div class="card-title">Invitation Codes</div>
+            <div class="card-header">
+                <div class="card-title">Invitation Codes</div>
+                <button class="btn btn-export" onclick="exportUsers()" id="exportBtn">📊 Export User Data</button>
+            </div>
             
             <!-- Filters -->
             <div class="filters">
@@ -515,7 +550,6 @@
                 }
                 
                 // Display result
-                document.getElementById('generatedCode').textContent = data.code;
                 document.getElementById('generatedLink').textContent = data.link;
                 document.getElementById('invitationEmail').textContent = data.email;
                 document.getElementById('invitationOperation').textContent = data.operation.toUpperCase();
@@ -538,12 +572,6 @@
         });
         
         // Copy functions
-        function copyCode() {
-            const code = document.getElementById('generatedCode').textContent;
-            navigator.clipboard.writeText(code);
-            alert('Code copied to clipboard!');
-        }
-        
         function copyLink() {
             const link = document.getElementById('generatedLink').textContent;
             navigator.clipboard.writeText(link);
@@ -551,7 +579,6 @@
         }
         
         function copyEmailContent() {
-            const code = document.getElementById('generatedCode').textContent;
             const link = document.getElementById('generatedLink').textContent;
             const email = document.getElementById('invitationEmail').textContent;
             const expires = document.getElementById('invitationExpires').textContent;
@@ -563,12 +590,10 @@ Dear Candidate,
 
 You have been invited to complete the Carnival Cruise Line English Assessment.
 
-Your invitation code: ${code}
-Registration link: ${link}
+Please use the following link to begin your registration:
+${link}
 
 This invitation will expire on: ${expires}
-
-Please click the link above to begin your registration.
 
 Best regards,`;
             
@@ -621,7 +646,9 @@ Best regards,`;
                                         ${inv.status === 'active' ? `
                                             <button class="btn btn-copy" onclick="copyInvitationLink('${inv.code}')">Copy Link</button>
                                             <button class="btn btn-revoke" onclick="revokeInvitation('${inv.code}')">Revoke</button>
-                                        ` : '-'}
+                                        ` : `
+                                            <button class="btn btn-delete" onclick="deleteInvitation('${inv.code}', ${inv.used_by_user_id || 'null'})">Delete</button>
+                                        `}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -671,6 +698,108 @@ Best regards,`;
                 
             } catch (error) {
                 alert(`Error: ${error.message}`);
+            }
+        }
+        
+        async function deleteInvitation(code, userId) {
+            // First confirmation with warning about cascade delete
+            const warningMessage = userId 
+                ? `⚠️ WARNING: This will permanently delete:\n\n` +
+                  `• The invitation code\n` +
+                  `• The associated user (ID: ${userId})\n` +
+                  `• All assessment data for this user\n\n` +
+                  `This action CANNOT be undone. Are you sure?`
+                : `This will permanently delete the invitation code: ${code}.\n\nAre you sure?`;
+            
+            if (!confirm(warningMessage)) {
+                return;
+            }
+            
+            // Second confirmation - prompt for admin key
+            const admin_key = prompt('Enter admin key to confirm deletion:');
+            if (!admin_key) return;
+            
+            try {
+                const response = await fetch(`/api/v1/admin/invitation/${code}/delete?admin_key=${admin_key}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to delete invitation');
+                }
+                
+                // Show detailed deletion summary
+                let summary = 'Deletion completed successfully!\n\n';
+                if (data.deleted_data) {
+                    summary += `• Invitation deleted: ✓\n`;
+                    if (data.deleted_data.user_deleted) {
+                        summary += `• User deleted: ✓\n`;
+                    }
+                    if (data.deleted_data.assessments_deleted > 0) {
+                        summary += `• Assessments deleted: ${data.deleted_data.assessments_deleted}\n`;
+                    }
+                    if (data.deleted_data.responses_deleted > 0) {
+                        summary += `• Responses deleted: ${data.deleted_data.responses_deleted}\n`;
+                    }
+                }
+                
+                alert(summary);
+                loadInvitations();
+                
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        async function exportUsers() {
+            const exportBtn = document.getElementById('exportBtn');
+            const originalText = exportBtn.textContent;
+            
+            try {
+                // Show loading state
+                exportBtn.textContent = '⏳ Exporting...';
+                exportBtn.disabled = true;
+                
+                // Fetch the Excel file
+                const response = await fetch('/api/v1/admin/users/export');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to export users');
+                }
+                
+                // Get the blob and download it
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get filename from Content-Disposition header or use default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'users_export.xlsx';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename=(.+)/);
+                    if (match) {
+                        filename = match[1];
+                    }
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                alert('User data exported successfully!');
+                
+            } catch (error) {
+                alert(`Export failed: ${error.message}`);
+            } finally {
+                // Restore button state
+                exportBtn.textContent = originalText;
+                exportBtn.disabled = false;
             }
         }
         

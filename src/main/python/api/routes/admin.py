@@ -513,6 +513,89 @@ async def revoke_invitation(
     }
 
 
+@router.delete("/invitation/{code}/delete")
+async def delete_invitation_with_data(
+    code: str,
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete an invitation code along with associated user and assessment data.
+    This is a cascade delete operation that removes:
+    - All assessment responses for the user
+    - All assessments for the user
+    - The user record (if created via this invitation)
+    - The invitation record itself
+    
+    This operation is irreversible.
+    """
+    from core.config import settings
+    import os
+    
+    # Verify admin key
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    # Find invitation
+    result = await db.execute(
+        select(InvitationCode).where(InvitationCode.code == code)
+    )
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation code not found")
+    
+    deleted_data = {
+        "invitation_deleted": True,
+        "user_deleted": False,
+        "assessments_deleted": 0,
+        "responses_deleted": 0
+    }
+    
+    # If invitation was used, cascade delete user and assessment data
+    if invitation.used_by_user_id:
+        user_id = invitation.used_by_user_id
+        
+        # Get all assessments for the user
+        assessments_result = await db.execute(
+            select(Assessment).where(Assessment.user_id == user_id)
+        )
+        assessments = assessments_result.scalars().all()
+        
+        # Delete all assessment responses first (due to foreign key constraints)
+        for assessment in assessments:
+            responses_result = await db.execute(
+                select(AssessmentResponse).where(AssessmentResponse.assessment_id == assessment.id)
+            )
+            responses = responses_result.scalars().all()
+            for response in responses:
+                await db.delete(response)
+                deleted_data["responses_deleted"] += 1
+            
+            await db.delete(assessment)
+            deleted_data["assessments_deleted"] += 1
+        
+        # Delete the user
+        user_result = await db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if user:
+            await db.delete(user)
+            deleted_data["user_deleted"] = True
+    
+    # Delete the invitation
+    await db.delete(invitation)
+    await db.commit()
+    
+    return {
+        "message": "Invitation and associated data deleted successfully",
+        "code": code,
+        "deleted_data": deleted_data
+    }
+
+
 @router.get("/invitation/{code}/validate")
 async def validate_invitation_code(
     code: str,
@@ -977,3 +1060,79 @@ async def get_assessment_detail(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching assessment details: {str(e)}")
+
+
+@router.get("/users/export")
+async def export_users_to_excel(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Export all non-admin users to Excel file.
+    
+    Returns a downloadable Excel file containing user data:
+    - ID, First Name, Last Name, Email, Nationality
+    - Division, Department, Is Active, Created At
+    
+    Admin users are excluded from the export.
+    """
+    from fastapi.responses import StreamingResponse
+    import pandas as pd
+    from io import BytesIO
+    
+    try:
+        # Query all non-admin users
+        result = await db.execute(
+            select(User).where(User.is_admin == False).order_by(User.created_at.desc())
+        )
+        users = result.scalars().all()
+        
+        # Prepare data for DataFrame
+        user_data = []
+        for user in users:
+            user_data.append({
+                "ID": user.id,
+                "First Name": user.first_name,
+                "Last Name": user.last_name,
+                "Email": user.email,
+                "Nationality": user.nationality,
+                "Division": user.division.value.upper() if user.division else "",
+                "Department": user.department or "",
+                "Is Active": "Yes" if user.is_active else "No",
+                "Created At": user.created_at.strftime("%Y-%m-%d %H:%M:%S") if user.created_at else ""
+            })
+        
+        # Create DataFrame
+        df = pd.DataFrame(user_data)
+        
+        # Generate Excel file
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Users', index=False)
+            
+            # Get worksheet for formatting
+            worksheet = writer.sheets['Users']
+            
+            # Auto-adjust column widths
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).map(len).max() if len(df) > 0 else 0,
+                    len(col)
+                ) + 2
+                worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 50)
+        
+        output.seek(0)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"users_export_{timestamp}.xlsx"
+        
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting users: {str(e)}")
