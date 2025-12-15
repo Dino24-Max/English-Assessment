@@ -459,7 +459,8 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
 
         # Create assessment session using AssessmentEngine
         from core.assessment_engine import AssessmentEngine
-        from models.assessment import DivisionType
+        from models.assessment import DivisionType, Assessment, AssessmentStatus
+        from sqlalchemy import select
         import uuid
 
         engine = AssessmentEngine(db)
@@ -471,19 +472,44 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
             "CASINO": DivisionType.CASINO
         }
 
-        # Create assessment
-        assessment = await engine.create_assessment(
-            user_id=int(user_id),
-            division=division_map[operation]
-        )
+        # Check if assessment already exists in session (created during registration)
+        existing_assessment_id = request.session.get("assessment_id")
+        if existing_assessment_id:
+            # Try to use existing assessment
+            result = await db.execute(
+                select(Assessment).where(Assessment.id == existing_assessment_id)
+            )
+            existing_assessment = result.scalar_one_or_none()
+            
+            if existing_assessment and existing_assessment.status == AssessmentStatus.NOT_STARTED:
+                # Start the existing assessment
+                await engine.start_assessment(existing_assessment_id)
+                assessment = existing_assessment
+                print(f"▶️ STARTING EXISTING ASSESSMENT: id={assessment.id}, operation={operation}")
+            else:
+                # Existing assessment is invalid or already started, create new one
+                assessment = await engine.create_assessment(
+                    user_id=int(user_id),
+                    division=division_map[operation]
+                )
+                request.session["assessment_id"] = assessment.id
+                await engine.start_assessment(assessment.id)
+                print(f"🆕 NEW ASSESSMENT CREATED AND STARTED: id={assessment.id}, operation={operation}")
+        else:
+            # No existing assessment, create new one
+            assessment = await engine.create_assessment(
+                user_id=int(user_id),
+                division=division_map[operation]
+            )
+            request.session["assessment_id"] = assessment.id
+            await engine.start_assessment(assessment.id)
+            print(f"🆕 NEW ASSESSMENT CREATED AND STARTED: id={assessment.id}, operation={operation}")
 
         # IMPORTANT: Clear old session data before starting new assessment
         # This ensures fresh scoring for each new test
-        request.session["assessment_id"] = assessment.id
         request.session["operation"] = operation
         request.session["answers"] = {}  # Clear old answers!
         
-        print(f"🆕 NEW ASSESSMENT STARTED: id={assessment.id}, operation={operation}")
         print(f"🧹 Cleared session answers for fresh start")
 
         # Redirect to first question

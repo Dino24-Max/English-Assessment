@@ -205,7 +205,7 @@ async def register(
                 await db.commit()
                 await db.refresh(existing_user)
                 
-                # Create and start assessment for existing user
+                # Create assessment for existing user (but don't start yet - user will see instructions first)
                 from core.assessment_engine import AssessmentEngine
                 
                 engine = AssessmentEngine(db)
@@ -214,8 +214,8 @@ async def register(
                     division=division
                 )
                 
-                # Start assessment
-                await engine.start_assessment(assessment.id)
+                # Don't start assessment yet - user needs to see instructions first
+                # Assessment will be started when user clicks "Start Assessment" on instructions page
                 
                 # Store in session for UI routes
                 request.session["user_id"] = existing_user.id
@@ -225,11 +225,11 @@ async def register(
                 
                 return {
                     "success": True,
-                    "message": "Starting assessment...",
-                    "redirect": f"/question/1?operation={division.value.upper()}",
+                    "message": "Registration successful! Please read the instructions before starting.",
+                    "redirect": f"/instructions?operation={division.value.upper()}",
                     "invitation_used": True,
                     "assessment_id": assessment.id,
-                    "auto_start": True
+                    "auto_start": False
                 }
             else:
                 # User exists but no invitation code - require login
@@ -276,7 +276,7 @@ async def register(
         await db.commit()
         await db.refresh(new_user)
 
-        # If this is invitation-based registration (no password), auto-create and start assessment
+        # If this is invitation-based registration (no password), create assessment (but don't start yet)
         if invitation and not request_data.password:
             from core.assessment_engine import AssessmentEngine
             
@@ -287,8 +287,8 @@ async def register(
                 division=division
             )
             
-            # Start assessment
-            await engine.start_assessment(assessment.id)
+            # Don't start assessment yet - user needs to see instructions first
+            # Assessment will be started when user clicks "Start Assessment" on instructions page
             
             # Store in session for UI routes
             request.session["user_id"] = new_user.id
@@ -298,11 +298,11 @@ async def register(
             
             return {
                 "success": True,
-                "message": "Registration successful! Starting assessment...",
-                "redirect": f"/question/1?operation={division.value.upper()}",
+                "message": "Registration successful! Please read the instructions before starting.",
+                "redirect": f"/instructions?operation={division.value.upper()}",
                 "invitation_used": True,
                 "assessment_id": assessment.id,
-                "auto_start": True
+                "auto_start": False
             }
         else:
             # Traditional registration with password - redirect to login
