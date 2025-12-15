@@ -276,8 +276,10 @@ async def register(
         await db.commit()
         await db.refresh(new_user)
 
-        # If this is invitation-based registration (no password), create assessment (but don't start yet)
-        if invitation and not request_data.password:
+        # All registrations should create assessment and redirect to instructions page
+        # This applies to both invitation-based and password-based registrations
+        if invitation:
+            # Invitation-based registration - create assessment
             from core.assessment_engine import AssessmentEngine
             
             # Create assessment session
@@ -305,12 +307,15 @@ async def register(
                 "auto_start": False
             }
         else:
-            # Traditional registration with password - redirect to login
+            # Password-based registration (should not happen in current flow, but handle gracefully)
+            # Since there's no invitation, we can't determine division, so redirect to operation selection
+            request.session["user_id"] = new_user.id
+            
             return {
                 "success": True,
-                "message": "Registration successful! Please login with your credentials.",
-                "redirect": "/login?registered=true",
-                "invitation_used": True
+                "message": "Registration successful! Please select your operation.",
+                "redirect": "/select-operation",
+                "invitation_used": False
             }
 
     except HTTPException:
