@@ -424,20 +424,20 @@
 
                 if (response.ok) {
                     // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:396',message:'Response OK - checking redirect conditions',data:{autoStart:data.auto_start,redirect:data.redirect,willRedirect:!!(data.auto_start && data.redirect)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:396',message:'Response OK - checking redirect conditions',data:{autoStart:data.auto_start,redirect:data.redirect,hasRedirect:!!data.redirect},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
                     // #endregion
 
-                    // If auto_start is true, redirect to assessment
-                    if (data.auto_start && data.redirect) {
+                    // If redirect URL is provided, use it (regardless of auto_start value)
+                    if (data.redirect) {
                         // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:398',message:'Redirecting to assessment',data:{redirectUrl:data.redirect},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                        fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:398',message:'Redirecting to URL from response',data:{redirectUrl:data.redirect,autoStart:data.auto_start},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
                         // #endregion
                         window.location.href = data.redirect;
                     } else {
                         // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:400',message:'Redirecting to login (no auto_start)',data:{autoStart:data.auto_start,redirect:data.redirect},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                        fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:400',message:'No redirect URL - redirecting to login',data:{autoStart:data.auto_start},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
                         // #endregion
-                        // Regular registration - redirect to login
+                        // Fallback: redirect to login if no redirect URL provided
                         window.location.href = '/login?registered=true';
                     }
                 } else {
