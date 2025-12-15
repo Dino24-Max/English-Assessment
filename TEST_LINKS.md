@@ -205,7 +205,7 @@ src/test/
 ### 题库加载流程
 
 1. **加载完整题库**
-   - API: `POST http://127.0.0.1:8000/api/v1/admin/load-full-question-bank?admin_key=admin123`
+   - API: `POST http://127.0.0.1:8000/api/v1/admin/load-full-question-bank?admin_key=dev-admin-key-123`
    - 或 Swagger: `http://127.0.0.1:8000/docs` → 找到 `POST /api/v1/admin/load-full-question-bank`
 
 2. **验证加载**
@@ -219,7 +219,8 @@ src/test/
 ### 默认配置
 
 - **服务器地址**: `127.0.0.1:8000`
-- **管理员密钥**: `admin123` (开发环境)
+- **管理员密钥**: `dev-admin-key-123` (当前使用，来自 .env 文件)
+- **备用密钥**: `admin123` (代码默认值，如果 .env 未设置)
 - **数据库**: SQLite (默认)
 - **会话超时**: 4小时
 
@@ -229,9 +230,11 @@ src/test/
 ```env
 SECRET_KEY=your-secret-key
 DATABASE_URL=sqlite+aiosqlite:///./data/assessment.db
-ADMIN_API_KEY=admin123
+ADMIN_API_KEY=dev-admin-key-123
 DEBUG=true
 ```
+
+**注意**: 当前项目使用 `ADMIN_API_KEY=dev-admin-key-123`，请在生成邀请码时使用此密钥。
 
 ---
 
