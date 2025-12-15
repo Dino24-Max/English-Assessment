@@ -164,11 +164,79 @@ async def register(
         )
         existing_user = result.scalar_one_or_none()
 
+        # If user exists and invitation code is provided, allow them to start assessment
         if existing_user:
-            raise HTTPException(
-                status_code=400,
-                detail="Email already registered. Please login or use a different email."
-            )
+            if invitation:
+                # User exists and has invitation code - create assessment directly
+                # Verify invitation email matches
+                if invitation.email.lower() != request_data.email.lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Email does not match invitation code. Please use the email associated with your invitation."
+                    )
+                
+                # Check if invitation is already used by this user
+                if invitation.is_used and invitation.used_by_user_id != existing_user.id:
+                    if invitation.assessment_completed:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="This invitation link has already been used and the assessment has been completed. Please contact administrator for a new invitation."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="This invitation code has already been used by another user. Please contact administrator for a new code."
+                        )
+                
+                # Update user info if needed
+                if request_data.first_name:
+                    existing_user.first_name = request_data.first_name
+                if request_data.last_name:
+                    existing_user.last_name = request_data.last_name
+                if request_data.nationality:
+                    existing_user.nationality = request_data.nationality
+                
+                # Mark invitation as used if not already
+                if not invitation.is_used:
+                    invitation.is_used = True
+                    invitation.used_at = datetime.now()
+                    invitation.used_by_user_id = existing_user.id
+                
+                await db.commit()
+                await db.refresh(existing_user)
+                
+                # Create and start assessment for existing user
+                from core.assessment_engine import AssessmentEngine
+                
+                engine = AssessmentEngine(db)
+                assessment = await engine.create_assessment(
+                    user_id=existing_user.id,
+                    division=division
+                )
+                
+                # Start assessment
+                await engine.start_assessment(assessment.id)
+                
+                # Store in session for UI routes
+                request.session["user_id"] = existing_user.id
+                request.session["assessment_id"] = assessment.id
+                request.session["operation"] = division.value.upper()
+                request.session["invitation_code"] = invitation.code
+                
+                return {
+                    "success": True,
+                    "message": "Starting assessment...",
+                    "redirect": f"/question/1?operation={division.value.upper()}",
+                    "invitation_used": True,
+                    "assessment_id": assessment.id,
+                    "auto_start": True
+                }
+            else:
+                # User exists but no invitation code - require login
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already registered. Please login or use a different email."
+                )
 
         # Handle password - if not provided (invitation-based), use special marker
         if request_data.password:
