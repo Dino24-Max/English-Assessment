@@ -93,7 +93,7 @@
 
 | 端点 | 方法 | 链接 | 说明 |
 |------|------|------|------|
-| **加载完整题库** | POST | `http://127.0.0.1:8000/api/v1/admin/load-full-question-bank?admin_key=admin123` | 加载1600题到数据库 |
+| **加载完整题库** | POST | `http://127.0.0.1:8000/api/v1/admin/load-full-question-bank?admin_key=dev-admin-key-123` | 加载1600题到数据库 |
 | **统计信息** | GET | `http://127.0.0.1:8000/api/v1/admin/stats` | 获取系统统计 |
 | **检查配置** | GET | `http://127.0.0.1:8000/api/v1/admin/check-config` | 检查系统配置 |
 | **防作弊评估列表** | GET | `http://127.0.0.1:8000/api/v1/admin/anti-cheating/assessments` | 获取可疑评估列表 |
