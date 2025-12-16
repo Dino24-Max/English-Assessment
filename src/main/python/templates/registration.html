@@ -363,10 +363,6 @@
         document.getElementById('registration-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:363',message:'Form submit event triggered',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-
             const errorMessage = document.getElementById('error-message');
             errorMessage.style.display = 'none';
 
@@ -386,15 +382,7 @@
                 registrationData.invitation_code = null;
             }
 
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:383',message:'Registration data prepared',data:{hasInvitationCode:!!registrationData.invitation_code,email:registrationData.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-
             try {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:386',message:'Sending registration request',data:{url:'/api/v1/auth/register'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-
                 const response = await fetch('/api/v1/auth/register', {
                     method: 'POST',
                     headers: {
@@ -403,58 +391,29 @@
                     body: JSON.stringify(registrationData)
                 });
 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:393',message:'Response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-
                 let data;
                 try {
                     data = await response.json();
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:395',message:'JSON parsed successfully',data:{hasAutoStart:'auto_start' in data,hasRedirect:'redirect' in data,autoStart:data.auto_start,redirect:data.redirect,keys:Object.keys(data)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
                 } catch (jsonError) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:396',message:'JSON parse failed',data:{error:jsonError.message,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
                     errorMessage.textContent = 'Invalid response from server. Please try again.';
                     errorMessage.style.display = 'block';
                     return;
                 }
 
                 if (response.ok) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:396',message:'Response OK - checking redirect conditions',data:{autoStart:data.auto_start,redirect:data.redirect,hasRedirect:!!data.redirect},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
-
                     // If redirect URL is provided, use it (regardless of auto_start value)
                     if (data.redirect) {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:398',message:'Redirecting to URL from response',data:{redirectUrl:data.redirect,autoStart:data.auto_start},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
                         window.location.href = data.redirect;
                     } else {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:400',message:'No redirect URL - redirecting to login',data:{autoStart:data.auto_start},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
                         // Fallback: redirect to login if no redirect URL provided
                         window.location.href = '/login?registered=true';
                     }
                 } else {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:404',message:'Response not OK',data:{status:response.status,detail:data.detail},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                     const errorText = data.detail || 'Registration failed. Please try again.';
                     errorMessage.textContent = errorText;
                     errorMessage.style.display = 'block';
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:448',message:'Error message set',data:{text:errorText,display:errorMessage.style.display,computedDisplay:window.getComputedStyle(errorMessage).display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                 }
             } catch (error) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/a2c1452e-cbd2-466f-a55b-9ddaac660a2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'registration.html:408',message:'Exception caught',data:{error:error.message,stack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                // #endregion
                 errorMessage.textContent = 'An error occurred. Please check your connection and try again.';
                 errorMessage.style.display = 'block';
             }

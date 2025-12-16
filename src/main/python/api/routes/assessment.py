@@ -3,7 +3,7 @@ Assessment API endpoints
 Handles all assessment-related operations
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from typing import Dict, Any, List, Optional
@@ -229,6 +229,62 @@ async def submit_speaking_response(
             "transcript": analysis.get("transcript"),
             "points_earned": analysis.get("total_points"),
             "feedback": analysis.get("feedback")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{assessment_id}/speaking-transcribe")
+async def transcribe_speaking_response(
+    assessment_id: int,
+    audio_file: UploadFile = File(...),
+    question_num: int = Form(...),
+    expected_response: str = Form(""),
+    question_context: str = Form(""),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Transcribe speaking response using backend Whisper.
+    
+    This endpoint is designed for the UI flow that uses question_num (1-21)
+    from the JSON config instead of database question_id.
+    """
+    try:
+        # Validate file type
+        if not audio_file.content_type or not audio_file.content_type.startswith("audio/"):
+            # Also accept application/octet-stream as some browsers send this
+            if audio_file.content_type != "application/octet-stream":
+                raise HTTPException(status_code=400, detail=f"Invalid audio file type: {audio_file.content_type}")
+
+        # Save audio file
+        import os
+        audio_dir = "data/audio/responses"
+        os.makedirs(audio_dir, exist_ok=True)
+
+        file_path = f"{audio_dir}/assessment_{assessment_id}_q_{question_num}_{int(datetime.now().timestamp())}.wav"
+
+        with open(file_path, "wb") as f:
+            content = await audio_file.read()
+            f.write(content)
+
+        # Process with AI service
+        ai_service = AIService()
+
+        # Analyze speech with context
+        analysis = await ai_service.analyze_speech_response(
+            file_path, 
+            expected_response or "", 
+            question_context or f"Speaking question {question_num}"
+        )
+
+        return {
+            "status": "transcription_complete",
+            "transcript": analysis.get("transcript", ""),
+            "confidence": analysis.get("transcription_confidence", 0),
+            "method": analysis.get("transcription_method", "unknown"),
+            "points_earned": analysis.get("total_points", 0),
+            "feedback": analysis.get("feedback", "")
         }
 
     except Exception as e:

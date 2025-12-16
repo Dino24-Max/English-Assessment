@@ -381,7 +381,6 @@ class AIService:
         Returns:
             Dict with transcript, analysis, scores, and feedback
         """
-
         try:
             # Load and analyze audio file
             audio_analysis = await self._analyze_audio_quality(audio_file_path)
@@ -502,7 +501,7 @@ class AIService:
                     logger.info(f"Local Whisper transcription successful (confidence: {confidence:.2f})")
                     return transcript, confidence
                 else:
-                    logger.warning(f"Local Whisper returned low quality result, trying fallback...")
+                    logger.warning(f"Local Whisper returned low quality result (starts with '[' or low confidence), trying fallback...")
                     
             except Exception as e:
                 logger.warning(f"Local Whisper failed: {e}, trying OpenAI API fallback...")
@@ -519,6 +518,8 @@ class AIService:
                     
             except Exception as e:
                 logger.warning(f"OpenAI API transcription failed: {e}")
+        else:
+            logger.warning("OpenAI client not configured, cannot use API fallback")
         
         # Return whatever we got (even if low quality)
         if transcript:
