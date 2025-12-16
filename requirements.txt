@@ -27,3 +27,9 @@ python-dotenv==1.0.0
 redis==5.0.1
 celery==5.3.4
 edge-tts==6.1.9
+# Speech Recognition - Local Whisper (Free, High Accuracy)
+openai-whisper>=20231117
+# Audio Preprocessing
+noisereduce>=3.0.0
+pydub>=0.25.1
+scipy>=1.11.0

@@ -47,6 +47,17 @@ class Settings(BaseSettings):
     AI_TIMEOUT_SECONDS: int = 30  # Timeout for AI API calls
     AI_RETRY_ATTEMPTS: int = 3  # Number of retry attempts
     AI_RETRY_DELAY: float = 1.0  # Initial retry delay in seconds
+    
+    # Speech Recognition - Local Whisper Configuration
+    USE_LOCAL_WHISPER: bool = True  # Use local Whisper model (free, high accuracy)
+    WHISPER_MODEL_SIZE: str = "base"  # Model size: tiny, base, small, medium, large-v3
+    WHISPER_DEVICE: str = "cpu"  # Device: cpu, cuda (GPU)
+    WHISPER_LANGUAGE: str = "en"  # Target language
+    
+    # Audio Preprocessing Configuration
+    ENABLE_AUDIO_PREPROCESSING: bool = True  # Enable noise reduction and normalization
+    AUDIO_SAMPLE_RATE: int = 16000  # Optimal sample rate for Whisper
+    AUDIO_NORMALIZE_DB: float = -20.0  # Target normalization level in dB
 
     # Assessment Settings
     LISTENING_DURATION_SECONDS: int = 40
