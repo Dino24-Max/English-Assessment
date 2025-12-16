@@ -260,7 +260,7 @@ class AIService:
         
         try:
             # Run Whisper in thread pool (CPU-intensive)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             transcript, confidence = await loop.run_in_executor(
                 _executor,
                 _transcribe_sync,

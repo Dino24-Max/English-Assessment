@@ -988,15 +988,20 @@ async def get_assessment_detail(
         # Format responses
         question_responses = []
         for response in responses:
+            # Get module_type from question relationship (not directly on response)
+            module_type_value = None
+            if response.question and response.question.module_type:
+                module_type_value = response.question.module_type.value
+            
             question_responses.append({
                 "question_id": response.question_id,
-                "module_type": response.module_type.value if response.module_type else None,
-                "answer": response.answer,
+                "module_type": module_type_value,
+                "answer": response.user_answer,  # Fixed: was 'answer', should be 'user_answer'
                 "is_correct": response.is_correct,
                 "points_earned": response.points_earned,
                 "points_possible": response.points_possible,
-                "time_spent": response.time_spent,
-                "feedback": response.feedback
+                "time_spent": response.time_spent_seconds,  # Fixed: was 'time_spent', should be 'time_spent_seconds'
+                "feedback": response.speech_analysis.get("feedback") if response.speech_analysis else None  # Fixed: feedback is in speech_analysis JSON
             })
         
         # Return detailed assessment data
