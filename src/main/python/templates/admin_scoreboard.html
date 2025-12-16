@@ -433,7 +433,8 @@
                 currentData = data.assessments || [];
                 filteredData = [...currentData];
                 currentPage = 1;
-                renderTable();
+                // Apply any existing filters after loading data
+                applyFilters();
 
             } catch (error) {
                 tableContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
@@ -442,21 +443,30 @@
 
         // Apply filters
         function applyFilters() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const operation = document.getElementById('filterOperation').value;
-            const department = document.getElementById('filterDepartment').value;
-            const status = document.getElementById('filterStatus').value;
+            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+            const operation = document.getElementById('filterOperation').value.toLowerCase().trim();
+            const department = document.getElementById('filterDepartment').value.trim();
+            const status = document.getElementById('filterStatus').value.trim();
 
             filteredData = currentData.filter(item => {
+                // Search filter
                 const matchSearch = !search || 
-                    item.full_name.toLowerCase().includes(search) ||
-                    item.email.toLowerCase().includes(search);
+                    (item.full_name && item.full_name.toLowerCase().includes(search)) ||
+                    (item.email && item.email.toLowerCase().includes(search));
                 
-                const matchOperation = !operation || item.operation === operation;
-                const matchDepartment = !department || item.department === department;
+                // Operation filter (case-insensitive)
+                const itemOperation = (item.operation || '').toLowerCase().trim();
+                const matchOperation = !operation || itemOperation === operation;
+                
+                // Department filter (case-insensitive, handle null/undefined)
+                const itemDepartment = (item.department || '').toUpperCase().trim();
+                const filterDepartmentUpper = department.toUpperCase().trim();
+                const matchDepartment = !department || itemDepartment === filterDepartmentUpper;
+                
+                // Status filter
                 const matchStatus = !status || 
-                    (status === 'passed' && item.passed) ||
-                    (status === 'failed' && !item.passed);
+                    (status === 'passed' && item.passed === true) ||
+                    (status === 'failed' && item.passed === false);
 
                 return matchSearch && matchOperation && matchDepartment && matchStatus;
             });
