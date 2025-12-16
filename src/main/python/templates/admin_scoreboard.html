@@ -368,8 +368,8 @@
                 'GUEST SERVICES', 'HOUSEKEEPING', 'LAUNDRY', 
                 'PHOTO', 'PROVISIONS', 'REST. SERVICE', 'SHORE EXCURS'
             ],
-            'marine': ['Deck', 'Engine', 'Security Services'],
-            'casino': ['Table Games', 'Slot Machines', 'Casino Services']
+            'marine': ['DECK', 'ENGINE', 'SECURITY SERVICES'],
+            'casino': ['TABLE GAMES', 'SLOT MACHINES', 'CASINO SERVICES']
         };
 
         // Update department dropdown when operation changes
@@ -536,7 +536,7 @@
                                     <td><strong>${item.full_name}</strong></td>
                                     <td>${item.email}</td>
                                     <td>${item.operation ? item.operation.toUpperCase() : '-'}</td>
-                                    <td>${item.department || '-'}</td>
+                                    <td>${item.department ? item.department.toUpperCase() : '-'}</td>
                                     <td class="score-cell">${Math.round(item.listening_score || 0)}/16</td>
                                     <td class="score-cell">${Math.round(item.time_numbers_score || 0)}/16</td>
                                     <td class="score-cell">${Math.round(item.grammar_score || 0)}/16</td>
