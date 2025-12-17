@@ -24,7 +24,6 @@
 |------|------|------|
 | **首页** | `http://127.0.0.1:8000/` | 主页面 |
 | **说明页面** | `http://127.0.0.1:8000/instructions` | 评估说明 |
-| **选择部门** | `http://127.0.0.1:8000/select-operation` | 选择操作部门 (Hotel/Marine/Casino) |
 | **开始评估** | `http://127.0.0.1:8000/start-assessment` | 开始评估页面 |
 | **题目页面** | `http://127.0.0.1:8000/question/{question_num}` | 答题页面 (question_num: 1-21) |
 | **结果页面** | `http://127.0.0.1:8000/results` | 评估结果页面 |
