@@ -495,7 +495,9 @@
                             if (isAdmin) {
                                 window.location.href = '/admin';
                             } else {
-                                window.location.href = '/select-operation';
+                                // Redirect to instructions with user's division
+                                const division = data.division || 'HOTEL';
+                                window.location.href = '/instructions?operation=' + division;
                             }
                         }, 1000);
                     } else {
