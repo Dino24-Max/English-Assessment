@@ -79,6 +79,7 @@ class AuthResponse(BaseModel):
     user_id: int
     email: str
     is_admin: bool = False  # Indicate if user is admin
+    division: Optional[str] = None  # User's division for redirect
 
 
 @router.post("/register", response_model=Dict[str, Any])
@@ -307,16 +308,11 @@ async def register(
                 "auto_start": False
             }
         else:
-            # Password-based registration (should not happen in current flow, but handle gracefully)
-            # Since there's no invitation, we can't determine division, so redirect to operation selection
-            request.session["user_id"] = new_user.id
-            
-            return {
-                "success": True,
-                "message": "Registration successful! Please select your operation.",
-                "redirect": "/select-operation",
-                "invitation_used": False
-            }
+            # No invitation code - registration not allowed
+            raise HTTPException(
+                status_code=400,
+                detail="Registration requires a valid invitation code. Please contact administrator."
+            )
 
     except HTTPException:
         raise
@@ -398,12 +394,18 @@ async def login(
             request.session["authenticated"] = True
             request.session["is_admin"] = getattr(user, 'is_admin', False)  # Set admin flag in session
 
+        # Get user's division for redirect
+        user_division = None
+        if hasattr(user, 'division') and user.division:
+            user_division = user.division.value.upper()
+        
         return AuthResponse(
             success=True,
             message="Login successful",
             user_id=user.id,
             email=user.email,
-            is_admin=getattr(user, 'is_admin', False)
+            is_admin=getattr(user, 'is_admin', False),
+            division=user_division
         )
 
     except HTTPException:

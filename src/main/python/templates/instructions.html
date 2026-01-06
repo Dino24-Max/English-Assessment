@@ -519,11 +519,10 @@
 
             <!-- Action Buttons -->
             <div class="action-buttons">
-                <a href="/select-operation" class="btn btn-secondary">Back to Operation Selection</a>
                 {% if operation %}
                 <a href="/start-assessment?operation={{ operation }}" class="btn btn-primary">I Understand - Start Assessment</a>
                 {% else %}
-                <a href="/select-operation" class="btn btn-primary">Select Operation First</a>
+                <p class="error-message" style="color: #B61B38; font-weight: 600;">Error: No operation assigned. Please contact administrator.</p>
                 {% endif %}
             </div>
         </div>

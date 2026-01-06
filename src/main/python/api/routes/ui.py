@@ -393,45 +393,6 @@ async def homepage(request: Request, operation: Optional[str] = None):
     return RedirectResponse(url="/register", status_code=303)
 
 
-@router.get("/select-operation", response_class=HTMLResponse)
-async def select_operation_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Operation Selection page - Choose Hotel, Marine, or Casino operations
-    Pre-selects the operation from user's invitation code (if any)
-    """
-    try:
-        # Get user from session
-        user_id = request.session.get("user_id")
-        recommended_operation = None
-        
-        if user_id:
-            # Query user to get their division (from invitation code)
-            from models.assessment import User
-            from sqlalchemy import select
-            
-            result = await db.execute(
-                select(User).where(User.id == user_id)
-            )
-            user = result.scalar_one_or_none()
-            
-            if user and user.division:
-                # Map DivisionType enum to operation string
-                recommended_operation = user.division.value.upper()
-                print(f"🎯 Recommended operation for user {user_id}: {recommended_operation}")
-        
-        return templates.TemplateResponse(
-            "select_operation.html",
-            {
-                "request": request,
-                "title": "Select Your Operation",
-                "recommended_operation": recommended_operation
-            }
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering operation selection: {str(e)}")
-
-
 @router.get("/start-assessment", response_class=HTMLResponse)
 async def start_assessment(request: Request, operation: str, db: AsyncSession = Depends(get_db)):
     """

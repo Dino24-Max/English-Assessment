@@ -95,8 +95,8 @@ class Question(BaseModel):
     points = Column(Integer, nullable=False)
     
     # Department & Scenario Info (for 1600-question bank)
-    department = Column(String(100), nullable=True, index=True)  # e.g., "HOUSEKEEPING", "Deck", "Table Games"
-    scenario_id = Column(Integer, nullable=True, index=True)  # 1-10 for each department
+    department = Column(String(100), nullable=True)  # e.g., "HOUSEKEEPING", "Deck", "Table Games" (indexed via composite indexes)
+    scenario_id = Column(Integer, nullable=True)  # 1-10 for each department (indexed via composite indexes)
     scenario_description = Column(Text, nullable=True)  # Description of the scenario
 
     # Question specific data
