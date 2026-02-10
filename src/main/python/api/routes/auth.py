@@ -609,13 +609,32 @@ async def forgot_password(
         base_url = "http://127.0.0.1:8000" if settings.DEBUG else os.getenv("BASE_URL", "https://your-domain.com")
         reset_link = f"{base_url}/reset-password?token={token_value}"
         
-        # In production: Send email with reset link
-        # TODO: Implement email sending (SendGrid, SES, etc.)
-        # await send_password_reset_email(user.email, reset_link)
-        
-        # Log for debugging (only in development)
+        # Send password reset email
         import logging
         logger = logging.getLogger(__name__)
+        
+        try:
+            from services.email_service import get_email_service
+            
+            email_service = get_email_service()
+            user_name = f"{user.first_name} {user.last_name}".strip() or "User"
+            
+            email_result = await email_service.send_password_reset_email(
+                to_email=user.email,
+                reset_link=reset_link,
+                user_name=user_name
+            )
+            
+            if email_result.success:
+                logger.info(f"Password reset email sent to {user.email}")
+            else:
+                logger.warning(f"Failed to send password reset email: {email_result.error}")
+                
+        except Exception as e:
+            logger.warning(f"Email service error: {e}")
+            # Continue even if email fails - log the link in debug mode
+        
+        # Log for debugging (only in development)
         if settings.DEBUG:
             logger.info(f"Password reset link for {user.email}: {reset_link}")
 

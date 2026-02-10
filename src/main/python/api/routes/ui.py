@@ -174,6 +174,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
         
         # ============================================================
         # TYPE 2: SPEAKING QUESTIONS (have "expected_keywords")
+        # Uses enhanced SpeakingScorerService for intelligent scoring
         # ============================================================
         elif "expected_keywords" in question_data:
             expected_keywords = question_data["expected_keywords"]
@@ -181,12 +182,24 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             
             # Parse answer format: "recorded_DURATION|TRANSCRIPT" or legacy "recorded_DURATION"
             transcript = ""
+            recording_duration = 0.0
             if "|" in user_answer:
                 parts = user_answer.split("|", 1)
-                transcript = parts[1].strip().lower() if len(parts) > 1 else ""
+                transcript = parts[1].strip() if len(parts) > 1 else ""
+                # Extract duration from format "recorded_Xs"
+                duration_match = parts[0].replace("recorded_", "").replace("s", "")
+                try:
+                    recording_duration = float(duration_match)
+                except ValueError:
+                    recording_duration = 0.0
             elif user_answer.startswith("recorded_"):
                 # Legacy format - no transcript available
                 transcript = ""
+                duration_match = user_answer.replace("recorded_", "").replace("s", "")
+                try:
+                    recording_duration = float(duration_match)
+                except ValueError:
+                    recording_duration = 0.0
             
             # Check if user made a recording
             has_recording = user_answer and user_answer.startswith("recorded_")
@@ -202,69 +215,82 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                 points_earned = int(points * 0.2)
                 logger.debug(f"Speaking Q{question_num}: Recording detected but no transcript")
             else:
-                # Analyze transcript for keyword matching
-                transcript_lower = transcript.lower()
-                matched_keywords = []
-                
-                logger.debug(f"Speaking Q{question_num}: Analyzing transcript (length={len(transcript)})")
-                
-                for keyword in expected_keywords:
-                    keyword_lower = keyword.lower()
-                    matched = False
+                # Use enhanced SpeakingScorerService for intelligent scoring
+                try:
+                    from services.speaking_scorer import score_speaking_response
                     
-                    # Check if full keyword/phrase appears in transcript (exact match)
-                    if keyword_lower in transcript_lower:
-                        matched_keywords.append(keyword)
-                        matched = True
-                    # Check for common variations (e.g., "apologize" vs "apology")
-                    elif keyword_lower.replace("ize", "ise") in transcript_lower:
-                        matched_keywords.append(keyword)
-                        matched = True
-                    elif keyword_lower.replace("ise", "ize") in transcript_lower:
-                        matched_keywords.append(keyword)
-                        matched = True
-                    # For multi-word keywords (e.g., "send someone"), check if all words appear
-                    elif " " in keyword_lower:
-                        keyword_words = keyword_lower.split()
-                        if all(word in transcript_lower for word in keyword_words):
+                    question_context = question_data.get("question", "")
+                    
+                    score_result = score_speaking_response(
+                        transcript=transcript,
+                        expected_keywords=expected_keywords,
+                        question_context=question_context,
+                        recording_duration=recording_duration,
+                        base_points=float(points)
+                    )
+                    
+                    points_earned = int(round(score_result.total_points))
+                    is_correct = score_result.percentage >= 50
+                    
+                    logger.debug(
+                        f"Speaking Q{question_num}: Enhanced scoring - "
+                        f"matched={len(score_result.matched_keywords)}/{len(expected_keywords)}, "
+                        f"score={score_result.percentage:.1f}%, "
+                        f"points={points_earned}/{points}, "
+                        f"level={score_result.level.value}"
+                    )
+                    
+                    # Log partial matches for debugging
+                    if score_result.partial_matches:
+                        logger.debug(f"Speaking Q{question_num}: Partial matches: {score_result.partial_matches}")
+                    
+                except ImportError as e:
+                    # Fallback to legacy scoring if service not available
+                    logger.warning(f"Speaking scorer service not available, using legacy scoring: {e}")
+                    
+                    # Legacy scoring algorithm
+                    transcript_lower = transcript.lower()
+                    matched_keywords = []
+                    
+                    for keyword in expected_keywords:
+                        keyword_lower = keyword.lower()
+                        
+                        if keyword_lower in transcript_lower:
                             matched_keywords.append(keyword)
-                            matched = True
-                    # Check root words (e.g., "fix" matches "fixing", "fixed")
-                    elif len(keyword_lower) >= 4:
-                        root = keyword_lower[:4]
-                        if root in transcript_lower:
+                        elif keyword_lower.replace("ize", "ise") in transcript_lower:
                             matched_keywords.append(keyword)
-                            matched = True
-                
-                total_keywords = len(expected_keywords)
-                matched_count = len(matched_keywords)
-                match_ratio = matched_count / total_keywords if total_keywords > 0 else 0
-                
-                logger.debug(f"Speaking Q{question_num}: Matched {matched_count}/{total_keywords} keywords (ratio={match_ratio:.2%})")
-                
-                # Scoring algorithm:
-                # - 50%+ keywords matched: full points
-                # - 30-49%: 70% of points
-                # - 20-29%: 50% of points
-                # - 10-19%: 30% of points
-                # - <10%: 20% of points (minimal for attempt)
-                if match_ratio >= 0.5:
-                    points_earned = points
-                    is_correct = True
-                elif match_ratio >= 0.3:
-                    points_earned = int(points * 0.7)
-                    is_correct = False
-                elif match_ratio >= 0.2:
-                    points_earned = int(points * 0.5)
-                    is_correct = False
-                elif match_ratio >= 0.1:
-                    points_earned = int(points * 0.3)
-                    is_correct = False
-                else:
-                    points_earned = int(points * 0.2)
-                    is_correct = False
-                
-                logger.debug(f"Speaking Q{question_num}: Score {points_earned}/{points} points")
+                        elif keyword_lower.replace("ise", "ize") in transcript_lower:
+                            matched_keywords.append(keyword)
+                        elif " " in keyword_lower:
+                            keyword_words = keyword_lower.split()
+                            if all(word in transcript_lower for word in keyword_words):
+                                matched_keywords.append(keyword)
+                        elif len(keyword_lower) >= 4:
+                            root = keyword_lower[:4]
+                            if root in transcript_lower:
+                                matched_keywords.append(keyword)
+                    
+                    total_keywords = len(expected_keywords)
+                    matched_count = len(matched_keywords)
+                    match_ratio = matched_count / total_keywords if total_keywords > 0 else 0
+                    
+                    if match_ratio >= 0.5:
+                        points_earned = points
+                        is_correct = True
+                    elif match_ratio >= 0.3:
+                        points_earned = int(points * 0.7)
+                        is_correct = False
+                    elif match_ratio >= 0.2:
+                        points_earned = int(points * 0.5)
+                        is_correct = False
+                    elif match_ratio >= 0.1:
+                        points_earned = int(points * 0.3)
+                        is_correct = False
+                    else:
+                        points_earned = int(points * 0.2)
+                        is_correct = False
+                    
+                    logger.debug(f"Speaking Q{question_num}: Legacy score {points_earned}/{points} points")
             
             correct_answer_display = f"Expected keywords: {', '.join(expected_keywords)}"
         
@@ -839,6 +865,52 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                     ]
                     total_score = assessment.total_score or 0
                     logger.debug(f"Built modules list with total_score={total_score}")
+                    
+                    # Send completion email (only once per assessment)
+                    if assessment.status == AssessmentStatus.COMPLETED:
+                        # Check if email was already sent (use a session flag)
+                        email_sent_key = f"email_sent_{assessment_id}"
+                        if not session.get(email_sent_key):
+                            try:
+                                from services.email_service import get_email_service
+                                from models.assessment import User
+                                
+                                # Get user info
+                                user_result = await db.execute(
+                                    select(User).where(User.id == assessment.user_id)
+                                )
+                                user = user_result.scalar_one_or_none()
+                                
+                                if user and user.email:
+                                    email_service = get_email_service()
+                                    user_name = f"{user.first_name} {user.last_name}".strip() or "User"
+                                    passed = (assessment.total_score or 0) >= settings.PASS_THRESHOLD_TOTAL
+                                    
+                                    module_scores = {
+                                        "Listening": assessment.listening_score or 0,
+                                        "Time & Numbers": assessment.time_numbers_score or 0,
+                                        "Grammar": assessment.grammar_score or 0,
+                                        "Vocabulary": assessment.vocabulary_score or 0,
+                                        "Reading": assessment.reading_score or 0,
+                                        "Speaking": assessment.speaking_score or 0
+                                    }
+                                    
+                                    email_result = await email_service.send_assessment_completion_email(
+                                        to_email=user.email,
+                                        user_name=user_name,
+                                        total_score=assessment.total_score or 0,
+                                        passed=passed,
+                                        module_scores=module_scores
+                                    )
+                                    
+                                    if email_result.success:
+                                        logger.info(f"Assessment completion email sent to {user.email}")
+                                        session[email_sent_key] = True
+                                    else:
+                                        logger.warning(f"Failed to send completion email: {email_result.error}")
+                                        
+                            except Exception as email_error:
+                                logger.warning(f"Error sending completion email: {email_error}")
                 else:
                     logger.warning(f"No assessment found in database for id {assessment_id}")
             except Exception as e:

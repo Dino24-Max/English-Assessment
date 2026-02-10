@@ -390,6 +390,33 @@ async def create_invitation_code(
     base_url = str(request.base_url).rstrip('/')
     registration_link = f"{base_url}/register?code={code}"
     
+    # Send invitation email
+    email_sent = False
+    try:
+        from services.email_service import get_email_service
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        email_service = get_email_service()
+        email_result = await email_service.send_invitation_email(
+            to_email=request_data.email,
+            invitation_code=code,
+            invitation_link=registration_link,
+            invited_by="Administrator",
+            expires_at=expires_at
+        )
+        
+        email_sent = email_result.success
+        if email_result.success:
+            logger.info(f"Invitation email sent to {request_data.email}")
+        else:
+            logger.warning(f"Failed to send invitation email: {email_result.error}")
+            
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Email service error: {e}")
+    
     return InvitationCreateResponse(
         code=code,
         link=registration_link,
@@ -1195,3 +1222,428 @@ async def export_users_to_excel(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error exporting users: {str(e)}")
+
+
+# ===========================================
+# DATA ANALYTICS ENDPOINTS
+# ===========================================
+
+@router.get("/analytics/overview")
+async def get_analytics_overview(
+    admin_key: str,
+    days: int = 30,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get analytics overview for dashboard.
+    
+    Returns:
+    - Total assessments
+    - Pass/fail rates
+    - Average scores by module
+    - Trends over time
+    """
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        start_date = datetime.now() - timedelta(days=days)
+        
+        # Total assessments
+        total_result = await db.execute(
+            select(func.count(Assessment.id)).where(
+                Assessment.status == AssessmentStatus.COMPLETED
+            )
+        )
+        total_assessments = total_result.scalar() or 0
+        
+        # Assessments in period
+        period_result = await db.execute(
+            select(func.count(Assessment.id)).where(
+                and_(
+                    Assessment.status == AssessmentStatus.COMPLETED,
+                    Assessment.completed_at >= start_date
+                )
+            )
+        )
+        period_assessments = period_result.scalar() or 0
+        
+        # Pass/fail counts
+        passed_result = await db.execute(
+            select(func.count(Assessment.id)).where(
+                and_(
+                    Assessment.status == AssessmentStatus.COMPLETED,
+                    Assessment.passed == True
+                )
+            )
+        )
+        passed_count = passed_result.scalar() or 0
+        
+        failed_count = total_assessments - passed_count
+        pass_rate = (passed_count / total_assessments * 100) if total_assessments > 0 else 0
+        
+        # Average scores by module
+        avg_scores_result = await db.execute(
+            select(
+                func.avg(Assessment.listening_score).label("listening"),
+                func.avg(Assessment.time_numbers_score).label("time_numbers"),
+                func.avg(Assessment.grammar_score).label("grammar"),
+                func.avg(Assessment.vocabulary_score).label("vocabulary"),
+                func.avg(Assessment.reading_score).label("reading"),
+                func.avg(Assessment.speaking_score).label("speaking"),
+                func.avg(Assessment.total_score).label("total")
+            ).where(Assessment.status == AssessmentStatus.COMPLETED)
+        )
+        avg_scores = avg_scores_result.first()
+        
+        # Assessments by division
+        division_result = await db.execute(
+            select(
+                User.division,
+                func.count(Assessment.id).label("count")
+            ).join(
+                User, Assessment.user_id == User.id
+            ).where(
+                Assessment.status == AssessmentStatus.COMPLETED
+            ).group_by(User.division)
+        )
+        division_data = {
+            row.division.value if row.division else "unknown": row.count 
+            for row in division_result.all()
+        }
+        
+        # Daily trend (last N days)
+        daily_trend = []
+        for i in range(min(days, 30)):
+            day_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=i)
+            day_end = day_start + timedelta(days=1)
+            
+            day_result = await db.execute(
+                select(func.count(Assessment.id)).where(
+                    and_(
+                        Assessment.status == AssessmentStatus.COMPLETED,
+                        Assessment.completed_at >= day_start,
+                        Assessment.completed_at < day_end
+                    )
+                )
+            )
+            count = day_result.scalar() or 0
+            daily_trend.append({
+                "date": day_start.strftime("%Y-%m-%d"),
+                "count": count
+            })
+        
+        daily_trend.reverse()  # Oldest first
+        
+        return {
+            "period_days": days,
+            "summary": {
+                "total_assessments": total_assessments,
+                "period_assessments": period_assessments,
+                "passed": passed_count,
+                "failed": failed_count,
+                "pass_rate": round(pass_rate, 1)
+            },
+            "average_scores": {
+                "listening": round(avg_scores.listening or 0, 1),
+                "time_numbers": round(avg_scores.time_numbers or 0, 1),
+                "grammar": round(avg_scores.grammar or 0, 1),
+                "vocabulary": round(avg_scores.vocabulary or 0, 1),
+                "reading": round(avg_scores.reading or 0, 1),
+                "speaking": round(avg_scores.speaking or 0, 1),
+                "total": round(avg_scores.total or 0, 1)
+            },
+            "by_division": division_data,
+            "daily_trend": daily_trend
+        }
+        
+    except Exception as e:
+        logger.error(f"Analytics overview error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching analytics: {str(e)}")
+
+
+@router.get("/analytics/module-performance")
+async def get_module_performance(
+    admin_key: str,
+    operation: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get detailed module performance analytics.
+    
+    Returns performance metrics for each module including:
+    - Average score
+    - Score distribution
+    - Pass rate per module threshold
+    """
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        # Base query
+        query = select(Assessment).where(Assessment.status == AssessmentStatus.COMPLETED)
+        
+        if operation:
+            query = query.join(User, Assessment.user_id == User.id).where(
+                User.division == DivisionType(operation.lower())
+            )
+        
+        result = await db.execute(query)
+        assessments = result.scalars().all()
+        
+        if not assessments:
+            return {"message": "No completed assessments found", "modules": {}}
+        
+        # Calculate statistics for each module
+        modules = {
+            "listening": {"scores": [], "max": 16},
+            "time_numbers": {"scores": [], "max": 16},
+            "grammar": {"scores": [], "max": 16},
+            "vocabulary": {"scores": [], "max": 16},
+            "reading": {"scores": [], "max": 16},
+            "speaking": {"scores": [], "max": 20}
+        }
+        
+        for assessment in assessments:
+            modules["listening"]["scores"].append(assessment.listening_score or 0)
+            modules["time_numbers"]["scores"].append(assessment.time_numbers_score or 0)
+            modules["grammar"]["scores"].append(assessment.grammar_score or 0)
+            modules["vocabulary"]["scores"].append(assessment.vocabulary_score or 0)
+            modules["reading"]["scores"].append(assessment.reading_score or 0)
+            modules["speaking"]["scores"].append(assessment.speaking_score or 0)
+        
+        # Calculate statistics
+        module_stats = {}
+        for module_name, data in modules.items():
+            scores = data["scores"]
+            max_score = data["max"]
+            
+            if scores:
+                import statistics
+                avg = statistics.mean(scores)
+                median = statistics.median(scores)
+                std_dev = statistics.stdev(scores) if len(scores) > 1 else 0
+                min_score = min(scores)
+                max_achieved = max(scores)
+                
+                # Score distribution (buckets)
+                buckets = {"0-25%": 0, "25-50%": 0, "50-75%": 0, "75-100%": 0}
+                for score in scores:
+                    pct = (score / max_score) * 100
+                    if pct < 25:
+                        buckets["0-25%"] += 1
+                    elif pct < 50:
+                        buckets["25-50%"] += 1
+                    elif pct < 75:
+                        buckets["50-75%"] += 1
+                    else:
+                        buckets["75-100%"] += 1
+                
+                module_stats[module_name] = {
+                    "average": round(avg, 2),
+                    "median": round(median, 2),
+                    "std_dev": round(std_dev, 2),
+                    "min": round(min_score, 2),
+                    "max": round(max_achieved, 2),
+                    "max_possible": max_score,
+                    "average_percentage": round((avg / max_score) * 100, 1),
+                    "distribution": buckets,
+                    "sample_size": len(scores)
+                }
+        
+        return {
+            "total_assessments": len(assessments),
+            "filter": {"operation": operation} if operation else None,
+            "modules": module_stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Module performance error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching module performance: {str(e)}")
+
+
+@router.get("/analytics/score-distribution")
+async def get_score_distribution(
+    admin_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get total score distribution for chart visualization.
+    
+    Returns score ranges and counts for histogram.
+    """
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    try:
+        result = await db.execute(
+            select(Assessment.total_score).where(
+                Assessment.status == AssessmentStatus.COMPLETED
+            )
+        )
+        scores = [row[0] or 0 for row in result.all()]
+        
+        if not scores:
+            return {"message": "No completed assessments", "distribution": []}
+        
+        # Create distribution buckets (0-10, 10-20, ..., 90-100)
+        buckets = {f"{i}-{i+10}": 0 for i in range(0, 100, 10)}
+        
+        for score in scores:
+            bucket_start = int(score // 10) * 10
+            if bucket_start >= 100:
+                bucket_start = 90
+            bucket_key = f"{bucket_start}-{bucket_start+10}"
+            buckets[bucket_key] += 1
+        
+        distribution = [
+            {"range": k, "count": v, "percentage": round(v / len(scores) * 100, 1)}
+            for k, v in buckets.items()
+        ]
+        
+        import statistics
+        
+        return {
+            "total_assessments": len(scores),
+            "statistics": {
+                "mean": round(statistics.mean(scores), 1),
+                "median": round(statistics.median(scores), 1),
+                "std_dev": round(statistics.stdev(scores), 1) if len(scores) > 1 else 0,
+                "min": round(min(scores), 1),
+                "max": round(max(scores), 1)
+            },
+            "distribution": distribution,
+            "pass_threshold": settings.PASS_THRESHOLD_TOTAL
+        }
+        
+    except Exception as e:
+        logger.error(f"Score distribution error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching score distribution: {str(e)}")
+
+
+@router.post("/invitations/bulk")
+async def create_bulk_invitations(
+    admin_key: str,
+    emails: List[str],
+    operation: str,
+    department: Optional[str] = None,
+    expires_in_days: int = 7,
+    request: Request = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create multiple invitation codes at once.
+    
+    Args:
+        emails: List of email addresses to invite
+        operation: Division type (hotel/marine/casino)
+        department: Optional department
+        expires_in_days: Days until expiration
+        
+    Returns:
+        List of created invitations with codes and links
+    """
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or admin_key != expected_key:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    if not emails:
+        raise HTTPException(status_code=400, detail="No emails provided")
+    
+    if len(emails) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 invitations per batch")
+    
+    try:
+        operation_enum = DivisionType(operation.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid operation. Must be hotel, marine, or casino")
+    
+    try:
+        created = []
+        failed = []
+        expires_at = datetime.now() + timedelta(days=expires_in_days)
+        base_url = str(request.base_url).rstrip('/') if request else "http://localhost:8000"
+        
+        for email in emails:
+            try:
+                # Check if invitation already exists for this email
+                existing = await db.execute(
+                    select(InvitationCode).where(
+                        and_(
+                            InvitationCode.email == email,
+                            InvitationCode.is_used == False,
+                            InvitationCode.expires_at > datetime.now()
+                        )
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    failed.append({"email": email, "reason": "Active invitation already exists"})
+                    continue
+                
+                # Generate unique code
+                code = generate_invitation_code(16)
+                existing_code = await db.execute(
+                    select(InvitationCode).where(InvitationCode.code == code)
+                )
+                while existing_code.scalar_one_or_none():
+                    code = generate_invitation_code(16)
+                    existing_code = await db.execute(
+                        select(InvitationCode).where(InvitationCode.code == code)
+                    )
+                
+                # Create invitation
+                invitation = InvitationCode(
+                    code=code,
+                    email=email,
+                    operation=operation_enum,
+                    department=department,
+                    created_by="admin_bulk",
+                    expires_at=expires_at,
+                    is_used=False
+                )
+                
+                db.add(invitation)
+                
+                registration_link = f"{base_url}/register?code={code}"
+                
+                created.append({
+                    "email": email,
+                    "code": code,
+                    "link": registration_link
+                })
+                
+                # Send invitation email
+                try:
+                    from services.email_service import get_email_service
+                    email_service = get_email_service()
+                    await email_service.send_invitation_email(
+                        to_email=email,
+                        invitation_code=code,
+                        invitation_link=registration_link,
+                        invited_by="Administrator",
+                        expires_at=expires_at
+                    )
+                except Exception as email_error:
+                    logger.warning(f"Failed to send invitation email to {email}: {email_error}")
+                
+            except Exception as e:
+                failed.append({"email": email, "reason": str(e)})
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "created_count": len(created),
+            "failed_count": len(failed),
+            "created": created,
+            "failed": failed,
+            "expires_at": expires_at.isoformat()
+        }
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Bulk invitation error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating bulk invitations: {str(e)}")

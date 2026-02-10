@@ -249,7 +249,15 @@ async def transcribe_speaking_response(
     
     This endpoint is designed for the UI flow that uses question_num (1-21)
     from the JSON config instead of database question_id.
+    
+    Features:
+    - Audio quality analysis before transcription
+    - Local Whisper transcription with fallback to API
+    - Detailed feedback on recording quality
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         # Validate file type
         if not audio_file.content_type or not audio_file.content_type.startswith("audio/"):
@@ -267,6 +275,43 @@ async def transcribe_speaking_response(
         with open(file_path, "wb") as f:
             content = await audio_file.read()
             f.write(content)
+        
+        # Analyze audio quality first
+        audio_quality_info = {}
+        try:
+            from services.audio_quality import AudioQualityAnalyzer, get_audio_quality_feedback
+            
+            analyzer = AudioQualityAnalyzer()
+            quality_report = analyzer.analyze_audio_file(file_path)
+            
+            audio_quality_info = {
+                "quality_level": quality_report.overall_level.value,
+                "quality_score": quality_report.overall_score,
+                "duration_seconds": quality_report.duration_seconds,
+                "speech_detected": quality_report.speech_detected,
+                "issues": quality_report.issues[:3] if quality_report.issues else [],
+                "recommendations": quality_report.recommendations[:2] if quality_report.recommendations else [],
+                "quality_feedback": get_audio_quality_feedback(quality_report)
+            }
+            
+            logger.info(
+                f"Audio quality for assessment {assessment_id} Q{question_num}: "
+                f"level={quality_report.overall_level.value}, "
+                f"score={quality_report.overall_score:.2f}, "
+                f"speech_detected={quality_report.speech_detected}"
+            )
+            
+            # Warn if quality is poor
+            if quality_report.overall_score < 0.3:
+                logger.warning(
+                    f"Poor audio quality detected for assessment {assessment_id} Q{question_num}: "
+                    f"issues={quality_report.issues}"
+                )
+                
+        except ImportError as e:
+            logger.warning(f"Audio quality analyzer not available: {e}")
+        except Exception as e:
+            logger.warning(f"Audio quality analysis failed: {e}")
 
         # Process with AI service
         ai_service = AIService()
@@ -278,7 +323,7 @@ async def transcribe_speaking_response(
             question_context or f"Speaking question {question_num}"
         )
 
-        return {
+        response = {
             "status": "transcription_complete",
             "transcript": analysis.get("transcript", ""),
             "confidence": analysis.get("transcription_confidence", 0),
@@ -286,8 +331,84 @@ async def transcribe_speaking_response(
             "points_earned": analysis.get("total_points", 0),
             "feedback": analysis.get("feedback", "")
         }
+        
+        # Add audio quality info if available
+        if audio_quality_info:
+            response["audio_quality"] = audio_quality_info
+        
+        return response
 
     except Exception as e:
+        logger.error(f"Speaking transcription error for assessment {assessment_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{assessment_id}/check-audio-quality")
+async def check_audio_quality(
+    assessment_id: int,
+    audio_file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check audio quality before full transcription.
+    
+    This is a lightweight endpoint for real-time quality feedback
+    during recording, without performing full transcription.
+    
+    Returns:
+        Audio quality metrics and recommendations
+    """
+    import logging
+    import tempfile
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Validate file type
+        if not audio_file.content_type or not audio_file.content_type.startswith("audio/"):
+            if audio_file.content_type != "application/octet-stream":
+                raise HTTPException(status_code=400, detail=f"Invalid audio file type: {audio_file.content_type}")
+        
+        # Save to temporary file for analysis
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            content = await audio_file.read()
+            temp_file.write(content)
+            temp_path = temp_file.name
+        
+        try:
+            from services.audio_quality import AudioQualityAnalyzer, get_audio_quality_feedback
+            
+            analyzer = AudioQualityAnalyzer()
+            quality_report = analyzer.analyze_audio_file(temp_path)
+            
+            return {
+                "status": "quality_check_complete",
+                "quality_level": quality_report.overall_level.value,
+                "quality_score": quality_report.overall_score,
+                "duration_seconds": quality_report.duration_seconds,
+                "speech_detected": quality_report.speech_detected,
+                "volume_ok": quality_report.volume_score >= 0.5,
+                "noise_ok": quality_report.noise_score >= 0.5,
+                "issues": quality_report.issues,
+                "recommendations": quality_report.recommendations,
+                "feedback": get_audio_quality_feedback(quality_report),
+                "can_proceed": quality_report.overall_score >= 0.3 and quality_report.speech_detected
+            }
+            
+        finally:
+            # Clean up temp file
+            import os
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+                
+    except ImportError as e:
+        logger.warning(f"Audio quality analyzer not available: {e}")
+        return {
+            "status": "quality_check_unavailable",
+            "message": "Audio quality check is not available",
+            "can_proceed": True
+        }
+    except Exception as e:
+        logger.error(f"Audio quality check error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

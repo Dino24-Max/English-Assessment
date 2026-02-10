@@ -141,6 +141,17 @@ class Settings(BaseSettings):
     # Celery (for background tasks)
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    
+    # Email Configuration
+    EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "console")  # console, smtp, sendgrid, aws_ses
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+    SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@cruise-assessment.com")
+    EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "Cruise Employee Assessment")
 
     # Security Settings
     CSRF_ENABLED: bool = True
