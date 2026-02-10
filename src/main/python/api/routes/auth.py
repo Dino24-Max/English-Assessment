@@ -239,13 +239,16 @@ async def register(
                     detail="Email already registered. Please login or use a different email."
                 )
 
-        # Handle password - if not provided (invitation-based), use special marker
+        # Handle password - if not provided (invitation-based), use secure random hash
         if request_data.password:
             password_hash = hash_password(request_data.password)
         elif invitation:
-            # For invitation-based registration without password, use a special marker
+            # For invitation-based registration without password:
+            # Generate a secure random password hash that cannot be guessed
             # Users with this marker cannot login via password (they use invitation links)
-            password_hash = "INVITATION_ONLY_" + invitation.code
+            # SECURITY: Use hash of random bytes, not the invitation code itself
+            random_password = secrets.token_urlsafe(32)
+            password_hash = "INVITATION_ONLY:" + hash_password(random_password)
         else:
             # This should not happen due to validation above, but add safety check
             raise HTTPException(
@@ -359,7 +362,9 @@ async def login(
             )
         
         # Check if this is an invitation-only user (cannot login with password)
-        if user.password_hash and user.password_hash.startswith("INVITATION_ONLY_"):
+        # Support both old format (INVITATION_ONLY_) and new secure format (INVITATION_ONLY:)
+        if user.password_hash and (user.password_hash.startswith("INVITATION_ONLY:") or 
+                                    user.password_hash.startswith("INVITATION_ONLY_")):
             raise HTTPException(
                 status_code=403,
                 detail="This account was created via invitation link and cannot be accessed with password. Please use your invitation link to access the assessment."
@@ -570,7 +575,9 @@ async def forgot_password(
             return {"success": True, "message": "If an account with that email exists, a password reset link has been sent."}
 
         # Prevent invitation-only users from resetting password
-        if user.password_hash and user.password_hash.startswith("INVITATION_ONLY_"):
+        # Support both old format (INVITATION_ONLY_) and new secure format (INVITATION_ONLY:)
+        if user.password_hash and (user.password_hash.startswith("INVITATION_ONLY:") or 
+                                    user.password_hash.startswith("INVITATION_ONLY_")):
             return {"success": True, "message": "If an account with that email exists, a password reset link has been sent."}
 
         # Invalidate any existing tokens for this user
@@ -597,20 +604,43 @@ async def forgot_password(
         db.add(new_token)
         await db.commit()
 
-        reset_link = f"http://127.0.0.1:8000/reset-password?token={token_value}"
-        print(f"Password reset link for {user.email}: {reset_link}")
+        # Build reset link
+        from core.config import settings
+        base_url = "http://127.0.0.1:8000" if settings.DEBUG else os.getenv("BASE_URL", "https://your-domain.com")
+        reset_link = f"{base_url}/reset-password?token={token_value}"
+        
+        # In production: Send email with reset link
+        # TODO: Implement email sending (SendGrid, SES, etc.)
+        # await send_password_reset_email(user.email, reset_link)
+        
+        # Log for debugging (only in development)
+        import logging
+        logger = logging.getLogger(__name__)
+        if settings.DEBUG:
+            logger.info(f"Password reset link for {user.email}: {reset_link}")
 
-        return {
+        # SECURITY: Never return reset_link in API response
+        # The link should only be sent via email
+        response = {
             "success": True,
-            "message": "If an account with that email exists, a password reset link has been sent.",
-            "reset_link": reset_link  # For demo purposes only - remove in production
+            "message": "If an account with that email exists, a password reset link has been sent."
         }
+        
+        # Only include link in development mode for testing
+        if settings.DEBUG and settings.ENVIRONMENT == "development":
+            response["_debug_reset_link"] = reset_link
+            response["_debug_warning"] = "This field is only available in development mode"
+        
+        return response
 
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to initiate password reset: {str(e)}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Password reset failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to initiate password reset. Please try again later.")
 
 
 @router.post("/reset-password")
@@ -655,4 +685,12 @@ async def reset_password(
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Password reset failed: {e}", exc_info=True)
+        from core.config import settings
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "Failed to reset password. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)

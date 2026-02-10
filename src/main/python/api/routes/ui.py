@@ -3,6 +3,7 @@ UI Routes - Serves frontend pages using Jinja2 templates
 Handles all user-facing web pages for the assessment platform
 """
 
+import logging
 from fastapi import APIRouter, Request, HTTPException, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -14,6 +15,12 @@ import os
 from pathlib import Path
 
 from core.database import get_db
+from core.config import settings
+from utils.error_handling import safe_error_response
+from core.security import get_csrf_token
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 
 # Initialize router
@@ -26,6 +33,24 @@ data_dir = python_src_dir / "data"
 
 # Initialize Jinja2 templates
 templates = Jinja2Templates(directory=str(templates_dir))
+
+
+def render_template(request: Request, template_name: str, context: Dict[str, Any]) -> templates.TemplateResponse:
+    """
+    Render a template with CSRF token automatically included.
+    
+    Args:
+        request: FastAPI request object
+        template_name: Name of the template file
+        context: Template context dictionary
+        
+    Returns:
+        TemplateResponse with CSRF token included
+    """
+    # Always include CSRF token in context
+    context["csrf_token"] = get_csrf_token(request)
+    context["request"] = request
+    return templates.TemplateResponse(template_name, context)
 
 
 # Load questions configuration
@@ -43,11 +68,18 @@ def load_questions_config() -> Dict[str, Any]:
         return questions
 
     except FileNotFoundError as e:
-        raise HTTPException(status_code=500, detail=f"Configuration error: {str(e)}")
+        logger.error(f"Questions config file not found: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Configuration file not found")
     except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"Invalid JSON in questions config: {str(e)}")
+        logger.error(f"Invalid JSON in questions config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Invalid configuration file format")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading questions: {str(e)}")
+        logger.error(f"Error loading questions config: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "Error loading questions configuration"
+        raise HTTPException(status_code=500, detail=detail)
 
 
 # Store questions in memory (loaded once at startup)
@@ -87,7 +119,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
         question_key = str(question_num)
         
         if question_key not in questions:
-            print(f"❌ Question {question_num} not found in config")
+            logger.warning(f"Question {question_num} not found in config")
             return {
                 "is_correct": False,
                 "points_earned": 0,
@@ -100,9 +132,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
         module = question_data.get("module", "unknown")
         points = question_data.get("points", 4)
         
-        print(f"🔍 Scoring Q{question_num}: module={module}")
-        print(f"🔍 User answer: '{user_answer}'")
-        print(f"🔍 Question data keys: {list(question_data.keys())}")
+        logger.debug(f"Scoring Q{question_num}: module={module}, user_answer_length={len(user_answer)}")
         
         # Handle different question formats
         is_correct = False
@@ -115,14 +145,11 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             correct_matches = question_data["correct_matches"]
             correct_answer_display = str(correct_matches)
             
-            print(f"📚 VOCABULARY MATCHING: Validating matches...")
-            print(f"📚 Correct matches: {correct_matches}")
-            print(f"📚 User answer raw: {user_answer}")
+            logger.debug(f"Vocabulary matching for Q{question_num}: {len(correct_matches)} terms")
             
             try:
                 # Parse user's JSON answer
                 user_matches = json.loads(user_answer)
-                print(f"📚 User matches parsed: {user_matches}")
                 
                 # Count correct matches
                 correct_count = 0
@@ -133,19 +160,16 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                     # Normalize for comparison (case-insensitive, trim whitespace)
                     if user_definition.strip().lower() == correct_definition.strip().lower():
                         correct_count += 1
-                        print(f"  ✅ '{term}' -> '{user_definition}' CORRECT")
-                    else:
-                        print(f"  ❌ '{term}' -> '{user_definition}' (expected: '{correct_definition}')")
                 
                 # All matches must be correct for full credit
                 is_correct = (correct_count == total_matches)
-                print(f"📚 Result: {correct_count}/{total_matches} correct, is_correct={is_correct}")
+                logger.debug(f"Vocabulary Q{question_num}: {correct_count}/{total_matches} correct")
                 
             except json.JSONDecodeError as e:
-                print(f"📚 JSON parse error: {e}")
+                logger.warning(f"JSON parse error for vocabulary Q{question_num}: {e}")
                 is_correct = False
             except Exception as e:
-                print(f"📚 Error validating vocabulary: {e}")
+                logger.error(f"Error validating vocabulary Q{question_num}: {e}", exc_info=True)
                 is_correct = False
         
         # ============================================================
@@ -153,9 +177,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
         # ============================================================
         elif "expected_keywords" in question_data:
             expected_keywords = question_data["expected_keywords"]
-            print(f"🎤 SPEAKING: Analyzing speech transcription...")
-            print(f"🎤 User answer: {user_answer}")
-            print(f"🎤 Expected keywords: {expected_keywords}")
+            logger.debug(f"Speaking Q{question_num}: Analyzing transcription, {len(expected_keywords)} keywords expected")
             
             # Parse answer format: "recorded_DURATION|TRANSCRIPT" or legacy "recorded_DURATION"
             transcript = ""
@@ -172,19 +194,19 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             if not has_recording:
                 is_correct = False
                 points_earned = 0
-                print(f"🎤 No recording detected")
+                logger.debug(f"Speaking Q{question_num}: No recording detected")
             elif not transcript:
                 # Recording exists but no transcript (speech recognition failed or no speech)
                 # Give minimal points (20% of total) for attempting
                 is_correct = False
                 points_earned = int(points * 0.2)
-                print(f"🎤 Recording detected but no speech transcription available")
+                logger.debug(f"Speaking Q{question_num}: Recording detected but no transcript")
             else:
                 # Analyze transcript for keyword matching
                 transcript_lower = transcript.lower()
                 matched_keywords = []
                 
-                print(f"🎤 Transcript: '{transcript}'")
+                logger.debug(f"Speaking Q{question_num}: Analyzing transcript (length={len(transcript)})")
                 
                 for keyword in expected_keywords:
                     keyword_lower = keyword.lower()
@@ -194,40 +216,31 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                     if keyword_lower in transcript_lower:
                         matched_keywords.append(keyword)
                         matched = True
-                        print(f"  ✅ '{keyword}' found (exact match)")
                     # Check for common variations (e.g., "apologize" vs "apology")
                     elif keyword_lower.replace("ize", "ise") in transcript_lower:
                         matched_keywords.append(keyword)
                         matched = True
-                        print(f"  ✅ '{keyword}' found (ize->ise variation)")
                     elif keyword_lower.replace("ise", "ize") in transcript_lower:
                         matched_keywords.append(keyword)
                         matched = True
-                        print(f"  ✅ '{keyword}' found (ise->ize variation)")
                     # For multi-word keywords (e.g., "send someone"), check if all words appear
                     elif " " in keyword_lower:
                         keyword_words = keyword_lower.split()
                         if all(word in transcript_lower for word in keyword_words):
                             matched_keywords.append(keyword)
                             matched = True
-                            print(f"  ✅ '{keyword}' found (all words present)")
                     # Check root words (e.g., "fix" matches "fixing", "fixed")
                     elif len(keyword_lower) >= 4:
                         root = keyword_lower[:4]
                         if root in transcript_lower:
                             matched_keywords.append(keyword)
                             matched = True
-                            print(f"  ✅ '{keyword}' found (root match: '{root}')")
-                    
-                    if not matched:
-                        print(f"  ❌ '{keyword}' NOT found")
                 
                 total_keywords = len(expected_keywords)
                 matched_count = len(matched_keywords)
                 match_ratio = matched_count / total_keywords if total_keywords > 0 else 0
                 
-                print(f"🎤 Matched {matched_count}/{total_keywords} keywords: {matched_keywords}")
-                print(f"🎤 Match ratio: {match_ratio:.2%}")
+                logger.debug(f"Speaking Q{question_num}: Matched {matched_count}/{total_keywords} keywords (ratio={match_ratio:.2%})")
                 
                 # Scoring algorithm:
                 # - 50%+ keywords matched: full points
@@ -251,7 +264,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                     points_earned = int(points * 0.2)
                     is_correct = False
                 
-                print(f"🎤 Score: {points_earned}/{points} points ({'PASS' if is_correct else 'PARTIAL'})")
+                logger.debug(f"Speaking Q{question_num}: Score {points_earned}/{points} points")
             
             correct_answer_display = f"Expected keywords: {', '.join(expected_keywords)}"
         
@@ -263,10 +276,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             options = question_data["options"]
             correct_answer_display = correct_answer
             
-            print(f"📝 MULTIPLE CHOICE: Comparing answers...")
-            print(f"📝 Options: {options}")
-            print(f"📝 Correct: '{correct_answer}'")
-            print(f"📝 User: '{user_answer}'")
+            logger.debug(f"Multiple choice Q{question_num}: Comparing answers")
             
             # For multiple choice, do EXACT comparison (case-insensitive, trimmed)
             user_clean = user_answer.strip()
@@ -283,7 +293,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                         is_correct = option.strip().lower() == correct_clean.lower()
                         break
             
-            print(f"📝 Result: user='{user_clean}', correct='{correct_clean}', is_correct={is_correct}")
+            logger.debug(f"Multiple choice Q{question_num}: is_correct={is_correct}")
         
         # ============================================================
         # TYPE 4: FILL-IN-THE-BLANK (no options, has "correct" field)
@@ -293,9 +303,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             correct_answer = question_data["correct"]
             correct_answer_display = correct_answer
             
-            print(f"✏️ FILL-IN-BLANK: Comparing with flexible matching...")
-            print(f"✏️ Correct: '{correct_answer}'")
-            print(f"✏️ User: '{user_answer}'")
+            logger.debug(f"Fill-in-blank Q{question_num}: Comparing with flexible matching")
             
             # Flexible matching for fill-in-the-blank (numbers, times)
             def normalize_fill_in(ans: str) -> str:
@@ -312,7 +320,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                             hour = str(int(parts[0]))  # Remove leading zero
                             minute = parts[1].strip()
                             ans = f"{hour}:{minute}" if minute != "00" else hour
-                        except:
+                        except ValueError:
                             pass
                 # Remove extra whitespace
                 ans = " ".join(ans.split())
@@ -332,13 +340,12 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                 if user_digits and correct_digits:
                     is_correct = user_digits == correct_digits
                     if is_correct:
-                        print(f"✏️ Matched by digits: '{user_digits}' == '{correct_digits}'")
+                        logger.debug(f"Fill-in-blank Q{question_num}: Matched by digits")
             
-            print(f"✏️ Result: user_norm='{user_normalized}', correct_norm='{correct_normalized}', is_correct={is_correct}")
+            logger.debug(f"Fill-in-blank Q{question_num}: is_correct={is_correct}")
         
         else:
-            print(f"⚠️ Unknown question format for Q{question_num}")
-            print(f"⚠️ Question data: {question_data}")
+            logger.warning(f"Unknown question format for Q{question_num}, question_data keys: {list(question_data.keys())}")
             correct_answer_display = "N/A"
         
         # Calculate points (only if not already set by type-specific logic)
@@ -363,18 +370,16 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             "module": module
         }
         
-        print(f"✅ FINAL Scoring result for Q{question_num}: is_correct={is_correct}, points={points_earned}/{points}")
+        logger.debug(f"Final scoring Q{question_num}: is_correct={is_correct}, points={points_earned}/{points}")
         return result
         
     except Exception as e:
-        print(f"❌ ERROR in score_answer_from_config: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error in score_answer_from_config for Q{question_num}: {e}", exc_info=True)
         return {
             "is_correct": False,
             "points_earned": 0,
             "points_possible": 4,
-            "feedback": f"Error scoring answer: {str(e)}",
+            "feedback": "Error scoring answer" if not settings.DEBUG else f"Error: {str(e)}",
             "module": "unknown"
         }
 
@@ -446,7 +451,7 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
                 # Start the existing assessment
                 await engine.start_assessment(existing_assessment_id)
                 assessment = existing_assessment
-                print(f"▶️ STARTING EXISTING ASSESSMENT: id={assessment.id}, operation={operation}")
+                logger.info(f"Starting existing assessment {assessment.id} for operation {operation}")
             else:
                 # Existing assessment is invalid or already started, create new one
                 assessment = await engine.create_assessment(
@@ -455,7 +460,7 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
                 )
                 request.session["assessment_id"] = assessment.id
                 await engine.start_assessment(assessment.id)
-                print(f"🆕 NEW ASSESSMENT CREATED AND STARTED: id={assessment.id}, operation={operation}")
+                logger.info(f"Created and started new assessment {assessment.id} for operation {operation}")
         else:
             # No existing assessment, create new one
             assessment = await engine.create_assessment(
@@ -464,14 +469,14 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
             )
             request.session["assessment_id"] = assessment.id
             await engine.start_assessment(assessment.id)
-            print(f"🆕 NEW ASSESSMENT CREATED AND STARTED: id={assessment.id}, operation={operation}")
+            logger.info(f"Created and started new assessment {assessment.id} for operation {operation}")
 
         # IMPORTANT: Clear old session data before starting new assessment
         # This ensures fresh scoring for each new test
         request.session["operation"] = operation
         request.session["answers"] = {}  # Clear old answers!
         
-        print(f"🧹 Cleared session answers for fresh start")
+        logger.debug("Cleared session answers for fresh start")
 
         # Redirect to first question
         return RedirectResponse(url=f"/question/1?operation={operation}", status_code=303)
@@ -479,11 +484,12 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
     except HTTPException:
         raise
     except Exception as e:
-        # Log the full error for debugging
-        import traceback
-        print(f"ERROR in start_assessment: {str(e)}")
-        print(f"Full traceback:\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error starting assessment: {str(e)}")
+        logger.error(f"Error in start_assessment: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while starting the assessment. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/question/{question_num}", response_class=HTMLResponse)
@@ -495,7 +501,7 @@ async def question_page(request: Request, question_num: int, operation: Optional
         question_num: Question number (1-21)
         operation: Operation type (HOTEL, MARINE, or CASINO) - optional for backward compatibility
     """
-    print(f"📄 DEBUG: GET /question/{question_num} - operation={operation}")
+    logger.debug(f"GET /question/{question_num} - operation={operation}")
     try:
         # Validate question number
         if question_num < 1 or question_num > 21:
@@ -559,12 +565,17 @@ async def question_page(request: Request, question_num: int, operation: Optional
 
         # Use generic question template for all modules
         # TODO: Create module-specific templates in the future
-        return templates.TemplateResponse("question.html", context)
+        return render_template(request, "question.html", context)
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering question {question_num}: {str(e)}")
+        logger.error(f"Error rendering question {question_num}: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the question. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.post("/submit")
@@ -573,7 +584,8 @@ async def submit_answer(
     question_num: int = Form(...),
     answer: str = Form(...),
     operation: Optional[str] = Form(None),
-    time_spent: Optional[int] = Form(None)
+    time_spent: Optional[int] = Form(None),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Submit answer for a question
@@ -614,61 +626,62 @@ async def submit_answer(
             if not user_id:
                 # Create temporary guest user for demo/testing
                 # In production, user should be registered first
-                from core.database import get_db
                 from models.assessment import User, DivisionType
+                from utils.auth import hash_password
+                import secrets
 
-                async for db in get_db():
-                    # Check if guest user exists
-                    from sqlalchemy import select
-                    guest_result = await db.execute(
-                        select(User).where(User.email == "guest@demo.com")
+                # Check if guest user exists
+                from sqlalchemy import select
+                guest_result = await db.execute(
+                    select(User).where(User.email == "guest@demo.com")
+                )
+                guest_user = guest_result.scalar_one_or_none()
+
+                if not guest_user:
+                    # Create guest user with secure password hash
+                    # Use environment variable or generate secure password
+                    guest_password = os.getenv("GUEST_USER_PASSWORD", secrets.token_urlsafe(16))
+                    guest_user = User(
+                        first_name="Guest",
+                        last_name="User",
+                        email="guest@demo.com",
+                        nationality="USA",
+                        password_hash=hash_password(guest_password),
+                        division=DivisionType.HOTEL if operation == "HOTEL" else (
+                            DivisionType.MARINE if operation == "MARINE" else DivisionType.CASINO
+                        ),
+                        department="Demo"
                     )
-                    guest_user = guest_result.scalar_one_or_none()
+                    db.add(guest_user)
+                    await db.commit()
+                    await db.refresh(guest_user)
+                    logger.info(f"Created guest user for demo: {guest_user.id}")
 
-                    if not guest_user:
-                        # Create guest user
-                        guest_user = User(
-                            first_name="Guest",
-                            last_name="User",
-                            email="guest@demo.com",
-                            nationality="USA",
-                            division=DivisionType.HOTEL if operation == "HOTEL" else (
-                                DivisionType.MARINE if operation == "MARINE" else DivisionType.CASINO
-                            ),
-                            department="Demo"
-                        )
-                        db.add(guest_user)
-                        await db.commit()
-                        await db.refresh(guest_user)
+                user_id = guest_user.id
+                session["user_id"] = user_id
 
-                    user_id = guest_user.id
-                    session["user_id"] = user_id
+                # Create assessment
+                from core.assessment_engine import AssessmentEngine
+                engine = AssessmentEngine(db)
 
-                    # Create assessment
-                    from core.assessment_engine import AssessmentEngine
-                    engine = AssessmentEngine(db)
+                assessment = await engine.create_assessment(
+                    user_id=user_id,
+                    division=guest_user.division
+                )
+                assessment_id = assessment.id
+                session["assessment_id"] = assessment_id
 
-                    assessment = await engine.create_assessment(
-                        user_id=user_id,
-                        division=guest_user.division
-                    )
-                    assessment_id = assessment.id
-                    session["assessment_id"] = assessment_id
-
-                    # Start assessment
-                    await engine.start_assessment(assessment_id)
-                    break
+                # Start assessment
+                await engine.start_assessment(assessment_id)
+                logger.info(f"Created and started assessment {assessment_id} for guest user {user_id}")
 
         # UI-BASED SCORING: Use questions_config.json directly
         # This avoids the database Question table ID mismatch issue
-        print(f"🔍 DEBUG: Starting UI-based scoring for Q{question_num}")
-        print(f"🔍 DEBUG: assessment_id = {assessment_id}")
-        print(f"🔍 DEBUG: answer = {answer}")
-        print(f"🔍 DEBUG: time_spent = {time_spent}")
+        logger.debug(f"Starting UI-based scoring for Q{question_num}, assessment_id={assessment_id}")
         
         # Score answer using config file
         result = score_answer_from_config(question_num, answer)
-        print(f"✅ DEBUG: UI scoring result: {result}")
+        logger.debug(f"UI scoring result for Q{question_num}: is_correct={result.get('is_correct')}, points={result.get('points_earned')}")
         
         # Store result in session - MINIMAL DATA to avoid Cookie size limit (4KB)
         # Only store: question_num -> "module:points" (e.g., "reading:4")
@@ -677,26 +690,23 @@ async def submit_answer(
         answers[str(question_num)] = f"{result.get('module', 'unknown')}:{result['points_earned']}"
         session["answers"] = answers
         
-        print(f"✅ DEBUG: Stored Q{question_num} -> {answers[str(question_num)]}")
-        print(f"✅ DEBUG: Total answers: {len(answers)}, Session size ~{len(str(answers))} bytes")
+        logger.debug(f"Stored Q{question_num} answer. Total answers: {len(answers)}")
 
         # Determine next action
         if question_num == 21:
-            print(f"🎯 DEBUG: Last question (Q21) reached!")
+            logger.info(f"Last question (Q21) reached for assessment {assessment_id}")
             # Last question - calculate final scores from session
             if assessment_id:
                 try:
-                    from core.database import get_db
                     from models.assessment import Assessment, AssessmentStatus
                     from sqlalchemy import select
                     
-                    print(f"🎯 DEBUG: Calculating scores for assessment_id={assessment_id}")
+                    logger.debug(f"Calculating final scores for assessment_id={assessment_id}")
                     
                     # Calculate scores from session answers
                     # Format: answers = {"1": "listening:5", "2": "listening:5", ...}
                     answers = session.get("answers", {})
-                    print(f"📊 DEBUG: Found {len(answers)} answers in session")
-                    print(f"📊 DEBUG: Raw answers: {answers}")
+                    logger.debug(f"Found {len(answers)} answers in session")
                     
                     # Group by module and calculate scores
                     module_scores = {
@@ -715,7 +725,8 @@ async def submit_answer(
                             module = parts[0].lower().replace(" & ", "_").replace(" ", "_")
                             try:
                                 points = int(parts[1])
-                            except:
+                            except (ValueError, IndexError):
+                                logger.warning(f"Invalid answer format for Q{q_num}: {answer_data}")
                                 points = 0
                         elif isinstance(answer_data, dict):
                             # Legacy format support
@@ -726,47 +737,41 @@ async def submit_answer(
                         
                         if module in module_scores:
                             module_scores[module] += points
-                            print(f"  Q{q_num}: {module} += {points} points")
                     
                     total_score = sum(module_scores.values())
-                    print(f"✅ DEBUG: Calculated total_score = {total_score}")
-                    print(f"✅ DEBUG: Module breakdown: {module_scores}")
+                    logger.info(f"Calculated total_score={total_score} for assessment {assessment_id}. Module breakdown: {module_scores}")
                     
                     # Update database with final scores
-                    async for db in get_db():
-                        result = await db.execute(
-                            select(Assessment).where(Assessment.id == assessment_id)
-                        )
-                        assessment = result.scalar_one_or_none()
+                    result = await db.execute(
+                        select(Assessment).where(Assessment.id == assessment_id)
+                    )
+                    assessment = result.scalar_one_or_none()
+                    
+                    if assessment:
+                        assessment.status = AssessmentStatus.COMPLETED
+                        assessment.completed_at = datetime.now()
+                        assessment.total_score = total_score
+                        assessment.listening_score = module_scores["listening"]
+                        assessment.time_numbers_score = module_scores["time_numbers"]
+                        assessment.grammar_score = module_scores["grammar"]
+                        assessment.vocabulary_score = module_scores["vocabulary"]
+                        assessment.reading_score = module_scores["reading"]
+                        assessment.speaking_score = module_scores["speaking"]
+                        assessment.passed = total_score >= settings.PASS_THRESHOLD_TOTAL
                         
-                        if assessment:
-                            assessment.status = AssessmentStatus.COMPLETED
-                            assessment.completed_at = datetime.now()
-                            assessment.total_score = total_score
-                            assessment.listening_score = module_scores["listening"]
-                            assessment.time_numbers_score = module_scores["time_numbers"]
-                            assessment.grammar_score = module_scores["grammar"]
-                            assessment.vocabulary_score = module_scores["vocabulary"]
-                            assessment.reading_score = module_scores["reading"]
-                            assessment.speaking_score = module_scores["speaking"]
-                            assessment.passed = total_score >= 70
-                            
-                            await db.commit()
-                            print(f"✅ DEBUG: Assessment updated in database")
-                        else:
-                            print(f"⚠️ DEBUG: Assessment {assessment_id} not found in database")
-                        break
+                        await db.commit()
+                        logger.info(f"Assessment {assessment_id} completed and updated in database")
+                    else:
+                        logger.warning(f"Assessment {assessment_id} not found in database")
                         
                 except Exception as e:
-                    print(f"❌ ERROR completing assessment: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    logger.error(f"Error completing assessment {assessment_id}: {e}", exc_info=True)
                     # Continue to results even if scoring fails
             else:
-                print(f"⚠️ DEBUG: No assessment_id found for complete_assessment")
+                logger.warning("No assessment_id found for complete_assessment")
 
             # Redirect to results
-            print(f"🔄 DEBUG: Redirecting to /results")
+            logger.debug("Redirecting to /results")
             return RedirectResponse(url="/results", status_code=303)
         else:
             # Go to next question, preserve operation parameter if present
@@ -779,11 +784,16 @@ async def submit_answer(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error submitting answer: {str(e)}")
+        logger.error(f"Error submitting answer for Q{question_num}: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while submitting your answer. Please try again."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/results", response_class=HTMLResponse)
-async def results_page(request: Request):
+async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Results page - Display assessment results
 
@@ -798,7 +808,7 @@ async def results_page(request: Request):
         session = request.session
         assessment_id = session.get("assessment_id")
 
-        print(f"🔍 DEBUG /results: assessment_id from session = {assessment_id}")
+        logger.debug(f"Results page requested, assessment_id from session: {assessment_id}")
 
         modules = []
         total_score = 0
@@ -806,55 +816,40 @@ async def results_page(request: Request):
 
         if assessment_id:
             try:
-                from core.database import get_db
                 from models.assessment import Assessment
                 from sqlalchemy import select
 
-                print(f"🔍 DEBUG: Fetching assessment {assessment_id} from database...")
-                async for db in get_db():
-                    # Fetch assessment from database
-                    result = await db.execute(
-                        select(Assessment).where(Assessment.id == assessment_id)
-                    )
-                    assessment = result.scalar_one_or_none()
+                logger.debug(f"Fetching assessment {assessment_id} from database")
+                # Fetch assessment from database
+                result = await db.execute(
+                    select(Assessment).where(Assessment.id == assessment_id)
+                )
+                assessment = result.scalar_one_or_none()
 
-                    print(f"🔍 DEBUG: Assessment object: {assessment}")
-                    if assessment:
-                        print(f"📊 DEBUG: listening_score = {assessment.listening_score}")
-                        print(f"📊 DEBUG: time_numbers_score = {assessment.time_numbers_score}")
-                        print(f"📊 DEBUG: grammar_score = {assessment.grammar_score}")
-                        print(f"📊 DEBUG: vocabulary_score = {assessment.vocabulary_score}")
-                        print(f"📊 DEBUG: reading_score = {assessment.reading_score}")
-                        print(f"📊 DEBUG: speaking_score = {assessment.speaking_score}")
-                        print(f"📊 DEBUG: total_score = {assessment.total_score}")
-                        print(f"📊 DEBUG: status = {assessment.status}")
-
-                        # Use actual scores from database (calculated by complete_assessment)
-                        modules = [
-                            {"name": "Listening", "score": assessment.listening_score or 0, "possible": 16, "icon": "🎧"},
-                            {"name": "Time & Numbers", "score": assessment.time_numbers_score or 0, "possible": 16, "icon": "🔢"},
-                            {"name": "Grammar", "score": assessment.grammar_score or 0, "possible": 16, "icon": "📝"},
-                            {"name": "Vocabulary", "score": assessment.vocabulary_score or 0, "possible": 16, "icon": "📚"},
-                            {"name": "Reading", "score": assessment.reading_score or 0, "possible": 16, "icon": "📖"},
-                            {"name": "Speaking", "score": assessment.speaking_score or 0, "possible": 20, "icon": "🎤"}
-                        ]
-                        total_score = assessment.total_score or 0
-                        print(f"✅ DEBUG: Built modules list with total_score = {total_score}")
-                    else:
-                        print(f"⚠️ DEBUG: No assessment found in database for id {assessment_id}")
-                    break
+                if assessment:
+                    logger.debug(f"Found assessment {assessment_id} with total_score={assessment.total_score}")
+                    # Use actual scores from database (calculated by complete_assessment)
+                    modules = [
+                        {"name": "Listening", "score": assessment.listening_score or 0, "possible": 16, "icon": "🎧"},
+                        {"name": "Time & Numbers", "score": assessment.time_numbers_score or 0, "possible": 16, "icon": "🔢"},
+                        {"name": "Grammar", "score": assessment.grammar_score or 0, "possible": 16, "icon": "📝"},
+                        {"name": "Vocabulary", "score": assessment.vocabulary_score or 0, "possible": 16, "icon": "📚"},
+                        {"name": "Reading", "score": assessment.reading_score or 0, "possible": 16, "icon": "📖"},
+                        {"name": "Speaking", "score": assessment.speaking_score or 0, "possible": 20, "icon": "🎤"}
+                    ]
+                    total_score = assessment.total_score or 0
+                    logger.debug(f"Built modules list with total_score={total_score}")
+                else:
+                    logger.warning(f"No assessment found in database for id {assessment_id}")
             except Exception as e:
-                print(f"❌ ERROR fetching assessment results: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Error fetching assessment results for {assessment_id}: {e}", exc_info=True)
                 # If error, modules will remain empty list
-                pass
         else:
-            print(f"⚠️ DEBUG: No assessment_id in session")
+            logger.debug("No assessment_id in session")
 
         # If no modules found (no assessment or error), show error message
         if not modules:
-            print(f"❌ DEBUG: No modules found, raising 404 error")
+            logger.warning("No modules found for results page, returning 404")
             raise HTTPException(
                 status_code=404,
                 detail="Assessment not found. Please complete the assessment first."
@@ -870,8 +865,8 @@ async def results_page(request: Request):
         percentage = int(round((total_score / total_possible) * 100)) if total_possible > 0 else 0
 
         # Determine result status and gradient
-        # Pass threshold is 70% as per config.py PASS_THRESHOLD_TOTAL
-        if percentage >= 70:
+        # Pass threshold from settings
+        if percentage >= settings.PASS_THRESHOLD_TOTAL:
             result_status = "✅ PASSED"
             score_gradient = "linear-gradient(135deg, #34c759 0%, #30d158 100%)"
         else:
@@ -897,10 +892,10 @@ async def results_page(request: Request):
         speaking_score = int(round(modules[5]["score"]))
         speaking_percentage = int(round((modules[5]["score"] / modules[5]["possible"]) * 100))
 
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "results.html",
             {
-                "request": request,
                 "total_score": total_score_int,
                 "score_percentage": percentage,
                 "score_gradient": score_gradient,
@@ -920,12 +915,20 @@ async def results_page(request: Request):
             }
         )
 
+    except HTTPException:
+        # Re-raise HTTPException (like 404) without wrapping
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering results: {str(e)}")
+        logger.error(f"Error rendering results page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading results. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/anti-cheating-report", response_class=HTMLResponse)
-async def anti_cheating_report_page(request: Request):
+async def anti_cheating_report_page(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Anti-Cheating Report Page - Display assessment integrity report
 
@@ -961,44 +964,39 @@ async def anti_cheating_report_page(request: Request):
         # Fetch anti-cheating data from database
         if assessment_id:
             try:
-                from core.database import get_db
                 from utils.anti_cheating import AntiCheatingService
+                from models.assessment import Assessment
+                from sqlalchemy import select
 
-                async for db in get_db():
-                    # Get anti-cheating service
-                    anti_cheat = AntiCheatingService(db)
+                # Get anti-cheating service
+                anti_cheat = AntiCheatingService(db)
 
-                    # Get suspicious score
-                    score_data = await anti_cheat.get_suspicious_score(assessment_id)
+                # Get suspicious score
+                score_data = await anti_cheat.get_suspicious_score(assessment_id)
 
-                    suspicious_score = score_data.get("score", 0)
-                    risk_level = score_data.get("level", "clean")
-                    risk_factors = score_data.get("factors", [])
+                suspicious_score = score_data.get("score", 0)
+                risk_level = score_data.get("level", "clean")
+                risk_factors = score_data.get("factors", [])
 
-                    # Get session validation
-                    validation = await anti_cheat.validate_session(assessment_id, request)
-                    ip_changed = not validation.get("ip_consistent", True)
-                    ua_changed = not validation.get("user_agent_consistent", True)
+                # Get session validation
+                validation = await anti_cheat.validate_session(assessment_id, request)
+                ip_changed = not validation.get("ip_consistent", True)
+                ua_changed = not validation.get("user_agent_consistent", True)
 
-                    # Get assessment details
-                    from models.assessment import Assessment
-                    from sqlalchemy import select
+                # Get assessment details
+                result = await db.execute(
+                    select(Assessment).where(Assessment.id == assessment_id)
+                )
+                assessment = result.scalar_one_or_none()
 
-                    result = await db.execute(
-                        select(Assessment).where(Assessment.id == assessment_id)
-                    )
-                    assessment = result.scalar_one_or_none()
-
-                    if assessment and assessment.analytics_data:
-                        analytics = assessment.analytics_data
-                        tab_switches = analytics.get("tab_switches", 0)
-                        copy_paste_attempts = analytics.get("copy_paste_attempts", 0)
-                        session_start_time = analytics.get("session_start_time", "Unknown")
-                        ip_address = assessment.ip_address or "Unknown"
-
-                    break
+                if assessment and assessment.analytics_data:
+                    analytics = assessment.analytics_data
+                    tab_switches = analytics.get("tab_switches", 0)
+                    copy_paste_attempts = analytics.get("copy_paste_attempts", 0)
+                    session_start_time = analytics.get("session_start_time", "Unknown")
+                    ip_address = assessment.ip_address or "Unknown"
             except Exception as e:
-                print(f"Error fetching anti-cheating data: {e}")
+                logger.error(f"Error fetching anti-cheating data for assessment {assessment_id}: {e}", exc_info=True)
                 # Use default values
 
         # Check if demo mode is requested
@@ -1060,10 +1058,10 @@ async def anti_cheating_report_page(request: Request):
         if not risk_factors:
             risk_factors = []
 
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "anti_cheating_report.html",
             {
-                "request": request,
                 "assessment_id": assessment_id or "N/A",
                 "suspicious_score": suspicious_score,
                 "risk_level": risk_level,
@@ -1078,8 +1076,15 @@ async def anti_cheating_report_page(request: Request):
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering anti-cheating report: {str(e)}")
+        logger.error(f"Error rendering anti-cheating report: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the report. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/instructions", response_class=HTMLResponse)
@@ -1113,17 +1118,24 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
             ]
         }
 
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "instructions.html",
             {
-                "request": request,
                 "instructions": instructions_data,
                 "operation": operation  # Pass operation to template
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering instructions: {str(e)}")
+        logger.error(f"Error rendering instructions page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading instructions. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/invitation", response_class=HTMLResponse)
@@ -1138,15 +1150,22 @@ async def invitation_verify_page(request: Request, code: Optional[str] = None):
         code: Optional invitation code from URL (auto-verify)
     """
     try:
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "invitation_verify.html",
             {
-                "request": request,
                 "code": code
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering invitation page: {str(e)}")
+        logger.error(f"Error rendering invitation page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -1189,10 +1208,10 @@ async def registration_page(request: Request, code: Optional[str] = None, db: As
             if invitation.expires_at and invitation.expires_at < datetime.now():
                 raise HTTPException(status_code=400, detail="Invitation code expired")
 
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "registration.html",
             {
-                "request": request,
                 "invitation_code": code
             }
         )
@@ -1200,7 +1219,12 @@ async def registration_page(request: Request, code: Optional[str] = None, db: As
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering registration: {str(e)}")
+        logger.error(f"Error rendering registration page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the registration page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -1209,16 +1233,23 @@ async def login_page(request: Request):
     Login page - User authentication
     """
     try:
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "login.html",
             {
-                "request": request,
                 "title": "Login - CCL English Assessment"
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering login page: {str(e)}")
+        logger.error(f"Error rendering login page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the login page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/forgot-password", response_class=HTMLResponse)
@@ -1227,15 +1258,22 @@ async def forgot_password_page(request: Request):
     Forgot password page - Request password reset
     """
     try:
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "forgot_password.html",
             {
-                "request": request,
                 "title": "Forgot Password - CCL English Assessment"
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering forgot password page: {str(e)}")
+        logger.error(f"Error rendering forgot password page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/reset-password", response_class=HTMLResponse)
@@ -1244,16 +1282,23 @@ async def reset_password_page(request: Request, token: Optional[str] = None):
     Reset password page - Set new password using token
     """
     try:
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "reset_password.html",
             {
-                "request": request,
                 "title": "Reset Password - CCL English Assessment",
                 "token": token
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering reset password page: {str(e)}")
+        logger.error(f"Error rendering reset password page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 # Health check endpoint
@@ -1266,22 +1311,7 @@ async def debug_session(request: Request):
         answers = session.get("answers", {})
         assessment_id = session.get("assessment_id")
         
-        print(f"\n{'='*70}")
-        print(f"DEBUG SESSION DATA:")
-        print(f"{'='*70}")
-        print(f"Assessment ID: {assessment_id}")
-        print(f"Total answers in session: {len(answers)}")
-        print(f"\nAnswers breakdown:")
-        
-        for q_num, answer_data in answers.items():
-            print(f"\nQ{q_num}:")
-            print(f"  Answer: {answer_data.get('answer')}")
-            print(f"  Correct: {answer_data.get('is_correct')}")
-            print(f"  Points Earned: {answer_data.get('points_earned')}")
-            print(f"  Points Possible: {answer_data.get('points_possible')}")
-            print(f"  Module: {answer_data.get('module')}")
-        
-        print(f"{'='*70}\n")
+        logger.debug(f"Session data - Assessment ID: {assessment_id}, Total answers: {len(answers)}")
         
         return {
             "assessment_id": assessment_id,
@@ -1289,7 +1319,8 @@ async def debug_session(request: Request):
             "answers": answers
         }
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"Error in debug_session: {e}", exc_info=True)
+        return {"error": "An error occurred" if not settings.DEBUG else str(e)}
 
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
@@ -1302,14 +1333,20 @@ async def admin_dashboard(request: Request):
         if not request.session.get("is_admin"):
             return RedirectResponse(url="/login", status_code=303)
         
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "admin_dashboard.html",
-            {
-                "request": request
-            }
+            {}
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering admin dashboard: {str(e)}")
+        logger.error(f"Error rendering admin dashboard: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the dashboard. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/admin/invitations", response_class=HTMLResponse)
@@ -1323,14 +1360,20 @@ async def admin_invitation_page(request: Request):
         if not request.session.get("is_admin"):
             return RedirectResponse(url="/login", status_code=303)
         
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "admin_invitation.html",
-            {
-                "request": request
-            }
+            {}
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering admin page: {str(e)}")
+        logger.error(f"Error rendering admin invitation page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/admin/scoreboard", response_class=HTMLResponse)
@@ -1344,14 +1387,20 @@ async def admin_scoreboard_page(request: Request):
         if not request.session.get("is_admin"):
             return RedirectResponse(url="/login", status_code=303)
         
-        return templates.TemplateResponse(
+        return render_template(
+            request,
             "admin_scoreboard.html",
-            {
-                "request": request
-            }
+            {}
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rendering scoreboard page: {str(e)}")
+        logger.error(f"Error rendering scoreboard page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the scoreboard. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.get("/health")

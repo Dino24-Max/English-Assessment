@@ -2,10 +2,19 @@
 Unit tests for assessment engine
 """
 
+import sys
+from pathlib import Path
+
+# Add src/main/python to path BEFORE any other imports
+project_root = Path(__file__).parent.parent.parent.parent
+python_src = project_root / "src" / "main" / "python"
+if str(python_src) not in sys.path:
+    sys.path.insert(0, str(python_src))
+
 import pytest
 from unittest.mock import Mock, AsyncMock
-from src.main.python.core.assessment_engine import AssessmentEngine
-from src.main.python.models.assessment import DivisionType
+from core.assessment_engine import AssessmentEngine
+from models.assessment import DivisionType
 
 
 @pytest.fixture

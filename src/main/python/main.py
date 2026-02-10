@@ -5,8 +5,9 @@ Main FastAPI application entry point
 
 import os
 import uvicorn
+import logging
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -15,6 +16,17 @@ from contextlib import asynccontextmanager
 from core.database import engine, Base
 from api.routes import assessment, admin, analytics, ui, auth
 from core.config import settings
+from core.logging_config import setup_logging
+from core.security import (
+    CSRFMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    get_csrf_token
+)
+
+# Setup logging first, before any other imports that might log
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -48,20 +60,43 @@ def create_app() -> FastAPI:
     )
 
     # Session middleware (must be added before CORS)
+    # Security: Use secure session configuration
+    if not hasattr(settings, 'SECRET_KEY') or not settings.SECRET_KEY:
+        logger.error("SECRET_KEY is not configured. This is a security risk!")
+        raise ValueError("SECRET_KEY must be set in production environment")
+    
     app.add_middleware(
         SessionMiddleware,
-        secret_key=settings.SECRET_KEY if hasattr(settings, 'SECRET_KEY') else "your-secret-key-change-in-production",
-        max_age=3600 * 24 * 7  # 7 days
+        secret_key=settings.SECRET_KEY,
+        max_age=3600 * 24 * 7,  # 7 days
+        same_site="lax",  # CSRF protection
+        https_only=not settings.DEBUG,  # Force HTTPS in production
     )
 
-    # CORS middleware
+    # CORS middleware - Security: Restrict methods and headers
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.ALLOWED_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Restrict methods
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-CSRF-Token"],  # Include CSRF header
+        expose_headers=["Content-Type", "Content-Length", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+        max_age=3600,
     )
+    
+    # Security Headers middleware - Add security headers to all responses
+    if settings.SECURITY_HEADERS_ENABLED:
+        app.add_middleware(SecurityHeadersMiddleware)
+    
+    # Rate Limiting middleware - Prevent DoS attacks
+    if settings.RATE_LIMIT_ENABLED:
+        app.add_middleware(RateLimitMiddleware)
+        logger.info("Rate limiting middleware enabled")
+    
+    # CSRF Protection middleware - Prevent cross-site request forgery
+    if settings.CSRF_ENABLED:
+        app.add_middleware(CSRFMiddleware)
+        logger.info("CSRF protection middleware enabled")
 
     # Static files - Ensure directories exist
     python_src_dir = Path(__file__).parent
@@ -106,15 +141,16 @@ def create_app() -> FastAPI:
 app = create_app()
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("Cruise Employee English Assessment Platform")
-    print("=" * 60)
-    print(f"Server running at: http://{settings.HOST}:{settings.PORT}")
-    print(f"Health check: http://{settings.HOST}:{settings.PORT}/health")
-    print(f"API docs: http://{settings.HOST}:{settings.PORT}/docs")
-    print(f"Debug mode: {settings.DEBUG}")
-    print("=" * 60)
-    print("\nPress CTRL+C to stop the server\n")
+    logger.info("=" * 60)
+    logger.info("Cruise Employee English Assessment Platform")
+    logger.info("=" * 60)
+    logger.info(f"Server running at: http://{settings.HOST}:{settings.PORT}")
+    logger.info(f"Health check: http://{settings.HOST}:{settings.PORT}/health")
+    logger.info(f"API docs: http://{settings.HOST}:{settings.PORT}/docs")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info("=" * 60)
+    logger.info("Press CTRL+C to stop the server")
 
     uvicorn.run(
         "main:app",

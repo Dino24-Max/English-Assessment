@@ -525,6 +525,7 @@
                             <tr>
                                 <th class="sortable" onclick="sortTable('user_id')">ID</th>
                                 <th class="sortable" onclick="sortTable('full_name')">Full Name</th>
+                                <th class="sortable" onclick="sortTable('nationality')">Nationality</th>
                                 <th class="sortable" onclick="sortTable('email')">Email</th>
                                 <th class="sortable" onclick="sortTable('operation')">Operation</th>
                                 <th class="sortable" onclick="sortTable('department')">Department</th>
@@ -544,6 +545,7 @@
                                 <tr>
                                     <td>${item.user_id}</td>
                                     <td><strong>${item.full_name}</strong></td>
+                                    <td>${item.nationality || '-'}</td>
                                     <td>${item.email}</td>
                                     <td>${item.operation ? item.operation.toUpperCase() : '-'}</td>
                                     <td>${item.department ? item.department.toUpperCase() : '-'}</td>

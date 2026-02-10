@@ -3,6 +3,15 @@ Unit tests for anti-cheating service
 Tests IP tracking, user agent validation, and suspicious behavior detection
 """
 
+import sys
+from pathlib import Path
+
+# Add src/main/python to path BEFORE any other imports
+project_root = Path(__file__).parent.parent.parent.parent
+python_src = project_root / "src" / "main" / "python"
+if str(python_src) not in sys.path:
+    sys.path.insert(0, str(python_src))
+
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 from datetime import datetime
@@ -322,12 +331,7 @@ class TestSuspiciousScoring:
         result_mock.scalar_one_or_none.return_value = mock_assessment
         mock_db.execute.return_value = result_mock
 
-        # Mock validate_session to return clean
-        anti_cheating_service.validate_session = AsyncMock(return_value={
-            "ip_consistent": True,
-            "user_agent_consistent": True
-        })
-
+        # get_suspicious_score now uses stored data, no need to mock validate_session
         result = await anti_cheating_service.get_suspicious_score(1)
 
         assert result["score"] == 0
@@ -339,36 +343,36 @@ class TestSuspiciousScoring:
     async def test_get_suspicious_score_ip_change(self, anti_cheating_service, mock_db,
                                                    mock_assessment):
         """Test score calculation with IP change"""
+        # Set up assessment with IP change
+        mock_assessment.analytics_data["initial_ip"] = "192.168.1.100"
+        mock_assessment.ip_address = "10.0.0.1"  # Different IP
+        
         result_mock = AsyncMock()
         result_mock.scalar_one_or_none.return_value = mock_assessment
         mock_db.execute.return_value = result_mock
-
-        anti_cheating_service.validate_session = AsyncMock(return_value={
-            "ip_consistent": False,
-            "user_agent_consistent": True
-        })
 
         result = await anti_cheating_service.get_suspicious_score(1)
 
         assert result["score"] >= 40  # IP change adds 40 points
         assert result["level"] in ["high", "critical"]
         assert result["requires_review"] is True
-        assert "IP address changed" in result["factors"]
+        assert any("IP address changed" in f for f in result["factors"])
 
     @pytest.mark.asyncio
     async def test_get_suspicious_score_multiple_violations(self, anti_cheating_service,
                                                             mock_db, mock_assessment):
         """Test score with multiple violations"""
+        # Set up multiple violations
         mock_assessment.analytics_data["tab_switches"] = 5
         mock_assessment.analytics_data["copy_paste_attempts"] = 6
+        mock_assessment.analytics_data["initial_ip"] = "192.168.1.100"
+        mock_assessment.ip_address = "10.0.0.1"  # IP changed
+        mock_assessment.analytics_data["initial_user_agent"] = "Chrome"
+        mock_assessment.user_agent = "Firefox"  # UA changed
+        
         result_mock = AsyncMock()
         result_mock.scalar_one_or_none.return_value = mock_assessment
         mock_db.execute.return_value = result_mock
-
-        anti_cheating_service.validate_session = AsyncMock(return_value={
-            "ip_consistent": False,
-            "user_agent_consistent": False
-        })
 
         result = await anti_cheating_service.get_suspicious_score(1)
 
@@ -386,15 +390,14 @@ class TestSuspiciousScoring:
         result_mock.scalar_one_or_none.return_value = mock_assessment
         mock_db.execute.return_value = result_mock
 
-        # Test low level (1-19)
+        # Test low level (1-19) - 1 tab switch = 5 points
         mock_assessment.analytics_data["tab_switches"] = 1
-        anti_cheating_service.validate_session = AsyncMock(return_value={
-            "ip_consistent": True, "user_agent_consistent": True
-        })
+        mock_assessment.analytics_data["initial_ip"] = "192.168.1.100"
+        mock_assessment.ip_address = "192.168.1.100"  # Same IP
         result = await anti_cheating_service.get_suspicious_score(1)
         assert result["level"] == "low"
 
-        # Test medium level (20-39)
+        # Test medium level (20-39) - 4 tab switches = 20 points
         mock_assessment.analytics_data["tab_switches"] = 4
         result = await anti_cheating_service.get_suspicious_score(1)
         assert result["level"] == "medium"

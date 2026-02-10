@@ -448,11 +448,18 @@
                 loginBtn.textContent = 'Logging in...';
 
                 try {
+                    // Get CSRF token if available
+                    const csrfToken = '{{ csrf_token|default("", true) }}';
+                    const headers = {
+                        'Content-Type': 'application/json',
+                    };
+                    if (csrfToken) {
+                        headers['X-CSRF-Token'] = csrfToken;
+                    }
+                    
                     const response = await fetch('/api/v1/auth/login', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: headers,
                         body: JSON.stringify(loginData)
                     });
 
@@ -496,8 +503,15 @@
                                 window.location.href = '/admin';
                             } else {
                                 // Redirect to instructions with user's division
-                                const division = data.division || 'HOTEL';
-                                window.location.href = '/instructions?operation=' + division;
+                                if (!data.division) {
+                                    // User has no division set - show error
+                                    errorMessage.textContent = 'Your account has no division configured. Please use an invitation link or contact administrator.';
+                                    errorMessage.style.display = 'block';
+                                    loginBtn.disabled = false;
+                                    loginBtn.textContent = 'Login';
+                                    return;
+                                }
+                                window.location.href = '/instructions?operation=' + data.division;
                             }
                         }, 1000);
                     } else {

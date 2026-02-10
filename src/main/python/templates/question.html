@@ -753,6 +753,9 @@
             {% if operation %}
             formData.append('operation', '{{ operation }}');
             {% endif %}
+            {% if csrf_token %}
+            formData.append('csrf_token', '{{ csrf_token }}');
+            {% endif %}
 
             // Submit to backend
             fetch('/submit', {

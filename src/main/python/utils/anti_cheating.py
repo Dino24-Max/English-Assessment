@@ -198,8 +198,11 @@ class AntiCheatingService:
 
     async def get_suspicious_score(self, assessment_id: int) -> Dict[str, Any]:
         """
-        Calculate suspicious behavior score
-        Returns score from 0 (clean) to 100 (highly suspicious)
+        Calculate suspicious behavior score based on stored analytics data.
+        Returns score from 0 (clean) to 100 (highly suspicious).
+        
+        Note: This method uses stored data only (no request needed).
+        IP/UA changes are detected by comparing initial vs current stored values.
         """
         result = await self.db.execute(
             select(Assessment).where(Assessment.id == assessment_id)
@@ -207,20 +210,23 @@ class AntiCheatingService:
         assessment = result.scalar_one_or_none()
 
         if not assessment or not assessment.analytics_data:
-            return {"score": 0, "level": "clean"}
+            return {"score": 0, "level": "clean", "factors": [], "requires_review": False}
 
         analytics = assessment.analytics_data
         score = 0
         factors = []
 
-        # IP change: +40 points
-        validation = await self.validate_session(assessment_id, None)
-        if not validation.get("ip_consistent", True):
+        # IP change: +40 points (compare stored initial vs current)
+        initial_ip = analytics.get("initial_ip")
+        current_ip = assessment.ip_address
+        if initial_ip and current_ip and initial_ip != current_ip:
             score += 40
-            factors.append("IP address changed")
+            factors.append(f"IP address changed ({initial_ip} -> {current_ip})")
 
-        # User agent change: +30 points
-        if not validation.get("user_agent_consistent", True):
+        # User agent change: +30 points (compare stored initial vs current)
+        initial_ua = analytics.get("initial_user_agent")
+        current_ua = assessment.user_agent
+        if initial_ua and current_ua and initial_ua != current_ua:
             score += 30
             factors.append("Browser/device changed")
 

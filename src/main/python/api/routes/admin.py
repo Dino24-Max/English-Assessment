@@ -2,10 +2,11 @@
 Admin API endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from core.database import get_db
+from core.config import settings
 from models.assessment import Assessment, User, InvitationCode, DivisionType, AssessmentStatus, AssessmentResponse, ModuleType
 from utils.anti_cheating import AntiCheatingService
 from typing import List, Dict, Any, Optional
@@ -13,8 +14,44 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, EmailStr
 import secrets
 import string
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ===========================================
+# ADMIN AUTHENTICATION DEPENDENCY
+# ===========================================
+
+async def verify_admin_key(admin_key: str = Query(..., description="Admin API key for authentication")):
+    """
+    Dependency to verify admin API key for all admin endpoints.
+    
+    Usage:
+        @router.get("/endpoint")
+        async def endpoint(_: bool = Depends(verify_admin_key)):
+            ...
+    """
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    
+    if not expected_key:
+        logger.error("ADMIN_API_KEY not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="Admin authentication not configured. Please set ADMIN_API_KEY environment variable."
+        )
+    
+    if not secrets.compare_digest(admin_key, expected_key):
+        logger.warning(f"Invalid admin key attempt")
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized - Invalid admin key"
+        )
+    
+    return True
 
 
 @router.post("/load-full-question-bank")
@@ -46,9 +83,18 @@ async def load_full_question_bank(
             "structure": "16 departments × 10 scenarios × 10 questions"
         }
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=f"Question bank file not found: {str(e)}")
+        logger.error(f"Question bank file not found: {e}", exc_info=True)
+        raise HTTPException(status_code=404, detail="Question bank file not found")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load questions: {str(e)}")
+        logger.error(f"Failed to load question bank: {e}", exc_info=True)
+        from core.config import settings
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "Failed to load questions. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
 
 
 # Pydantic models for invitation API
@@ -148,10 +194,14 @@ async def check_admin_config():
 
 
 @router.get("/anti-cheating/assessments", response_model=List[Dict[str, Any]])
-async def get_all_assessments_with_cheating_data(db: AsyncSession = Depends(get_db)):
+async def get_all_assessments_with_cheating_data(
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
+):
     """
     Get all assessments with anti-cheating data
     Shows IP addresses, user agents, suspicious scores, and behavior tracking
+    Requires admin authentication.
     """
     result = await db.execute(
         select(Assessment, User).join(User, Assessment.user_id == User.id)
@@ -205,10 +255,12 @@ async def get_all_assessments_with_cheating_data(db: AsyncSession = Depends(get_
 @router.get("/anti-cheating/assessment/{assessment_id}")
 async def get_assessment_cheating_details(
     assessment_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Get detailed anti-cheating data for a specific assessment
+    Get detailed anti-cheating data for a specific assessment.
+    Requires admin authentication.
     """
     result = await db.execute(
         select(Assessment).where(Assessment.id == assessment_id)
@@ -749,6 +801,7 @@ async def get_all_assessments(
                 "assessment_id": assessment.id,
                 "user_id": user.id,
                 "full_name": f"{user.first_name} {user.last_name}",
+                "nationality": user.nationality,
                 "email": user.email,
                 "operation": user.division.value if user.division else None,
                 "department": user.department,
@@ -896,7 +949,7 @@ async def export_assessments_csv(
         
         # Write header
         writer.writerow([
-            'User ID', 'Full Name', 'Email', 'Operation', 'Department',
+            'User ID', 'Full Name', 'Nationality', 'Email', 'Operation', 'Department',
             'Listening', 'Time & Numbers', 'Grammar', 'Vocabulary', 'Reading', 'Speaking',
             'Total Score', 'Status', 'Test Date'
         ])
@@ -914,6 +967,7 @@ async def export_assessments_csv(
             writer.writerow([
                 user.id,
                 f"{user.first_name} {user.last_name}",
+                user.nationality or '',
                 user.email,
                 user.division.value if user.division else '',
                 user.department or '',

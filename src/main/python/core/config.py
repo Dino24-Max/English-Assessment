@@ -3,9 +3,56 @@ Application configuration using Pydantic Settings
 """
 
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 import os
+import secrets
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+def _get_secret_key() -> str:
+    """
+    Get SECRET_KEY from environment or generate a secure one for development.
+    In production, SECRET_KEY MUST be set via environment variable.
+    """
+    key = os.getenv("SECRET_KEY")
+    if key:
+        return key
+    
+    # Development mode: generate a random key (will change on restart)
+    if os.getenv("DEBUG", "false").lower() == "true":
+        logger.warning("⚠️ SECRET_KEY not set - using random key (development mode only)")
+        return secrets.token_urlsafe(32)
+    
+    # Production mode: require explicit key
+    raise ValueError(
+        "SECRET_KEY environment variable is required in production. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
+
+
+def _get_admin_api_key() -> str:
+    """
+    Get ADMIN_API_KEY from environment or generate for development.
+    In production, ADMIN_API_KEY MUST be set via environment variable.
+    """
+    key = os.getenv("ADMIN_API_KEY")
+    if key:
+        return key
+    
+    # Development mode: use a generated key
+    if os.getenv("DEBUG", "false").lower() == "true":
+        dev_key = "dev_" + secrets.token_urlsafe(16)
+        logger.warning(f"⚠️ ADMIN_API_KEY not set - using generated key for development: {dev_key}")
+        return dev_key
+    
+    # Production mode: require explicit key
+    raise ValueError(
+        "ADMIN_API_KEY environment variable is required in production. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(24))\""
+    )
 
 
 class Settings(BaseSettings):
@@ -17,9 +64,12 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     HOST: str = "127.0.0.1"
     PORT: int = 8000
+    
+    # Environment type (development, staging, production)
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
-    # Security - REQUIRED environment variables (no defaults for security)
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-please-use-secure-key-in-production")
+    # Security - Keys loaded via secure functions
+    SECRET_KEY: str = _get_secret_key()
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:8000", "http://127.0.0.1:8080"]
 
@@ -109,8 +159,8 @@ class Settings(BaseSettings):
     SECURITY_HEADERS_ENABLED: bool = True
     INPUT_VALIDATION_ENABLED: bool = True
 
-    # Admin API Key for question bank management
-    ADMIN_API_KEY: str = "admin123"  # Default admin key for demo/development
+    # Admin API Key for question bank management (loaded via secure function)
+    ADMIN_API_KEY: str = _get_admin_api_key()
 
     class Config:
         env_file = ".env"
