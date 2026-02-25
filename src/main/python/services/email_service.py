@@ -532,9 +532,7 @@ class EmailService:
         to_email: str,
         user_name: str,
         total_score: float,
-        passed: bool,
-        module_scores: Dict[str, float],
-        certificate_url: Optional[str] = None
+        module_scores: Dict[str, float]
     ) -> EmailResult:
         """
         Send assessment completion notification.
@@ -543,17 +541,12 @@ class EmailService:
             to_email: Recipient email
             user_name: User's name
             total_score: Total score achieved
-            passed: Whether the user passed
             module_scores: Scores for each module
-            certificate_url: URL to download certificate (if passed)
             
         Returns:
             EmailResult
         """
-        subject = f"Assessment Complete - {'Congratulations!' if passed else 'Results Available'}"
-        
-        status_color = "#28a745" if passed else "#dc3545"
-        status_text = "PASSED" if passed else "NEEDS IMPROVEMENT"
+        subject = "Your Assessment Results - Cruise Employee English Assessment"
         
         # Build module scores HTML
         module_rows = ""
@@ -563,14 +556,6 @@ class EmailService:
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">{module}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">{score:.1f}</td>
             </tr>
-            """
-        
-        certificate_section = ""
-        if passed and certificate_url:
-            certificate_section = f"""
-            <div style="text-align: center; margin: 20px 0;">
-                <a href="{certificate_url}" class="button" style="background: #28a745;">Download Certificate</a>
-            </div>
             """
         
         html_content = f"""
@@ -583,8 +568,7 @@ class EmailService:
                 .header {{ background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
                 .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
                 .score-box {{ background: white; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                .score {{ font-size: 48px; font-weight: bold; color: {status_color}; }}
-                .status {{ font-size: 24px; color: {status_color}; font-weight: bold; margin-top: 10px; }}
+                .score {{ font-size: 48px; font-weight: bold; color: #014E8F; }}
                 .button {{ display: inline-block; background: #014E8F; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; }}
                 .footer {{ text-align: center; color: #666; font-size: 12px; margin-top: 20px; }}
                 table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
@@ -602,7 +586,6 @@ class EmailService:
                     
                     <div class="score-box">
                         <div class="score">{total_score:.1f}/100</div>
-                        <div class="status">{status_text}</div>
                     </div>
                     
                     <h3>Module Breakdown:</h3>
@@ -614,9 +597,7 @@ class EmailService:
                         {module_rows}
                     </table>
                     
-                    {certificate_section}
-                    
-                    {"<p>Congratulations on passing the assessment! Your certificate is available for download.</p>" if passed else "<p>We encourage you to review the areas where you can improve and retake the assessment when you're ready.</p>"}
+                    <p>Your results have been recorded and will be reviewed by our team. Thank you for your participation.</p>
                 </div>
                 <div class="footer">
                     <p>Thank you for using Cruise Employee Assessment Platform.</p>
@@ -633,12 +614,11 @@ class EmailService:
         
         YOUR RESULTS:
         Total Score: {total_score:.1f}/100
-        Status: {status_text}
         
         MODULE BREAKDOWN:
         {chr(10).join([f"- {module}: {score:.1f}" for module, score in module_scores.items()])}
         
-        {"Congratulations on passing! Your certificate is available." if passed else "We encourage you to review and retake when ready."}
+        Your results have been recorded and will be reviewed by our team.
         
         - Cruise Employee Assessment Platform
         """

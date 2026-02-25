@@ -96,6 +96,71 @@ def get_questions() -> Dict[str, Any]:
     return QUESTIONS_CONFIG
 
 
+# Module information for transition screens
+MODULE_INFO = {
+    "listening": {
+        "name": "Listening",
+        "icon": "🎧",
+        "questions": 3,
+        "points": 16,
+        "order": 1
+    },
+    "time_numbers": {
+        "name": "Time & Numbers",
+        "icon": "🔢",
+        "questions": 3,
+        "points": 16,
+        "order": 2
+    },
+    "grammar": {
+        "name": "Grammar",
+        "icon": "📝",
+        "questions": 4,
+        "points": 16,
+        "order": 3
+    },
+    "vocabulary": {
+        "name": "Vocabulary",
+        "icon": "📚",
+        "questions": 4,
+        "points": 16,
+        "order": 4
+    },
+    "reading": {
+        "name": "Reading",
+        "icon": "📖",
+        "questions": 4,
+        "points": 16,
+        "order": 5
+    },
+    "speaking": {
+        "name": "Speaking",
+        "icon": "🎤",
+        "questions": 3,
+        "points": 20,
+        "order": 6
+    }
+}
+
+
+def get_module_for_question(question_num: int) -> str:
+    """Get the module name for a given question number"""
+    questions = get_questions()
+    question_key = str(question_num)
+    if question_key in questions:
+        return questions[question_key].get("module", "unknown")
+    return "unknown"
+
+
+def should_show_transition(current_question: int, next_question: int) -> bool:
+    """Determine if a module transition screen should be shown"""
+    if next_question > 21:
+        return False
+    current_module = get_module_for_question(current_question)
+    next_module = get_module_for_question(next_question)
+    return current_module != next_module
+
+
 def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, Any]:
     """
     Score answer using questions_config.json (UI-only scoring)
@@ -161,16 +226,20 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                     if user_definition.strip().lower() == correct_definition.strip().lower():
                         correct_count += 1
                 
-                # All matches must be correct for full credit
+                # FIXED: Partial credit for vocabulary matching (was all-or-nothing)
+                # Each correct match earns proportional points
                 is_correct = (correct_count == total_matches)
-                logger.debug(f"Vocabulary Q{question_num}: {correct_count}/{total_matches} correct")
+                points_earned = int(points * (correct_count / total_matches)) if total_matches > 0 else 0
+                logger.debug(f"Vocabulary Q{question_num}: {correct_count}/{total_matches} correct, {points_earned}/{points} points")
                 
             except json.JSONDecodeError as e:
                 logger.warning(f"JSON parse error for vocabulary Q{question_num}: {e}")
                 is_correct = False
+                points_earned = 0
             except Exception as e:
                 logger.error(f"Error validating vocabulary Q{question_num}: {e}", exc_info=True)
                 is_correct = False
+                points_earned = 0
         
         # ============================================================
         # TYPE 2: SPEAKING QUESTIONS (have "expected_keywords")
@@ -375,15 +444,15 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             correct_answer_display = "N/A"
         
         # Calculate points (only if not already set by type-specific logic)
-        # Speaking module already sets points_earned, don't override it!
-        if "expected_keywords" not in question_data:
+        # Speaking and vocabulary modules already set points_earned, don't override!
+        if "expected_keywords" not in question_data and "correct_matches" not in question_data:
             points_earned = points if is_correct else 0
         
         # Generate feedback
         if is_correct:
             feedback = "✅ Correct! Well done."
-        elif "expected_keywords" in question_data and points_earned > 0:
-            # Partial credit for speaking
+        elif ("expected_keywords" in question_data or "correct_matches" in question_data) and points_earned > 0:
+            # Partial credit for speaking or vocabulary
             feedback = f"✅ Partial credit! You earned {points_earned}/{points} points."
         else:
             feedback = f"❌ Incorrect. The correct answer is: {correct_answer_display}"
@@ -800,8 +869,24 @@ async def submit_answer(
             logger.debug("Redirecting to /results")
             return RedirectResponse(url="/results", status_code=303)
         else:
-            # Go to next question, preserve operation parameter if present
+            # Go to next question
             next_question = question_num + 1
+            
+            # Check if we need to show a module transition screen
+            if should_show_transition(question_num, next_question):
+                current_module = get_module_for_question(question_num)
+                if operation:
+                    return RedirectResponse(
+                        url=f"/module-transition?completed={current_module}&next_question={next_question}&operation={operation}",
+                        status_code=303
+                    )
+                else:
+                    return RedirectResponse(
+                        url=f"/module-transition?completed={current_module}&next_question={next_question}",
+                        status_code=303
+                    )
+            
+            # Normal redirect to next question
             if operation:
                 return RedirectResponse(url=f"/question/{next_question}?operation={operation}", status_code=303)
             else:
@@ -884,7 +969,6 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                                 if user and user.email:
                                     email_service = get_email_service()
                                     user_name = f"{user.first_name} {user.last_name}".strip() or "User"
-                                    passed = (assessment.total_score or 0) >= settings.PASS_THRESHOLD_TOTAL
                                     
                                     module_scores = {
                                         "Listening": assessment.listening_score or 0,
@@ -899,7 +983,6 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                                         to_email=user.email,
                                         user_name=user_name,
                                         total_score=assessment.total_score or 0,
-                                        passed=passed,
                                         module_scores=module_scores
                                     )
                                     
@@ -936,14 +1019,8 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
         total_score_int = int(round(total_score))
         percentage = int(round((total_score / total_possible) * 100)) if total_possible > 0 else 0
 
-        # Determine result status and gradient
-        # Pass threshold from settings
-        if percentage >= settings.PASS_THRESHOLD_TOTAL:
-            result_status = "✅ PASSED"
-            score_gradient = "linear-gradient(135deg, #34c759 0%, #30d158 100%)"
-        else:
-            result_status = "❌ NOT PASSED"
-            score_gradient = "linear-gradient(135deg, #ff3b30 0%, #ff453a 100%)"
+        # Use neutral gradient for score display (no pass/fail judgment)
+        score_gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
 
         # Prepare individual module scores for template
         listening_score = int(round(modules[0]["score"]))
@@ -971,7 +1048,6 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                 "total_score": total_score_int,
                 "score_percentage": percentage,
                 "score_gradient": score_gradient,
-                "result_status": result_status,
                 "listening_score": listening_score,
                 "listening_percentage": listening_percentage,
                 "time_numbers_score": time_numbers_score,
@@ -1207,6 +1283,97 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
             detail = f"Error: {str(e)}"
         else:
             detail = "An error occurred while loading instructions. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
+
+
+@router.get("/pre-test", response_class=HTMLResponse)
+async def pre_test_page(request: Request, operation: Optional[str] = None):
+    """
+    Pre-test confirmation page - Final checklist before starting the assessment.
+    
+    Displays important reminders and ensures the user is ready to begin.
+    """
+    try:
+        return render_template(
+            request,
+            "pre_test.html",
+            {
+                "operation": operation
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rendering pre-test page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the page. Please try again later."
+        raise HTTPException(status_code=500, detail=detail)
+
+
+@router.get("/module-transition", response_class=HTMLResponse)
+async def module_transition_page(
+    request: Request,
+    completed: str,
+    next_question: int,
+    operation: Optional[str] = None
+):
+    """
+    Module transition screen - Shows progress between modules.
+    
+    Displays which module was completed and what's coming next.
+    """
+    try:
+        # Get completed module info
+        completed_info = MODULE_INFO.get(completed, {})
+        completed_module_name = completed_info.get("name", "Module")
+        
+        # Get next module info
+        next_module = get_module_for_question(next_question)
+        next_info = MODULE_INFO.get(next_module, {})
+        
+        # Build modules progress list
+        modules_progress = []
+        for module_key, info in sorted(MODULE_INFO.items(), key=lambda x: x[1]["order"]):
+            module_order = info["order"]
+            completed_order = completed_info.get("order", 0)
+            
+            if module_order <= completed_order:
+                status = "completed"
+            elif module_order == completed_order + 1:
+                status = "current"
+            else:
+                status = "pending"
+            
+            modules_progress.append({
+                "name": info["name"],
+                "icon": info["icon"],
+                "status": status
+            })
+        
+        return render_template(
+            request,
+            "module_transition.html",
+            {
+                "completed_module_name": completed_module_name,
+                "next_module_name": next_info.get("name", "Next Module"),
+                "next_module_icon": next_info.get("icon", "📋"),
+                "next_module_questions": next_info.get("questions", 0),
+                "next_module_points": next_info.get("points", 0),
+                "next_question": next_question,
+                "operation": operation,
+                "modules": modules_progress
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rendering module transition page: {e}", exc_info=True)
+        if settings.DEBUG:
+            detail = f"Error: {str(e)}"
+        else:
+            detail = "An error occurred while loading the page. Please try again later."
         raise HTTPException(status_code=500, detail=detail)
 
 

@@ -59,44 +59,48 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
 
-    # Session middleware (must be added before CORS)
-    # Security: Use secure session configuration
+    # Security: Validate SECRET_KEY
     if not hasattr(settings, 'SECRET_KEY') or not settings.SECRET_KEY:
         logger.error("SECRET_KEY is not configured. This is a security risk!")
         raise ValueError("SECRET_KEY must be set in production environment")
-    
-    app.add_middleware(
-        SessionMiddleware,
-        secret_key=settings.SECRET_KEY,
-        max_age=3600 * 24 * 7,  # 7 days
-        same_site="lax",  # CSRF protection
-        https_only=not settings.DEBUG,  # Force HTTPS in production
-    )
 
-    # CORS middleware - Security: Restrict methods and headers
+    # Middleware order matters! In Starlette, last added = outermost (processed first).
+    # Desired request flow: Session → CSRF → RateLimit → SecurityHeaders → CORS → App
+
+    # CORS middleware (innermost of security chain)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.ALLOWED_ORIGINS,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Restrict methods
-        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-CSRF-Token"],  # Include CSRF header
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-CSRF-Token"],
         expose_headers=["Content-Type", "Content-Length", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
         max_age=3600,
     )
     
-    # Security Headers middleware - Add security headers to all responses
+    # Security Headers middleware
     if settings.SECURITY_HEADERS_ENABLED:
         app.add_middleware(SecurityHeadersMiddleware)
     
-    # Rate Limiting middleware - Prevent DoS attacks
+    # Rate Limiting middleware
     if settings.RATE_LIMIT_ENABLED:
         app.add_middleware(RateLimitMiddleware)
         logger.info("Rate limiting middleware enabled")
     
-    # CSRF Protection middleware - Prevent cross-site request forgery
+    # CSRF Protection middleware
     if settings.CSRF_ENABLED:
         app.add_middleware(CSRFMiddleware)
         logger.info("CSRF protection middleware enabled")
+
+    # Session middleware (added LAST = outermost = processed first on request)
+    # This ensures request.session is available to all inner middleware (CSRF, etc.)
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.SECRET_KEY,
+        max_age=3600 * 24 * 7,  # 7 days
+        same_site="lax",
+        https_only=not settings.DEBUG,
+    )
 
     # Static files - Ensure directories exist
     python_src_dir = Path(__file__).parent

@@ -155,18 +155,6 @@
             font-weight: 500;
         }
 
-        .result-badge {
-            display: inline-block;
-            padding: 15px 45px;
-            border-radius: 50px;
-            font-size: 1.9rem;
-            font-weight: 700;
-            color: white;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-        }
-
         /* Download PDF Button */
         .download-btn {
             display: inline-block;
@@ -327,11 +315,6 @@
                 font-size: 1.8rem;
             }
 
-            .result-badge {
-                font-size: 1.8rem;
-                padding: 14px 40px;
-            }
-
             .section-title {
                 font-size: 2.6rem;
             }
@@ -407,48 +390,28 @@
             <div class="circular-progress">
                 <svg width="320" height="320">
                     <defs>
-                        <!-- Green gradient for passing (>=70%) -->
-                        <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#34c759;stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:#30d158;stop-opacity:1" />
-                        </linearGradient>
-                        <!-- Purple/Red gradient for failing (<70%) -->
-                        <linearGradient id="gradient-red" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#ff3b30;stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:#ff453a;stop-opacity:1" />
+                        <!-- Neutral blue/purple gradient for all scores -->
+                        <linearGradient id="gradient-score" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
                         </linearGradient>
                     </defs>
                     <circle class="circle-bg" cx="160" cy="160" r="140"></circle>
-                    <circle class="circle-progress" cx="160" cy="160" r="140" id="progressCircle"></circle>
+                    <circle class="circle-progress" cx="160" cy="160" r="140" id="progressCircle" style="stroke: url(#gradient-score);"></circle>
                 </svg>
                 <div class="score-percentage">{{ score_percentage }}%</div>
             </div>
             <div class="score-label">Overall Score</div>
-            <div class="result-badge">{{ result_status }}</div>
             <button class="download-btn" onclick="downloadPDF()">📥 Download as PDF</button>
         </div>
 
         <script>
-            // Animate circular progress on load with dynamic color
+            // Animate circular progress on load
             window.addEventListener('load', function() {
                 const percentage = {{ score_percentage }};
                 const circle = document.getElementById('progressCircle');
-                const badge = document.querySelector('.result-badge');
                 const circumference = 880; // 2 * PI * 140
                 const offset = circumference - (percentage / 100 * circumference);
-                
-                // Change color based on percentage
-                if (percentage >= 70) {
-                    circle.style.stroke = 'url(#gradient-green)';
-                    if (badge) {
-                        badge.style.background = 'linear-gradient(135deg, #34c759 0%, #30d158 100%)';
-                    }
-                } else {
-                    circle.style.stroke = 'url(#gradient-red)';
-                    if (badge) {
-                        badge.style.background = 'linear-gradient(135deg, #ff3b30 0%, #ff453a 100%)';
-                    }
-                }
                 
                 setTimeout(() => {
                     circle.style.strokeDashoffset = offset;
@@ -579,5 +542,14 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e0e0e0; z-index: 100;">
+        <div style="color: #666; font-size: 0.9rem;">© 2026 Carnival Cruise Line. All rights reserved.</div>
+        <div style="display: flex; gap: 25px;">
+            <a href="#" style="color: #007aff; text-decoration: none; font-size: 0.95rem;">Privacy Policy</a>
+            <a href="#" style="color: #007aff; text-decoration: none; font-size: 0.95rem;">Terms of Use</a>
+        </div>
+    </footer>
 </body>
 </html>

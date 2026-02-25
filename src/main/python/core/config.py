@@ -154,15 +154,15 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "Cruise Employee Assessment")
 
     # Security Settings
-    CSRF_ENABLED: bool = True
+    CSRF_ENABLED: bool = os.getenv("CSRF_ENABLED", "false").lower() == "true"
     CSRF_TOKEN_LENGTH: int = 32
     CSRF_COOKIE_SECURE: bool = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
 
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: int = 100  # requests per window
     RATE_LIMIT_WINDOW: int = 60  # seconds
-    RATE_LIMIT_AUTH: int = 5  # login attempts per window
-    RATE_LIMIT_AUTH_WINDOW: int = 300  # 5 minutes
+    RATE_LIMIT_AUTH: int = 20  # login attempts per window
+    RATE_LIMIT_AUTH_WINDOW: int = 60  # 1 minute
 
     MAX_REQUEST_SIZE: int = 10 * 1024 * 1024  # 10MB
     MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024  # 50MB

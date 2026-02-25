@@ -528,28 +528,41 @@
 
                     speechRecognition.onresult = (event) => {
                         let interimTranscript = '';
-                        let finalTranscript = '';
 
                         for (let i = event.resultIndex; i < event.results.length; i++) {
                             const transcript = event.results[i][0].transcript;
                             if (event.results[i].isFinal) {
-                                finalTranscript += transcript + ' ';
+                                // Accumulate final results instead of overwriting
+                                transcribedText += transcript + ' ';
                             } else {
                                 interimTranscript += transcript;
                             }
                         }
 
-                        transcribedText = finalTranscript.trim();
-                        if (interimTranscript) {
-                            document.getElementById('status').textContent = `Recording... (${interimTranscript.substring(0, 50)})`;
-                        } else if (transcribedText) {
-                            document.getElementById('status').textContent = `Recording... (${transcribedText.substring(0, 50)})`;
+                        transcribedText = transcribedText.trim();
+                        
+                        // Show accumulated text plus any interim text
+                        const displayText = transcribedText + (interimTranscript ? ' ' + interimTranscript : '');
+                        if (displayText) {
+                            document.getElementById('status').textContent = `Recording... (${displayText.substring(0, 80)})`;
                         }
                     };
 
                     speechRecognition.onerror = (event) => {
                         console.log('Speech recognition error:', event.error);
                         // Continue recording even if speech recognition fails
+                    };
+
+                    // Auto-restart speech recognition if it stops during recording (e.g., silence timeout)
+                    speechRecognition.onend = () => {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            try {
+                                speechRecognition.start();
+                                console.log('Speech recognition restarted after silence');
+                            } catch (e) {
+                                console.log('Could not restart speech recognition:', e);
+                            }
+                        }
                     };
 
                     speechRecognition.start();

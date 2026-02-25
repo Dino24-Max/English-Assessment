@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Complete - CCL English Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/assessment.css">
+    <link rel="stylesheet" href="/static/css/carnival-theme.css">
+    <style>
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: url('/static/images/homepage-background.png') center center / cover no-repeat fixed;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(240, 248, 255, 0.7) 50%, rgba(255, 245, 245, 0.75) 100%);
+            backdrop-filter: blur(8px) saturate(120%) brightness(1.05);
+            -webkit-backdrop-filter: blur(8px) saturate(120%) brightness(1.05);
+            z-index: 0;
+        }
+
+        .transition-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .transition-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            box-shadow: 0 30px 80px rgba(182, 27, 56, 0.15),
+                        0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+            padding: 60px 70px;
+            border: 3px solid rgba(52, 199, 89, 0.3);
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .transition-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
+        }
+
+        .carnival-logo-header {
+            margin-bottom: 25px;
+        }
+
+        .carnival-logo-header img {
+            height: 60px;
+            width: auto;
+        }
+
+        .completed-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px auto;
+            box-shadow: 0 8px 25px rgba(52, 199, 89, 0.35);
+        }
+
+        .completed-icon span {
+            font-size: 50px;
+            color: white;
+        }
+
+        .module-complete-title {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+            letter-spacing: -0.3px;
+        }
+
+        .module-name-display {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+        }
+
+        .progress-section {
+            margin: 35px 0;
+            padding: 25px 30px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .progress-title {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .progress-modules {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .progress-module {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 15px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .progress-module.completed {
+            background: linear-gradient(135deg, rgba(52, 199, 89, 0.15) 0%, rgba(48, 209, 88, 0.1) 100%);
+            color: #34c759;
+            border: 2px solid #34c759;
+        }
+
+        .progress-module.current {
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(88, 86, 214, 0.1) 100%);
+            color: #007aff;
+            border: 2px solid #007aff;
+        }
+
+        .progress-module.pending {
+            background: #f5f5f5;
+            color: #999;
+            border: 2px solid #e0e0e0;
+        }
+
+        .next-module-section {
+            margin: 35px 0 40px 0;
+        }
+
+        .next-label {
+            font-size: 1.1rem;
+            color: #666;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        .next-module-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px 35px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(88, 86, 214, 0.06) 100%);
+            border-radius: 20px;
+            border: 2px solid rgba(0, 122, 255, 0.2);
+        }
+
+        .next-module-icon {
+            font-size: 3rem;
+        }
+
+        .next-module-info {
+            text-align: left;
+        }
+
+        .next-module-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .next-module-desc {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .continue-btn {
+            display: inline-block;
+            padding: 22px 60px;
+            background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            box-shadow: 0 8px 25px rgba(0, 122, 255, 0.35);
+            letter-spacing: 0.3px;
+        }
+
+        .continue-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0, 122, 255, 0.45);
+        }
+
+        .timer-reminder {
+            margin-top: 25px;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, rgba(255, 149, 0, 0.1) 0%, rgba(255, 159, 10, 0.08) 100%);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 149, 0, 0.25);
+            font-size: 1.1rem;
+            color: #996300;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .transition-card {
+                padding: 40px 30px;
+            }
+
+            .module-complete-title {
+                font-size: 2rem;
+            }
+
+            .progress-modules {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .next-module-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .next-module-info {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="transition-container">
+        <div class="transition-card">
+            <div class="carnival-logo-header">
+                <img src="/static/images/carnival-logo.png" alt="Carnival Cruise Line">
+            </div>
+
+            <div class="completed-icon">
+                <span>✓</span>
+            </div>
+
+            <h1 class="module-complete-title">Module Complete!</h1>
+            <p class="module-name-display">{{ completed_module_name }} Module Finished</p>
+
+            <div class="progress-section">
+                <div class="progress-title">Your Progress</div>
+                <div class="progress-modules">
+                    {% for module in modules %}
+                    <div class="progress-module {{ module.status }}">
+                        <span>{{ module.icon }}</span>
+                        <span>{{ module.name }}</span>
+                        {% if module.status == 'completed' %}
+                        <span>✓</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="next-module-section">
+                <div class="next-label">Up Next:</div>
+                <div class="next-module-card">
+                    <span class="next-module-icon">{{ next_module_icon }}</span>
+                    <div class="next-module-info">
+                        <div class="next-module-name">{{ next_module_name }}</div>
+                        <div class="next-module-desc">{{ next_module_questions }} questions | {{ next_module_points }} points</div>
+                    </div>
+                </div>
+            </div>
+
+            <a href="/question/{{ next_question }}{% if operation %}?operation={{ operation }}{% endif %}" class="continue-btn">Continue to {{ next_module_name }}</a>
+
+            <div class="timer-reminder">
+                <span>⏱️</span> Remember: Your assessment timer is still running. Continue when ready.
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e0e0e0; z-index: 100;">
+        <div style="color: #666; font-size: 0.9rem;">© 2026 Carnival Cruise Line. All rights reserved.</div>
+        <div style="display: flex; gap: 25px;">
+            <a href="#" style="color: #007aff; text-decoration: none; font-size: 0.95rem;">Privacy Policy</a>
+            <a href="#" style="color: #007aff; text-decoration: none; font-size: 0.95rem;">Terms of Use</a>
+        </div>
+    </footer>
+</body>
+</html>

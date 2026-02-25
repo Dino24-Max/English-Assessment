@@ -186,7 +186,72 @@
             font-weight: 600;
         }
 
-        @media (max-width: 768px) {
+        .consent-section {
+            margin-top: 30px;
+            margin-bottom: 20px;
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(0, 78, 143, 0.05) 0%, rgba(182, 27, 56, 0.03) 100%);
+            border-radius: 16px;
+            border: 2px solid rgba(0, 78, 143, 0.15);
+        }
+
+        .consent-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .consent-checkbox-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            cursor: pointer;
+        }
+
+        .consent-checkbox-wrapper input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            margin-top: 3px;
+            cursor: pointer;
+            accent-color: #007aff;
+        }
+
+        .consent-text {
+            font-size: 1.15rem;
+            color: #333;
+            line-height: 1.7;
+        }
+
+        .consent-text strong {
+            color: #1a1a1a;
+        }
+
+        .consent-list {
+            margin: 12px 0 0 0;
+            padding-left: 20px;
+            font-size: 1.1rem;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .consent-list li {
+            margin-bottom: 8px;
+        }
+
+        .consent-error {
+            color: #ff3b30;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 12px;
+            display: none;
+        }
+
+            @media (max-width: 768px) {
             .registration-card {
                 padding: 35px 25px;
                 border-radius: 24px;
@@ -266,6 +331,30 @@
                 <div class="form-group">
                     <label class="form-label" for="nationality">Nationality <span class="required">*</span></label>
                     <input type="text" id="nationality" name="nationality" class="form-input" required placeholder="e.g., USA, Mexico, Philippines">
+                </div>
+
+                <!-- Consent Section -->
+                <div class="consent-section">
+                    <div class="consent-title">
+                        <span>📋</span>
+                        Terms and Conditions
+                    </div>
+                    <label class="consent-checkbox-wrapper">
+                        <input type="checkbox" id="consent-checkbox" name="consent" required>
+                        <div class="consent-text">
+                            <strong>I understand and agree that:</strong>
+                            <ul class="consent-list">
+                                <li>This assessment is administered on behalf of <strong>Carnival Cruise Line</strong> for employee evaluation purposes</li>
+                                <li>The assessment is used for hiring decisions, career advancement, or English proficiency verification</li>
+                                <li>I must complete this assessment independently without external assistance or translation tools</li>
+                                <li>My results reflect my own ability; any form of dishonesty may affect my eligibility</li>
+                                <li>My scores may be verified through a follow-up interview or onboard evaluation</li>
+                                <li>Results will be used solely for internal assessment purposes</li>
+                                <li>My personal data will be handled in accordance with applicable privacy policies</li>
+                            </ul>
+                        </div>
+                    </label>
+                    <div id="consent-error" class="consent-error">You must agree to the terms and conditions to continue.</div>
                 </div>
 
                 <button type="submit" class="submit-btn" id="submit-btn">Continue to Assessment</button>
@@ -361,6 +450,17 @@
             const errorMessage = document.getElementById('error-message');
             errorMessage.style.display = 'none';
 
+            // Validate consent checkbox
+            const consentCheckbox = document.getElementById('consent-checkbox');
+            const consentError = document.getElementById('consent-error');
+            
+            if (!consentCheckbox.checked) {
+                consentError.style.display = 'block';
+                consentCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            consentError.style.display = 'none';
+
             // Get form data
             const formData = new FormData(this);
 
@@ -433,5 +533,14 @@
             });
         });
     </script>
+
+    <!-- Footer -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e0e0e0; z-index: 100;">
+        <div style="color: #666; font-size: 0.9rem;">© 2026 Carnival Cruise Line. All rights reserved.</div>
+        <div style="display: flex; gap: 25px;">
+            <a href="#" style="color: #007aff; text-decoration: none; font-size: 0.95rem;">Privacy Policy</a>
+            <a href="#" style="color: #007aff; text-decoration: none; font-size: 0.95rem;">Terms of Use</a>
+        </div>
+    </footer>
 </body>
 </html>
