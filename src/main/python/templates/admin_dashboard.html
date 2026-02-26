@@ -272,7 +272,7 @@
         // Load dashboard statistics
         async function loadStats() {
             try {
-                const response = await fetch('/api/v1/admin/stats?admin_key=dev-admin-key-123');
+                const response = await fetch('/api/v1/admin/stats?admin_key=admin-key-12345678');
                 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
