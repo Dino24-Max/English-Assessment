@@ -266,6 +266,9 @@ class InvitationCode(BaseModel):
     
     # Target User
     email = Column(String(255), nullable=False, index=True)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
+    nationality = Column(String(100), nullable=True)
     
     # Assignment
     operation = Column(Enum(DivisionType), nullable=False, index=True)

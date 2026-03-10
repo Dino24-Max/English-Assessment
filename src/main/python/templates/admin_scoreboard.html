@@ -99,7 +99,7 @@
 
         .filters-section {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
+            grid-template-columns: 2fr 1fr 1fr;
             gap: 40px;
             margin-bottom: 50px;
         }
@@ -116,19 +116,49 @@
             color: #333;
         }
 
-        .filter-input, .filter-select {
+        .filter-input {
             padding: 24px 32px;
-            border: 4px solid #e0e0e0;
-            border-radius: 12px;
+            border: 3px solid #e0e0e0;
+            border-radius: 14px;
             font-size: 2rem;
             background: white;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .filter-input:focus, .filter-select:focus {
+        .filter-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #B61B38;
+            box-shadow: 0 0 0 5px rgba(182, 27, 56, 0.12);
+        }
+
+        /* Enhanced Select Dropdown Styling */
+        .filter-select {
+            padding: 24px 32px;
+            border: 3px solid #e0e0e0;
+            border-radius: 14px;
+            font-size: 2rem;
+            background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .filter-select:hover {
+            border-color: #B61B38;
+            background-color: #fff5f6;
+            box-shadow: 0 6px 16px rgba(182, 27, 56, 0.12);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #B61B38;
+            box-shadow: 0 0 0 5px rgba(182, 27, 56, 0.12), 0 6px 16px rgba(182, 27, 56, 0.1);
+        }
+
+        .filter-select option {
+            padding: 20px 24px;
+            font-size: 1.8rem;
+            background: #fff;
+            color: #333;
         }
 
         .admin-key-section {
@@ -200,24 +230,6 @@
 
         .results-table tbody tr:hover {
             background: #f8f9fa;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 12px 32px;
-            border-radius: 24px;
-            font-size: 1.8rem;
-            font-weight: 600;
-        }
-
-        .status-passed {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-failed {
-            background: #f8d7da;
-            color: #721c24;
         }
 
         .score-cell {
@@ -296,6 +308,11 @@
             <div class="header-left">
                 <h1>User Scoreboard</h1>
                 <p>All User Assessment Results</p>
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                    <span style="font-size: 1.2rem; color: #666;">Admin API Key: </span>
+                    <code style="font-size: 1.3rem; background: #fff; padding: 8px 15px; border-radius: 4px; border: 1px solid #ddd; margin-left: 10px;">{{ admin_key }}</code>
+                    <button onclick="navigator.clipboard.writeText('{{ admin_key }}'); alert('Admin key copied!');" style="margin-left: 10px; padding: 8px 15px; background: #014E8F; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">Copy</button>
+                </div>
             </div>
             <div class="header-right">
                 <a href="/admin" class="btn btn-back">← Back to Dashboard</a>
@@ -316,7 +333,6 @@
                         <option value="">All Operations</option>
                         <option value="hotel">Hotel</option>
                         <option value="marine">Marine</option>
-                        <option value="casino">Casino</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -326,20 +342,12 @@
                         <!-- Options populated dynamically based on operation -->
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label class="filter-label">Status</label>
-                    <select id="filterStatus" class="filter-select" onchange="applyFilters()">
-                        <option value="">All Status</option>
-                        <option value="passed">Passed</option>
-                        <option value="failed">Failed</option>
-                    </select>
-                </div>
             </div>
 
             <div class="admin-key-section">
                 <div class="filter-group">
                     <label class="filter-label">Admin Key (Required)</label>
-                    <input type="password" id="adminKey" class="filter-input" placeholder="Enter admin key" value="dev-admin-key-123">
+                    <input type="password" id="adminKey" class="filter-input" placeholder="Enter admin key" value="{{ admin_key }}">
                 </div>
                 <button class="btn btn-export" onclick="loadData()">🔍 Load Data</button>
             </div>
@@ -364,12 +372,14 @@
         // Department mapping by operation
         const departmentMapping = {
             'hotel': [
-                'AUX SERV', 'BEVERAGE GUEST SERV', 'CULINARY ARTS', 
-                'GUEST SERVICES', 'HOUSEKEEPING', 'LAUNDRY', 
-                'PHOTO', 'PROVISIONS', 'REST. SERVICE', 'SHORE EXCURS'
+                'AUDIO/VISUAL MEDIA', 'AUX SERV', 'BEVERAGE GUEST SERV', 'CASINO',
+                'CULINARY ARTS', 'ENT - TECHNICAL', 'ENTERTAINMENT', 'F&B MGMT',
+                'FLEET FINANCE', 'GUEST SERVICES', 'GUEST TECHNOLOGY', 'HOTEL',
+                'HOUSEKEEPING', 'HUMAN RESOURCES', 'INFO TECHNOLOGY', 'INFOTAINMENT',
+                'LAUNDRY', 'MUSICIANS', 'ONBOARD MEDIA', 'PHOTO', 'PRODUCTION STAFF',
+                'PROVISIONS', 'REST. SERVICE', 'SHORE EXCURS', 'YOUTH PROGRAMS'
             ],
-            'marine': ['DECK', 'ENGINE', 'SECURITY SERVICES'],
-            'casino': ['TABLE GAMES', 'SLOT MACHINES', 'CASINO SERVICES']
+            'marine': ['DECK', 'ENGINE', 'MEDICAL', 'SECURITY SERVICES']
         };
 
         // Update department dropdown when operation changes
@@ -446,7 +456,6 @@
             const search = document.getElementById('searchInput').value.toLowerCase().trim();
             const operation = document.getElementById('filterOperation').value.toLowerCase().trim();
             const department = document.getElementById('filterDepartment').value.trim();
-            const status = document.getElementById('filterStatus').value.trim();
 
             filteredData = currentData.filter(item => {
                 // Search filter
@@ -462,13 +471,8 @@
                 const itemDepartment = (item.department || '').toUpperCase().trim();
                 const filterDepartmentUpper = department.toUpperCase().trim();
                 const matchDepartment = !department || itemDepartment === filterDepartmentUpper;
-                
-                // Status filter
-                const matchStatus = !status || 
-                    (status === 'passed' && item.passed === true) ||
-                    (status === 'failed' && item.passed === false);
 
-                return matchSearch && matchOperation && matchDepartment && matchStatus;
+                return matchSearch && matchOperation && matchDepartment;
             });
 
             currentPage = 1;
@@ -536,7 +540,6 @@
                                 <th class="sortable" onclick="sortTable('reading_score')">Reading</th>
                                 <th class="sortable" onclick="sortTable('speaking_score')">Speaking</th>
                                 <th class="sortable" onclick="sortTable('total_score')">Total</th>
-                                <th class="sortable" onclick="sortTable('passed')">Status</th>
                                 <th class="sortable" onclick="sortTable('completed_at')">Date</th>
                             </tr>
                         </thead>
@@ -556,11 +559,6 @@
                                     <td class="score-cell">${Math.round(item.reading_score || 0)}/16</td>
                                     <td class="score-cell">${Math.round(item.speaking_score || 0)}/20</td>
                                     <td class="score-cell"><strong>${Math.round(item.total_score || 0)}/100</strong></td>
-                                    <td>
-                                        <span class="status-badge ${item.passed ? 'status-passed' : 'status-failed'}">
-                                            ${item.passed ? '✅ PASSED' : '❌ FAILED'}
-                                        </span>
-                                    </td>
                                     <td>${new Date(item.completed_at).toLocaleDateString()}</td>
                                 </tr>
                             `).join('')}
@@ -603,13 +601,11 @@
 
             const operation = document.getElementById('filterOperation').value;
             const department = document.getElementById('filterDepartment').value;
-            const status = document.getElementById('filterStatus').value;
             const search = document.getElementById('searchInput').value;
 
             let url = `/api/v1/admin/assessments/export?admin_key=${adminKey}`;
             if (operation) url += `&operation=${operation}`;
             if (department) url += `&department=${department}`;
-            if (status) url += `&passed=${status === 'passed'}`;
             if (search) url += `&search=${search}`;
 
             window.location.href = url;

@@ -230,9 +230,24 @@
         const verifyBtn = document.getElementById('verify-btn');
         let validationTimeout = null;
 
-        // Get code from URL if present
+        // Get code and error from URL if present
         const urlParams = new URLSearchParams(window.location.search);
         const urlCode = urlParams.get('code');
+        const urlError = urlParams.get('error');
+
+        // Show error message if redirected with error
+        if (urlError) {
+            const errorMessages = {
+                'invalid': '✗ Invalid invitation code. Please check and try again.',
+                'completed': '✗ This invitation has already been used and the assessment completed. Please contact administrator for a new invitation.',
+                'used': '✗ This invitation code has already been used. Please contact administrator for a new code.',
+                'expired': '✗ This invitation code has expired. Please contact administrator for a new code.',
+                'required': '✗ An invitation code is required to register. Please enter your code below.'
+            };
+            
+            statusMessage.className = 'status-message error';
+            statusMessage.innerHTML = errorMessages[urlError] || '✗ An error occurred. Please try again or contact administrator.';
+        }
 
         // Auto-verify if code is in URL
         if (urlCode && urlCode.length === 16) {

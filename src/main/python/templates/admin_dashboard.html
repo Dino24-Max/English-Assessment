@@ -230,16 +230,12 @@
                     <div class="stat-label">Total Users</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number" id="totalAssessments">-</div>
-                    <div class="stat-label">Total Assessments</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="passedToday">-</div>
-                    <div class="stat-label">Passed Today</div>
-                </div>
-                <div class="stat-item">
                     <div class="stat-number" id="pendingInvitations">-</div>
                     <div class="stat-label">Pending Invitations</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalAssessments">-</div>
+                    <div class="stat-label">Total Assessments</div>
                 </div>
             </div>
         </div>
@@ -269,15 +265,17 @@
     </div>
 
     <script>
+        // Admin key passed from backend
+        const ADMIN_KEY = '{{ admin_key }}';
+        
         // Load dashboard statistics
         async function loadStats() {
             try {
-                const response = await fetch('/api/v1/admin/stats?admin_key=admin-key-12345678');
+                const response = await fetch(`/api/v1/admin/stats?admin_key=${encodeURIComponent(ADMIN_KEY)}`);
                 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     console.error('Stats API error:', errorData);
-                    // Show error or keep default values
                     return;
                 }
                 
@@ -285,13 +283,11 @@
                 
                 // Update stats with actual data
                 document.getElementById('totalUsers').textContent = data.total_users ?? 0;
-                document.getElementById('totalAssessments').textContent = data.total_assessments ?? 0;
-                document.getElementById('passedToday').textContent = data.passed_today ?? 0;
                 document.getElementById('pendingInvitations').textContent = data.pending_invitations ?? 0;
+                document.getElementById('totalAssessments').textContent = data.total_assessments ?? 0;
                 
             } catch (error) {
                 console.error('Error loading stats:', error);
-                // Keep default "-" values on error
             }
         }
 

@@ -69,7 +69,7 @@ async def load_full_question_bank(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -101,6 +101,9 @@ async def load_full_question_bank(
 class InvitationCreateRequest(BaseModel):
     """Request model for creating invitation code"""
     email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    nationality: Optional[str] = None
     operation: str
     department: Optional[str] = None
     admin_key: str
@@ -129,47 +132,35 @@ async def get_admin_stats(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
-        # Count total users
-        users_result = await db.execute(select(func.count(User.id)))
+        # Count ALL registered users (excluding admins)
+        users_result = await db.execute(
+            select(func.count(User.id)).where(User.is_admin == False)
+        )
         total_users = users_result.scalar() or 0
         
-        # Count total completed assessments only
-        assessments_result = await db.execute(
-            select(func.count(Assessment.id)).where(
-                Assessment.status == AssessmentStatus.COMPLETED
-            )
-        )
-        total_assessments = assessments_result.scalar() or 0
-        
-        # Count passed assessments today
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
-        passed_today_result = await db.execute(
-            select(func.count(Assessment.id)).where(
-                Assessment.passed == True,
-                Assessment.completed_at >= today_start,
-                Assessment.completed_at < today_end
-            )
-        )
-        passed_today = passed_today_result.scalar() or 0
-        
-        # Count pending (unused) invitations
+        # Count pending invitations (active, unused invitation codes)
         pending_invitations_result = await db.execute(
             select(func.count(InvitationCode.id)).where(
-                InvitationCode.is_used == False
+                InvitationCode.is_used == False,
+                (InvitationCode.expires_at.is_(None)) | (InvitationCode.expires_at > datetime.now())
             )
         )
         pending_invitations = pending_invitations_result.scalar() or 0
         
+        # Count ALL assessments (not just completed)
+        assessments_result = await db.execute(
+            select(func.count(Assessment.id))
+        )
+        total_assessments = assessments_result.scalar() or 0
+        
         return {
             "total_users": total_users,
-            "total_assessments": total_assessments,
-            "passed_today": passed_today,
-            "pending_invitations": pending_invitations
+            "pending_invitations": pending_invitations,
+            "total_assessments": total_assessments
         }
         
     except Exception as e:
@@ -319,7 +310,7 @@ def generate_invitation_code(length: int = 16) -> str:
     Returns:
         Random alphanumeric code
     """
-    alphabet = string.ascii_letters + string.digits
+    alphabet = string.ascii_uppercase + string.digits
     code = ''.join(secrets.choice(alphabet) for _ in range(length))
     return code
 
@@ -343,7 +334,7 @@ async def create_invitation_code(
     if not expected_key:
         raise HTTPException(status_code=500, detail="Admin authentication not configured")
     
-    if request_data.admin_key != expected_key:
+    if not secrets.compare_digest(request_data.admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized - Invalid admin key")
     
     # Validate operation
@@ -375,6 +366,9 @@ async def create_invitation_code(
     invitation = InvitationCode(
         code=code,
         email=request_data.email,
+        first_name=request_data.first_name,
+        last_name=request_data.last_name,
+        nationality=request_data.nationality,
         operation=operation_enum,
         department=request_data.department,
         created_by="admin",  # Could be enhanced with admin user ID
@@ -431,12 +425,15 @@ async def get_all_invitations(
     show_used: bool = True,
     show_expired: bool = True,
     operation: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Get all invitation codes with filtering options
+    Requires admin authentication.
     
     Query parameters:
+    - admin_key: Admin API key (required)
     - show_used: Include used codes (default True)
     - show_expired: Include expired codes (default True)
     - operation: Filter by operation (hotel/marine/casino)
@@ -564,7 +561,7 @@ async def revoke_invitation(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     # Find invitation
@@ -613,7 +610,7 @@ async def delete_invitation_with_data(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     # Find invitation
@@ -706,6 +703,9 @@ async def validate_invitation_code(
                 "valid": False,
                 "message": "Invalid invitation code",
                 "email": None,
+                "first_name": None,
+                "last_name": None,
+                "nationality": None,
                 "operation": None,
                 "department": None
             }
@@ -716,6 +716,9 @@ async def validate_invitation_code(
                 "valid": False,
                 "message": "This invitation link has already been used and the assessment has been completed",
                 "email": None,
+                "first_name": None,
+                "last_name": None,
+                "nationality": None,
                 "operation": None,
                 "department": None
             }
@@ -726,6 +729,9 @@ async def validate_invitation_code(
                 "valid": False,
                 "message": "This invitation code has already been used",
                 "email": None,
+                "first_name": None,
+                "last_name": None,
+                "nationality": None,
                 "operation": None,
                 "department": None
             }
@@ -736,6 +742,9 @@ async def validate_invitation_code(
                 "valid": False,
                 "message": "This invitation code has expired",
                 "email": None,
+                "first_name": None,
+                "last_name": None,
+                "nationality": None,
                 "operation": None,
                 "department": None
             }
@@ -745,6 +754,9 @@ async def validate_invitation_code(
             "valid": True,
             "message": "Valid invitation code",
             "email": invitation.email,
+            "first_name": invitation.first_name,
+            "last_name": invitation.last_name,
+            "nationality": invitation.nationality,
             "operation": invitation.operation.value,
             "department": invitation.department
         }
@@ -754,6 +766,9 @@ async def validate_invitation_code(
             "valid": False,
             "message": f"Error validating code: {str(e)}",
             "email": None,
+            "first_name": None,
+            "last_name": None,
+            "nationality": None,
             "operation": None,
             "department": None
         }
@@ -789,7 +804,7 @@ async def get_all_assessments(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -872,7 +887,7 @@ async def cleanup_assessments(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -951,7 +966,7 @@ async def export_assessments_csv(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -1041,7 +1056,7 @@ async def get_assessment_detail(
     
     # Verify admin key
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -1150,15 +1165,17 @@ async def get_assessment_detail(
 
 @router.get("/users/export")
 async def export_users_to_excel(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Export all non-admin users to Excel file.
-    
+    Requires admin authentication.
+
     Returns a downloadable Excel file containing user data:
     - ID, First Name, Last Name, Email, Nationality
     - Division, Department, Is Active, Created At
-    
+
     Admin users are excluded from the export.
     """
     from fastapi.responses import StreamingResponse
@@ -1244,7 +1261,7 @@ async def get_analytics_overview(
     - Trends over time
     """
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -1378,7 +1395,7 @@ async def get_module_performance(
     - Pass rate per module threshold
     """
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -1475,7 +1492,7 @@ async def get_score_distribution(
     Returns score ranges and counts for histogram.
     """
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
@@ -1547,7 +1564,7 @@ async def create_bulk_invitations(
         List of created invitations with codes and links
     """
     expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or admin_key != expected_key:
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     if not emails:

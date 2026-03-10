@@ -16,7 +16,6 @@ from pathlib import Path
 
 from core.database import get_db
 from core.config import settings
-from utils.error_handling import safe_error_response
 from core.security import get_csrf_token
 
 # Initialize logger
@@ -242,7 +241,79 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                 points_earned = 0
         
         # ============================================================
-        # TYPE 2: SPEAKING QUESTIONS (have "expected_keywords")
+        # TYPE 2A: SPEAKING REPEAT QUESTIONS (have "audio_text" for repeat)
+        # Word-matching scoring - compare transcript against audio text
+        # ============================================================
+        elif question_data.get("speaking_type") == "repeat" and "audio_text" in question_data:
+            audio_text = question_data["audio_text"]
+            logger.debug(f"Speaking Repeat Q{question_num}: Analyzing word match against audio text")
+            
+            # Parse answer format: "recorded_DURATION|TRANSCRIPT"
+            transcript = ""
+            recording_duration = 0.0
+            if "|" in user_answer:
+                parts = user_answer.split("|", 1)
+                transcript = parts[1].strip() if len(parts) > 1 else ""
+                duration_match = parts[0].replace("recorded_", "").replace("s", "")
+                try:
+                    recording_duration = float(duration_match)
+                except ValueError:
+                    recording_duration = 0.0
+            elif user_answer.startswith("recorded_"):
+                transcript = ""
+                duration_match = user_answer.replace("recorded_", "").replace("s", "")
+                try:
+                    recording_duration = float(duration_match)
+                except ValueError:
+                    recording_duration = 0.0
+            
+            has_recording = user_answer and user_answer.startswith("recorded_")
+            
+            if not has_recording:
+                is_correct = False
+                points_earned = 0
+                logger.debug(f"Speaking Repeat Q{question_num}: No recording detected")
+            elif not transcript:
+                is_correct = False
+                points_earned = 0
+                logger.debug(f"Speaking Repeat Q{question_num}: Recording detected but no speech - 0 points")
+            else:
+                # Word-matching scoring for repeat questions
+                import re
+                
+                # Normalize and extract words from both texts
+                def normalize_text(text):
+                    # Remove punctuation and convert to lowercase
+                    text = re.sub(r'[^\w\s]', '', text.lower())
+                    return text.split()
+                
+                expected_words = normalize_text(audio_text)
+                spoken_words = normalize_text(transcript)
+                
+                # Count how many expected words appear in the spoken text
+                matched_count = 0
+                for word in expected_words:
+                    if word in spoken_words:
+                        matched_count += 1
+                        # Remove matched word to prevent double counting
+                        spoken_words.remove(word)
+                
+                total_expected = len(expected_words)
+                match_ratio = matched_count / total_expected if total_expected > 0 else 0
+                
+                # Award points based on match percentage
+                points_earned = int(round(points * match_ratio))
+                is_correct = match_ratio >= 0.7  # 70% accuracy considered correct
+                
+                logger.debug(
+                    f"Speaking Repeat Q{question_num}: Word matching - "
+                    f"matched={matched_count}/{total_expected}, "
+                    f"ratio={match_ratio:.1%}, "
+                    f"points={points_earned}/{points}"
+                )
+        
+        # ============================================================
+        # TYPE 2B: SPEAKING SCENARIO QUESTIONS (have "expected_keywords")
         # Uses enhanced SpeakingScorerService for intelligent scoring
         # ============================================================
         elif "expected_keywords" in question_data:
@@ -278,11 +349,11 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                 points_earned = 0
                 logger.debug(f"Speaking Q{question_num}: No recording detected")
             elif not transcript:
-                # Recording exists but no transcript (speech recognition failed or no speech)
-                # Give minimal points (20% of total) for attempting
+                # Recording exists but no transcript (no speech detected)
+                # Give 0 points - user must speak to earn points
                 is_correct = False
-                points_earned = int(points * 0.2)
-                logger.debug(f"Speaking Q{question_num}: Recording detected but no transcript")
+                points_earned = 0
+                logger.debug(f"Speaking Q{question_num}: Recording detected but no speech - 0 points")
             else:
                 # Use enhanced SpeakingScorerService for intelligent scoring
                 try:
@@ -482,15 +553,15 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
 @router.get("/", response_class=HTMLResponse)
 async def homepage(request: Request, operation: Optional[str] = None):
     """
-    Homepage - Redirect to registration page as landing page
-    If operation parameter is provided, redirect to instructions page
+    Homepage - Redirect to admin login page as landing page
+    Admin creates invitation links that go directly to registration
     """
     # If operation is provided, redirect to instructions page
     if operation:
         return RedirectResponse(url=f"/instructions?operation={operation}", status_code=303)
 
-    # Otherwise, redirect to registration page as the first page
-    return RedirectResponse(url="/register", status_code=303)
+    # Redirect to admin login - invitation links will go directly to /register
+    return RedirectResponse(url="/login", status_code=303)
 
 
 @router.get("/start-assessment", response_class=HTMLResponse)
@@ -602,6 +673,26 @@ async def question_page(request: Request, question_num: int, operation: Optional
         if question_num < 1 or question_num > 21:
             raise HTTPException(status_code=404, detail="Question not found. Valid range: 1-21")
 
+        # Enforce question sequence - must answer previous questions first
+        session = request.session
+        answers = session.get("answers", {})
+        
+        # For question N (where N > 1), check that questions 1 to N-1 have been answered
+        if question_num > 1:
+            for prev_q in range(1, question_num):
+                if str(prev_q) not in answers:
+                    # Redirect to the first unanswered question
+                    first_unanswered = prev_q
+                    for q in range(1, question_num):
+                        if str(q) not in answers:
+                            first_unanswered = q
+                            break
+                    logger.warning(f"User tried to access question {question_num} without answering question {first_unanswered}")
+                    return RedirectResponse(
+                        url=f"/question/{first_unanswered}?operation={operation or session.get('operation', 'HOTEL')}",
+                        status_code=303
+                    )
+
         # Load questions
         questions = get_questions()
         question_key = str(question_num)
@@ -711,6 +802,18 @@ async def submit_answer(
         # IMPLEMENTED: Database persistence for answers
         # Get or create assessment from session
         session = request.session
+        
+        # Prevent duplicate submissions - if question already answered, redirect to next
+        answers = session.get("answers", {})
+        if str(question_num) in answers:
+            logger.warning(f"Duplicate submission attempt for question {question_num}")
+            # Redirect to next question or results
+            if question_num == 21:
+                return RedirectResponse(url="/results", status_code=303)
+            next_q = question_num + 1
+            op = operation or session.get("operation", "HOTEL")
+            return RedirectResponse(url=f"/question/{next_q}?operation={op}", status_code=303)
+        
         assessment_id = session.get("assessment_id")
 
         # If no assessment exists, create one
@@ -927,7 +1030,7 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
 
         if assessment_id:
             try:
-                from models.assessment import Assessment
+                from models.assessment import Assessment, AssessmentStatus
                 from sqlalchemy import select
 
                 logger.debug(f"Fetching assessment {assessment_id} from database")
@@ -1245,7 +1348,6 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
             "general": [
                 "This assessment contains 21 questions across 6 modules",
                 "Total possible score: 100 points",
-                "Passing score: 65 points (65%)",
                 "You must complete all questions",
                 "Answer honestly and to the best of your ability"
             ],
@@ -1378,7 +1480,7 @@ async def module_transition_page(
 
 
 @router.get("/invitation", response_class=HTMLResponse)
-async def invitation_verify_page(request: Request, code: Optional[str] = None):
+async def invitation_verify_page(request: Request, code: Optional[str] = None, error: Optional[str] = None):
     """
     Invitation code verification page
     
@@ -1387,13 +1489,15 @@ async def invitation_verify_page(request: Request, code: Optional[str] = None):
     
     Args:
         code: Optional invitation code from URL (auto-verify)
+        error: Optional error code from redirect (invalid, completed, used, expired)
     """
     try:
         return render_template(
             request,
             "invitation_verify.html",
             {
-                "code": code
+                "code": code,
+                "error": error
             }
         )
     except HTTPException:
@@ -1411,47 +1515,93 @@ async def invitation_verify_page(request: Request, code: Optional[str] = None):
 async def registration_page(request: Request, code: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     """
     Registration page - Candidate information form
-    Supports invitation code for controlled registration
+    REQUIRES invitation code for access - shows error message if code is invalid/missing
     
     Args:
-        code: Optional invitation code from admin
+        code: Required invitation code from admin
     """
     try:
-        # If invitation code provided, validate it
-        if code:
-            from models.assessment import InvitationCode
-            from sqlalchemy import select
-            
-            result = await db.execute(
-                select(InvitationCode).where(InvitationCode.code == code)
+        from models.assessment import InvitationCode
+        from sqlalchemy import select, func
+        
+        # Prepare error message variable
+        error_message = None
+        
+        # REQUIRE invitation code - show error if not provided
+        if not code:
+            logger.info("Registration page accessed without invitation code")
+            error_message = "No invitation code provided. Please use the link from your invitation email."
+            return render_template(
+                request,
+                "registration.html",
+                {
+                    "invitation_code": "",
+                    "error_message": error_message
+                }
             )
-            invitation = result.scalar_one_or_none()
-            
-            if not invitation:
-                raise HTTPException(status_code=404, detail="Invalid invitation code")
-            
-            # Check if assessment already completed
-            if invitation.assessment_completed:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="This invitation link has already been used and the assessment has been completed. Please contact administrator for a new invitation."
-                )
-            
-            if invitation.is_used:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="This invitation code has already been used. If you started an assessment, please complete it or contact administrator."
-                )
-            
-            # Check expiration
-            if invitation.expires_at and invitation.expires_at < datetime.now():
-                raise HTTPException(status_code=400, detail="Invitation code expired")
+        
+        # Validate the invitation code (case-insensitive comparison)
+        result = await db.execute(
+            select(InvitationCode).where(func.upper(InvitationCode.code) == code.upper())
+        )
+        invitation = result.scalar_one_or_none()
+        
+        if not invitation:
+            logger.warning(f"Invalid invitation code attempted: {code[:4]}...")
+            error_message = "Invalid invitation code. Please check your invitation link or contact the administrator."
+            return render_template(
+                request,
+                "registration.html",
+                {
+                    "invitation_code": code,
+                    "error_message": error_message
+                }
+            )
+        
+        # Check if assessment already completed
+        if invitation.assessment_completed:
+            logger.info(f"Invitation code {code[:4]}... already completed assessment")
+            error_message = "This invitation has already been used and the assessment has been completed."
+            return render_template(
+                request,
+                "registration.html",
+                {
+                    "invitation_code": code,
+                    "error_message": error_message
+                }
+            )
+        
+        if invitation.is_used:
+            logger.info(f"Invitation code {code[:4]}... already used")
+            error_message = "This invitation code has already been used."
+            return render_template(
+                request,
+                "registration.html",
+                {
+                    "invitation_code": code,
+                    "error_message": error_message
+                }
+            )
+        
+        # Check expiration
+        if invitation.expires_at and invitation.expires_at < datetime.now():
+            logger.info(f"Invitation code {code[:4]}... expired")
+            error_message = "This invitation code has expired. Please contact the administrator for a new invitation."
+            return render_template(
+                request,
+                "registration.html",
+                {
+                    "invitation_code": code,
+                    "error_message": error_message
+                }
+            )
 
         return render_template(
             request,
             "registration.html",
             {
-                "invitation_code": code
+                "invitation_code": code,
+                "error_message": None
             }
         )
 
@@ -1571,11 +1721,11 @@ async def admin_dashboard(request: Request):
         # Check admin authentication
         if not request.session.get("is_admin"):
             return RedirectResponse(url="/login", status_code=303)
-        
+
         return render_template(
             request,
             "admin_dashboard.html",
-            {}
+            {"admin_key": settings.ADMIN_API_KEY}
         )
     except HTTPException:
         raise
@@ -1598,11 +1748,11 @@ async def admin_invitation_page(request: Request):
         # Check admin authentication
         if not request.session.get("is_admin"):
             return RedirectResponse(url="/login", status_code=303)
-        
+
         return render_template(
             request,
             "admin_invitation.html",
-            {}
+            {"admin_key": settings.ADMIN_API_KEY}
         )
     except HTTPException:
         raise
@@ -1625,11 +1775,11 @@ async def admin_scoreboard_page(request: Request):
         # Check admin authentication
         if not request.session.get("is_admin"):
             return RedirectResponse(url="/login", status_code=303)
-        
+
         return render_template(
             request,
             "admin_scoreboard.html",
-            {}
+            {"admin_key": settings.ADMIN_API_KEY}
         )
     except HTTPException:
         raise

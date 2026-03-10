@@ -158,20 +158,21 @@
   },
   "19": {
     "module": "speaking",
-    "question": "A guest says: 'The air conditioning in my room is too cold.' Please respond appropriately.",
-    "expected_keywords": ["apologize", "sorry", "send someone", "fix", "adjust", "maintenance", "comfortable"],
-    "min_duration": 5,
+    "speaking_type": "repeat",
+    "question": "Listen to the audio and repeat exactly what you hear:",
+    "audio_text": "Good morning! Welcome aboard. My name is Maria and I will be your cabin steward during this voyage.",
     "points": 7
   },
   "20": {
     "module": "speaking",
-    "question": "A guest asks: 'What time does the buffet close?' Please provide a helpful response.",
-    "expected_keywords": ["buffet", "closes", "hours", "dining", "alternative", "room service", "restaurant"],
-    "min_duration": 5,
+    "speaking_type": "repeat",
+    "question": "Listen to the audio and repeat exactly what you hear:",
+    "audio_text": "The pool deck is located on deck twelve. Please remember to bring your cruise card for towel service.",
     "points": 7
   },
   "21": {
     "module": "speaking",
+    "speaking_type": "scenario",
     "question": "A guest is lost and asks: 'How do I get to the spa?' Give clear directions.",
     "expected_keywords": ["elevator", "deck", "directions", "follow", "signs", "spa", "level", "floor"],
     "min_duration": 5,

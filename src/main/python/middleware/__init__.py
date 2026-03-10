@@ -1,8 +1,10 @@
 """
 Middleware package for FastAPI application
+
+Note: Main app uses core.security instead of this middleware package.
+This package exists for potential future use or extension.
 """
 
-from .session import SessionMiddleware, get_session
 from .security import (
     SecurityHeadersMiddleware,
     CSRFMiddleware,
@@ -19,8 +21,6 @@ from .security import (
 )
 
 __all__ = [
-    'SessionMiddleware',
-    'get_session',
     'SecurityHeadersMiddleware',
     'CSRFMiddleware',
     'RateLimitMiddleware',

@@ -10,6 +10,7 @@ from sqlalchemy import select, and_
 from typing import Dict, Any, Optional
 import secrets
 import hashlib
+import os
 
 from core.database import get_db
 from models.assessment import User, InvitationCode, DivisionType, PasswordResetToken
@@ -109,9 +110,10 @@ async def register(
         department = None
         
         if request_data.invitation_code and request_data.invitation_code.strip():
-            # Find invitation code
+            # Find invitation code (case-insensitive comparison)
+            from sqlalchemy import func
             inv_result = await db.execute(
-                select(InvitationCode).where(InvitationCode.code == request_data.invitation_code)
+                select(InvitationCode).where(func.upper(InvitationCode.code) == request_data.invitation_code.upper())
             )
             invitation = inv_result.scalar_one_or_none()
             

@@ -82,20 +82,58 @@
             font-size: 1.8rem;
         }
 
-        .form-input, .form-select {
+        .form-input {
             width: 100%;
             padding: 22px 28px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
             font-size: 1.6rem;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             background: #fff;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus {
             outline: none;
             border-color: #B61B38;
             box-shadow: 0 0 0 5px rgba(182, 27, 56, 0.15);
+        }
+
+        /* Enhanced Select Dropdown Styling */
+        .form-select {
+            width: 100%;
+            padding: 22px 28px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1.6rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
+            cursor: pointer;
+        }
+
+        .form-select:hover {
+            border-color: #B61B38;
+            background: linear-gradient(to bottom, #ffffff 0%, #fff5f6 100%);
+            box-shadow: 0 4px 12px rgba(182, 27, 56, 0.1);
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #B61B38;
+            box-shadow: 0 0 0 5px rgba(182, 27, 56, 0.15), 0 4px 12px rgba(182, 27, 56, 0.1);
+        }
+
+        .form-select:disabled {
+            background: linear-gradient(to bottom, #f5f5f5 0%, #eeeeee 100%);
+            color: #999;
+            cursor: not-allowed;
+            border-color: #ddd;
+        }
+
+        .form-select option {
+            padding: 16px 20px;
+            font-size: 1.5rem;
+            background: #fff;
+            color: #333;
         }
 
         .form-row {
@@ -316,18 +354,38 @@
         
         .filter-item select {
             padding: 16px 22px;
-            font-size: 1.6rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            background: white;
+            font-size: 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
             cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 160px;
+        }
+
+        .filter-item select:hover {
+            border-color: #B61B38;
+            background-color: #fff5f6;
+            box-shadow: 0 4px 12px rgba(182, 27, 56, 0.1);
+        }
+
+        .filter-item select:focus {
+            outline: none;
+            border-color: #B61B38;
+            box-shadow: 0 0 0 4px rgba(182, 27, 56, 0.12);
         }
 
         .filter-item input[type="checkbox"] {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             cursor: pointer;
-            accent-color: #667eea;
+            accent-color: #B61B38;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .filter-item input[type="checkbox"]:hover {
+            transform: scale(1.1);
         }
 
         .code-display {
@@ -350,6 +408,11 @@
         <div class="header">
             <h1>Invitation Code Management</h1>
             <p>Create and manage invitation codes for candidate registration</p>
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                <span style="font-size: 1.2rem; color: #666;">Admin API Key: </span>
+                <code style="font-size: 1.3rem; background: #fff; padding: 8px 15px; border-radius: 4px; border: 1px solid #ddd; margin-left: 10px;">{{ admin_key }}</code>
+                <button onclick="navigator.clipboard.writeText('{{ admin_key }}'); alert('Admin key copied!');" style="margin-left: 10px; padding: 8px 15px; background: #014E8F; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">Copy</button>
+            </div>
         </div>
 
         <!-- Create Invitation Form -->
@@ -364,24 +427,42 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="form-label">Nationality</label>
+                        <input type="text" id="nationality" class="form-input" placeholder="e.g., USA, Philippines, Mexico" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" id="first_name" class="form-input" placeholder="Enter first name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" id="last_name" class="form-input" placeholder="Enter last name" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
                         <label class="form-label">Operation</label>
                         <select id="operation" class="form-select" required>
                             <option value="">Select Operation</option>
                             <option value="hotel">Hotel Operations</option>
                             <option value="marine">Marine Operations</option>
-                            <option value="casino">Casino Operations</option>
                         </select>
                     </div>
-                </div>
 
-                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Department</label>
                         <select id="department" class="form-select" required disabled>
                             <option value="">Select Operation First</option>
                         </select>
                     </div>
+                </div>
 
+                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Expires In (Days)</label>
                         <input type="number" id="expires_days" class="form-input" value="7" min="1" max="90">
@@ -390,7 +471,7 @@
 
                 <div class="form-group">
                     <label class="form-label">Admin Key</label>
-                    <input type="password" id="admin_key" class="form-input" placeholder="Enter admin key" required>
+                    <input type="password" id="admin_key" class="form-input" placeholder="Enter admin key" value="{{ admin_key }}" required>
                 </div>
 
                 <div style="margin-top: 25px;">
@@ -436,7 +517,6 @@
                         <option value="">All</option>
                         <option value="hotel">Hotel</option>
                         <option value="marine">Marine</option>
-                        <option value="casino">Casino</option>
                     </select>
                 </div>
                 <div class="filter-item">
@@ -460,26 +540,37 @@
         // Department mapping by operation
         const departmentMapping = {
             'hotel': [
+                'AUDIO/VISUAL MEDIA',
                 'AUX SERV',
                 'BEVERAGE GUEST SERV',
+                'CASINO',
                 'CULINARY ARTS',
+                'ENT - TECHNICAL',
+                'ENTERTAINMENT',
+                'F&B MGMT',
+                'FLEET FINANCE',
                 'GUEST SERVICES',
+                'GUEST TECHNOLOGY',
+                'HOTEL',
                 'HOUSEKEEPING',
+                'HUMAN RESOURCES',
+                'INFO TECHNOLOGY',
+                'INFOTAINMENT',
                 'LAUNDRY',
+                'MUSICIANS',
+                'ONBOARD MEDIA',
                 'PHOTO',
+                'PRODUCTION STAFF',
                 'PROVISIONS',
                 'REST. SERVICE',
-                'SHORE EXCURS'
+                'SHORE EXCURS',
+                'YOUTH PROGRAMS'
             ],
             'marine': [
                 'DECK',
                 'ENGINE',
+                'MEDICAL',
                 'SECURITY SERVICES'
-            ],
-            'casino': [
-                'TABLE GAMES',
-                'SLOT MACHINES',
-                'CASINO SERVICES'
             ]
         };
 
@@ -523,6 +614,9 @@
             e.preventDefault();
             
             const email = document.getElementById('email').value;
+            const first_name = document.getElementById('first_name').value;
+            const last_name = document.getElementById('last_name').value;
+            const nationality = document.getElementById('nationality').value;
             const operation = document.getElementById('operation').value;
             const department = document.getElementById('department').value;
             const expires_days = parseInt(document.getElementById('expires_days').value);
@@ -536,6 +630,9 @@
                     },
                     body: JSON.stringify({
                         email,
+                        first_name,
+                        last_name,
+                        nationality,
                         operation,
                         department: department || null,
                         expires_in_days: expires_days,
@@ -601,13 +698,16 @@ Best regards,`;
             alert('Email content copied to clipboard! You can now paste it into your email client.');
         }
         
+        // Admin key from server
+        const adminKey = '{{ admin_key }}';
+        
         // Load invitations list
         async function loadInvitations() {
             const showUsed = document.getElementById('showUsed').checked;
             const showExpired = document.getElementById('showExpired').checked;
             const filterOperation = document.getElementById('filterOperation').value;
             
-            let url = `/api/v1/admin/invitations?show_used=${showUsed}&show_expired=${showExpired}`;
+            let url = `/api/v1/admin/invitations?admin_key=${adminKey}&show_used=${showUsed}&show_expired=${showExpired}`;
             if (filterOperation) {
                 url += `&operation=${filterOperation}`;
             }
@@ -615,6 +715,16 @@ Best regards,`;
             try {
                 const response = await fetch(url);
                 const data = await response.json();
+                
+                // Handle API errors
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load invitations');
+                }
+                
+                // Ensure invitations array exists
+                if (!data.invitations) {
+                    data.invitations = [];
+                }
                 
                 const tableHtml = `
                     <table class="table">
@@ -669,7 +779,7 @@ Best regards,`;
         }
         
         function copyInvitationLink(code) {
-            const link = `${window.location.origin}/invitation?code=${code}`;
+            const link = `${window.location.origin}/register?code=${code}`;
             navigator.clipboard.writeText(link);
             alert('Registration link copied!');
         }

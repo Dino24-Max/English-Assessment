@@ -107,23 +107,57 @@
             font-weight: 700;
         }
 
-        .form-input, .form-select {
+        .form-input {
             width: 100%;
             padding: 15px 20px;
             font-size: 1.6rem;
             border: 2.5px solid rgba(0, 122, 255, 0.25);
             border-radius: 14px;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             font-family: 'SF Pro Display', sans-serif;
             background: rgba(255, 255, 255, 0.95);
             color: #1a1a1a;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus {
             outline: none;
             border-color: #007aff;
             box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
             background: rgba(255, 255, 255, 1);
+        }
+
+        /* Enhanced Select Dropdown */
+        .form-select {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.6rem;
+            border: 2.5px solid rgba(0, 122, 255, 0.25);
+            border-radius: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'SF Pro Display', sans-serif;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 255, 0.95) 100%);
+            color: #1a1a1a;
+            cursor: pointer;
+        }
+
+        .form-select:hover {
+            border-color: rgba(0, 122, 255, 0.5);
+            background-color: rgba(255, 255, 255, 1);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.12);
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15), 0 4px 12px rgba(0, 122, 255, 0.1);
+            background-color: rgba(255, 255, 255, 1);
+        }
+
+        .form-select option {
+            padding: 14px 18px;
+            font-size: 1.5rem;
+            background: #fff;
+            color: #333;
         }
 
         .form-row {
@@ -304,9 +338,13 @@
                 <p>All fields marked with <span class="required">*</span> are required. Your information will be used to generate your assessment certificate upon successful completion.</p>
             </div>
 
+            {% if error_message %}
+            <div id="error-message" class="error-message" style="display: block;">{{ error_message }}</div>
+            {% else %}
             <div id="error-message" class="error-message"></div>
+            {% endif %}
 
-            <form id="registration-form" action="/api/v1/auth/register" method="POST">
+            <form id="registration-form" action="/api/v1/auth/register" method="POST" {% if error_message %}style="display: none;"{% endif %}>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label" for="first_name">First Name <span class="required">*</span></label>
@@ -326,7 +364,7 @@
                 </div>
                 
                 <!-- Hidden field for invitation code -->
-                <input type="hidden" id="invitation_code" name="invitation_code" value="">
+                <input type="hidden" id="invitation_code" name="invitation_code" value="{{ invitation_code or '' }}">
 
                 <div class="form-group">
                     <label class="form-label" for="nationality">Nationality <span class="required">*</span></label>
@@ -369,26 +407,56 @@
         const invitationCode = urlParams.get('code');
         let isFromInvitation = false;
 
-        // If invitation code exists, validate and prefill email
+        // If invitation code exists, validate and prefill fields
         if (invitationCode) {
             document.getElementById('invitation_code').value = invitationCode;
             isFromInvitation = true;
             
-            // Validate invitation code and get email
+            // Validate invitation code and get user data
             fetch(`/api/v1/admin/invitation/${invitationCode}/validate`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.valid && data.email) {
-                        const emailInput = document.getElementById('email');
-                        emailInput.value = data.email;
-                        emailInput.readOnly = true;
-                        emailInput.style.backgroundColor = '#f5f5f5';
-                        emailInput.style.cursor = 'not-allowed';
+                    if (data.valid) {
+                        // Pre-fill and lock email
+                        if (data.email) {
+                            const emailInput = document.getElementById('email');
+                            emailInput.value = data.email;
+                            emailInput.readOnly = true;
+                            emailInput.style.backgroundColor = '#f5f5f5';
+                            emailInput.style.cursor = 'not-allowed';
+                            
+                            // Hide email status for invitation users
+                            const emailStatus = document.getElementById('email-status');
+                            if (emailStatus) {
+                                emailStatus.style.display = 'none';
+                            }
+                        }
                         
-                        // Hide email status for invitation users
-                        const emailStatus = document.getElementById('email-status');
-                        if (emailStatus) {
-                            emailStatus.style.display = 'none';
+                        // Pre-fill and lock first name
+                        if (data.first_name) {
+                            const firstNameInput = document.getElementById('first_name');
+                            firstNameInput.value = data.first_name;
+                            firstNameInput.readOnly = true;
+                            firstNameInput.style.backgroundColor = '#f5f5f5';
+                            firstNameInput.style.cursor = 'not-allowed';
+                        }
+                        
+                        // Pre-fill and lock last name
+                        if (data.last_name) {
+                            const lastNameInput = document.getElementById('last_name');
+                            lastNameInput.value = data.last_name;
+                            lastNameInput.readOnly = true;
+                            lastNameInput.style.backgroundColor = '#f5f5f5';
+                            lastNameInput.style.cursor = 'not-allowed';
+                        }
+                        
+                        // Pre-fill and lock nationality
+                        if (data.nationality) {
+                            const nationalityInput = document.getElementById('nationality');
+                            nationalityInput.value = data.nationality;
+                            nationalityInput.readOnly = true;
+                            nationalityInput.style.backgroundColor = '#f5f5f5';
+                            nationalityInput.style.cursor = 'not-allowed';
                         }
                     }
                 })
