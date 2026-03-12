@@ -132,7 +132,7 @@
                         <button class="audio-btn" onclick="pauseAudio()" id="pauseBtn" style="display:none;">
                             <span class="btn-icon">⏸</span> Pause
                         </button>
-                        <div class="play-count" id="playCount">Play as many times as needed</div>
+                        <div class="play-count" id="playCount">Plays remaining: <span id="playsLeft">2</span>/2</div>
                     </div>
                 </div>
                 <p class="speaking-instruction">🎤 Click below to record your repetition:</p>
@@ -403,7 +403,7 @@
                     document.getElementById('playBtn').style.display = 'inline-block';
                     document.getElementById('pauseBtn').style.display = 'none';
                     
-                    {% if question_data.module == "listening" or question_data.module == "time_numbers" %}
+                    {% if question_data.module == "listening" or question_data.module == "time_numbers" or question_data.module == "speaking" %}
                     playsRemaining--;
                     document.getElementById('playsLeft').textContent = playsRemaining;
                     if (playsRemaining <= 0) {
@@ -435,7 +435,7 @@
                     document.getElementById('playBtn').style.display = 'inline-block';
                     document.getElementById('pauseBtn').style.display = 'none';
 
-                    {% if question_data.module == "listening" or question_data.module == "time_numbers" %}
+                    {% if question_data.module == "listening" or question_data.module == "time_numbers" or question_data.module == "speaking" %}
                     playsRemaining--;
                     document.getElementById('playsLeft').textContent = playsRemaining;
                     if (playsRemaining <= 0) {
@@ -579,27 +579,6 @@
                 }
             });
 
-            // Auto-complete if only one term and one definition remain
-            if (remainingTerms.length === 1 && unmatchedZones.length === 1) {
-                const lastTerm = remainingTerms[0];
-                const lastZone = unmatchedZones[0];
-                const term = lastTerm.getAttribute('data-term');
-                const termText = lastTerm.textContent.trim();
-                const definition = lastZone.getAttribute('data-definition');
-                
-                // Create the matched term element
-                const matchedTermDiv = document.createElement('div');
-                matchedTermDiv.className = 'dropped-term';
-                matchedTermDiv.setAttribute('data-term', term);
-                matchedTermDiv.textContent = termText;
-                lastZone.appendChild(matchedTermDiv);
-                lastTerm.remove();
-                
-                // Add to matches
-                matches[term] = definition;
-                allMatched = true;
-            }
-
             if (allMatched) {
                 selectedAnswer = JSON.stringify(matches);
                 document.getElementById('submitBtn').disabled = false;
@@ -695,88 +674,83 @@
 
                     // Upload audio to backend for Whisper transcription
                     {% if question_data.module == "speaking" %}
-                    document.getElementById('status').textContent = 'Transcribing with AI... Please wait.';
-                    document.getElementById('submitBtn').disabled = true;
-                    
                     // Check if this is a repeat-type speaking question (no minimum duration)
                     const hasMinDuration = {{ 'true' if question_data.min_duration else 'false' }};
                     const minDuration = {{ question_data.min_duration if question_data.min_duration else 0 }};
                     
-                    try {
-                        const formData = new FormData();
-                        formData.append('audio_file', audioBlob, 'recording.wav');
-                        formData.append('question_num', {{ question_num }});
-                        // For speaking questions, pass expected_keywords or audio_text as context
-                        {% if question_data.expected_keywords %}
-                        const expectedKeywords = {{ question_data.expected_keywords|tojson }};
-                        formData.append('expected_response', expectedKeywords.join(', '));
-                        {% elif question_data.audio_text %}
-                        formData.append('expected_response', {{ question_data.audio_text|tojson }});
-                        {% else %}
-                        formData.append('expected_response', '');
-                        {% endif %}
-                        formData.append('question_context', {{ question_data.question|tojson if question_data.question else '""' }});
-                        
-                        const assessmentId = '{{ session.get("assessment_id", "") if session else "" }}';
-                        const response = await fetch(`/api/v1/assessment/${assessmentId}/speaking-transcribe`, {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        if (response.ok) {
-                            const result = await response.json();
-                            const backendTranscript = result.transcript || '';
+                    // IMMEDIATELY enable submit button after first recording if min_duration is satisfied
+                    // Set a temporary selectedAnswer with browser transcript (will be updated when AI transcription completes)
+                    const savedRecordingSeconds = recordingSeconds;
+                    selectedAnswer = `recorded_${savedRecordingSeconds}s|${transcribedText || ''}`;
+                    
+                    if (!hasMinDuration || savedRecordingSeconds >= minDuration) {
+                        document.getElementById('submitBtn').disabled = false;
+                        document.getElementById('status').textContent = '✅ Recording complete. You can continue or record again.';
+                    }
+                    
+                    // Run transcription in background (non-blocking)
+                    (async function backgroundTranscription() {
+                        try {
+                            document.getElementById('status').textContent = '✅ Recording complete. Transcribing in background...';
                             
-                            // Check if backend returned an error message (starts with "[")
-                            if (backendTranscript && !backendTranscript.startsWith('[')) {
-                                // Valid backend transcription
-                                transcribedText = backendTranscript;
-                                selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText}`;
+                            const formData = new FormData();
+                            formData.append('audio_file', audioBlob, 'recording.wav');
+                            formData.append('question_num', {{ question_num }});
+                            // For speaking questions, pass expected_keywords or audio_text as context
+                            {% if question_data.expected_keywords %}
+                            const expectedKeywords = {{ question_data.expected_keywords|tojson }};
+                            formData.append('expected_response', expectedKeywords.join(', '));
+                            {% elif question_data.audio_text %}
+                            formData.append('expected_response', {{ question_data.audio_text|tojson }});
+                            {% else %}
+                            formData.append('expected_response', '');
+                            {% endif %}
+                            formData.append('question_context', {{ question_data.question|tojson if question_data.question else '""' }});
+                            
+                            const assessmentId = '{{ session.get("assessment_id", "") if session else "" }}';
+                            const response = await fetch(`/api/v1/assessment/${assessmentId}/speaking-transcribe`, {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            if (response.ok) {
+                                const result = await response.json();
+                                const backendTranscript = result.transcript || '';
                                 
-                                // Enable submit if no min duration OR if recording meets min duration
-                                if (!hasMinDuration || recordingSeconds >= minDuration) {
-                                    document.getElementById('submitBtn').disabled = false;
+                                // Check if backend returned an error message (starts with "[")
+                                if (backendTranscript && !backendTranscript.startsWith('[')) {
+                                    // Valid backend transcription - update selectedAnswer
+                                    transcribedText = backendTranscript;
+                                    selectedAnswer = `recorded_${savedRecordingSeconds}s|${transcribedText}`;
                                     document.getElementById('status').textContent = `✅ AI Transcription: "${transcribedText.substring(0, 100)}"`;
-                                }
-                            } else {
-                                // Backend returned error, use browser transcript as fallback
-                                console.warn('Backend returned error transcript, using browser fallback:', backendTranscript);
-                                
-                                selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText || ''}`;
-                                
-                                // Enable submit if no min duration OR if recording meets min duration
-                                if (!hasMinDuration || recordingSeconds >= minDuration) {
-                                    document.getElementById('submitBtn').disabled = false;
+                                } else {
+                                    // Backend returned error, keep browser transcript
+                                    console.warn('Backend returned error transcript, using browser fallback:', backendTranscript);
                                     if (transcribedText) {
-                                        document.getElementById('status').textContent = `✅ Transcription: "${transcribedText.substring(0, 100)}"`;
+                                        document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 100)}"`;
                                     } else {
-                                        document.getElementById('status').textContent = '⚠️ Recording complete (no speech detected)';
+                                        document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
                                     }
                                 }
+                            } else {
+                                // Fallback to browser transcript if backend fails
+                                console.error('Backend transcription failed, using browser fallback');
+                                if (transcribedText) {
+                                    document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 50)}"`;
+                                } else {
+                                    document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                }
                             }
-                        } else {
-                            // Fallback to browser transcript if backend fails
-                            console.error('Backend transcription failed, using browser fallback');
-                            selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText || ''}`;
-                            
-                            // Enable submit if no min duration OR if recording meets min duration
-                            if (!hasMinDuration || recordingSeconds >= minDuration) {
-                                document.getElementById('submitBtn').disabled = false;
-                                document.getElementById('status').textContent = `Recording complete (browser transcript): "${transcribedText.substring(0, 50) || 'no speech'}"`;
+                        } catch (error) {
+                            console.error('Transcription error:', error);
+                            // Keep the existing selectedAnswer with browser transcript
+                            if (transcribedText) {
+                                document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 50)}"`;
+                            } else {
+                                document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
                             }
                         }
-                    } catch (error) {
-                        console.error('Transcription error:', error);
-                        
-                        // Fallback to browser transcript
-                        selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText || ''}`;
-                        
-                        // Enable submit if no min duration OR if recording meets min duration
-                        if (!hasMinDuration || recordingSeconds >= minDuration) {
-                            document.getElementById('submitBtn').disabled = false;
-                            document.getElementById('status').textContent = `Recording complete (fallback): "${transcribedText.substring(0, 50) || 'no speech'}"`;
-                        }
-                    }
+                    })();
                     {% else %}
                     // Non-speaking questions: just use browser transcript
                     selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText || ''}`;
@@ -892,10 +866,11 @@
             formData.append('csrf_token', '{{ csrf_token }}');
             {% endif %}
 
-            // Submit to backend
+            // Submit to backend (credentials ensures session cookie is sent)
             fetch('/submit', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'same-origin'
             })
             .then(response => {
                 if (response.redirected) {
@@ -916,67 +891,53 @@
         }
 
         // ===== 30-MINUTE COUNTDOWN TIMER =====
-        let totalSeconds;
+        // Uses end-timestamp so timer stays correct when tab is in background
+        const TIMER_DURATION = 30 * 60; // 30 minutes
         let timerInterval;
 
-        function initializeTimer() {
-            // Check if timer exists in localStorage
-            const savedTime = localStorage.getItem('assessmentTimer');
-            const timerStarted = localStorage.getItem('timerStarted');
-
-            if (savedTime && timerStarted) {
-                // Resume timer from saved time
-                totalSeconds = parseInt(savedTime);
-            } else {
-                // Start new 30-minute timer
-                totalSeconds = 30 * 60; // 30 minutes = 1800 seconds
-                localStorage.setItem('timerStarted', 'true');
-            }
-
-            updateTimerDisplay();
-            startTimer();
+        function getRemainingSeconds() {
+            const endTime = parseInt(localStorage.getItem('assessmentEndTime') || '0');
+            if (!endTime) return null;
+            const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+            return remaining;
         }
 
-        function startTimer() {
-            timerInterval = setInterval(() => {
-                totalSeconds--;
-                localStorage.setItem('assessmentTimer', totalSeconds);
+        function initializeTimer() {
+            const el = document.getElementById('timerDisplay');
+            if (!el) return;
 
-                updateTimerDisplay();
+            let endTime = parseInt(localStorage.getItem('assessmentEndTime') || '0');
+            if (!endTime || endTime <= Date.now()) {
+                endTime = Date.now() + (TIMER_DURATION * 1000);
+                localStorage.setItem('assessmentEndTime', endTime);
+            }
 
-                // Check if time's up
-                if (totalSeconds <= 0) {
+            function tick() {
+                const remaining = getRemainingSeconds();
+                if (remaining === null) return;
+                if (remaining <= 0) {
                     clearInterval(timerInterval);
+                    localStorage.removeItem('assessmentEndTime');
                     alert('Time is up! The assessment will now be submitted.');
                     window.location.href = '/results';
+                    return;
                 }
-            }, 1000);
-        }
-
-        function updateTimerDisplay() {
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            document.getElementById('timerDisplay').textContent = display;
-
-            // Change color when time is running low (< 5 minutes)
-            const timerElement = document.getElementById('timerDisplay');
-            if (totalSeconds < 300) {
-                timerElement.style.color = '#ff3b30';
-                timerElement.style.fontWeight = '800';
-            } else if (totalSeconds < 600) {
-                timerElement.style.color = '#ff9500';
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                el.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                el.style.color = remaining < 300 ? '#ff3b30' : (remaining < 600 ? '#ff9500' : '');
+                el.style.fontWeight = remaining < 300 ? '800' : '';
             }
+
+            tick();
+            timerInterval = setInterval(tick, 1000);
         }
 
-        // Initialize timer when page loads
         window.addEventListener('load', initializeTimer);
 
-        // Clear timer when assessment is complete
         {% if is_last_question %}
         window.addEventListener('beforeunload', () => {
-            localStorage.removeItem('assessmentTimer');
-            localStorage.removeItem('timerStarted');
+            localStorage.removeItem('assessmentEndTime');
         });
         {% endif %}
     </script>

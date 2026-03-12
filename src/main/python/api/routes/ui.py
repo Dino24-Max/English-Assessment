@@ -659,7 +659,7 @@ async def start_assessment(request: Request, operation: str, db: AsyncSession = 
 
 
 @router.get("/question/{question_num}", response_class=HTMLResponse)
-async def question_page(request: Request, question_num: int, operation: Optional[str] = None):
+async def question_page(request: Request, question_num: int, operation: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     """
     Question page - Display specific question filtered by operation
 
@@ -669,6 +669,21 @@ async def question_page(request: Request, question_num: int, operation: Optional
     """
     logger.debug(f"GET /question/{question_num} - operation={operation}")
     try:
+        # When landing on Q1 with NOT_STARTED assessment (from instructions->pre-test flow), start it now
+        session = request.session
+        assessment_id = session.get("assessment_id")
+        if question_num == 1 and assessment_id:
+            from core.assessment_engine import AssessmentEngine
+            from models.assessment import Assessment, AssessmentStatus
+            from sqlalchemy import select
+            result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
+            a = result.scalar_one_or_none()
+            if a and a.status == AssessmentStatus.NOT_STARTED:
+                engine = AssessmentEngine(db)
+                await engine.start_assessment(assessment_id)
+                session["answers"] = {}
+                logger.info(f"Started assessment {assessment_id} on first question load")
+
         # Validate question number
         if question_num < 1 or question_num > 21:
             raise HTTPException(status_code=404, detail="Question not found. Valid range: 1-21")
@@ -802,7 +817,7 @@ async def submit_answer(
         # IMPLEMENTED: Database persistence for answers
         # Get or create assessment from session
         session = request.session
-        
+
         # Prevent duplicate submissions - if question already answered, redirect to next
         answers = session.get("answers", {})
         if str(question_num) in answers:
@@ -881,12 +896,29 @@ async def submit_answer(
         result = score_answer_from_config(question_num, answer)
         logger.debug(f"UI scoring result for Q{question_num}: is_correct={result.get('is_correct')}, points={result.get('points_earned')}")
         
-        # Store result in session - MINIMAL DATA to avoid Cookie size limit (4KB)
-        # Only store: question_num -> "module:points" (e.g., "reading:4")
+        # Store result in session AND database - session can be unreliable (cookie size limits)
         answers = session.get("answers", {})
-        # Compact format: "module:points_earned"
-        answers[str(question_num)] = f"{result.get('module', 'unknown')}:{result['points_earned']}"
+        answer_entry = f"{result.get('module', 'unknown')}:{result['points_earned']}"
+        answers[str(question_num)] = answer_entry
         session["answers"] = answers
+        
+        # PERSIST TO DATABASE - primary source of truth (session cookie may fail)
+        if assessment_id:
+            try:
+                from models.assessment import Assessment
+                from sqlalchemy import select
+                assess_result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
+                assessment = assess_result.scalar_one_or_none()
+                if assessment:
+                    data = dict(assessment.analytics_data or {})
+                    ui_answers = dict(data.get("ui_answers") or {})
+                    ui_answers[str(question_num)] = answer_entry
+                    data["ui_answers"] = ui_answers
+                    assessment.analytics_data = data  # Reassign triggers SQLAlchemy persistence
+                    await db.commit()
+                    logger.debug(f"Persisted Q{question_num} to DB. Total in DB: {len(ui_answers)}")
+            except Exception as e:
+                logger.warning(f"Failed to persist answer to DB: {e}")
         
         logger.debug(f"Stored Q{question_num} answer. Total answers: {len(answers)}")
 
@@ -901,10 +933,18 @@ async def submit_answer(
                     
                     logger.debug(f"Calculating final scores for assessment_id={assessment_id}")
                     
-                    # Calculate scores from session answers
-                    # Format: answers = {"1": "listening:5", "2": "listening:5", ...}
-                    answers = session.get("answers", {})
-                    logger.debug(f"Found {len(answers)} answers in session")
+                    # Calculate scores - prefer DB (ui_answers) over session (session cookie may fail)
+                    answers = {}
+                    assess_result = await db.execute(
+                        select(Assessment).where(Assessment.id == assessment_id)
+                    )
+                    db_assessment = assess_result.scalar_one_or_none()
+                    if db_assessment and db_assessment.analytics_data:
+                        answers = db_assessment.analytics_data.get("ui_answers") or {}
+                        logger.debug(f"Loaded {len(answers)} answers from DB for final scoring")
+                    if not answers:
+                        answers = session.get("answers", {})
+                        logger.debug(f"Fallback: {len(answers)} answers from session")
                     
                     # Group by module and calculate scores
                     module_scores = {
@@ -959,6 +999,16 @@ async def submit_answer(
                         
                         await db.commit()
                         logger.info(f"Assessment {assessment_id} completed and updated in database")
+                        # Store in session as fallback for results page (session survives redirect)
+                        session["computed_scores"] = {
+                            "listening": module_scores["listening"],
+                            "time_numbers": module_scores["time_numbers"],
+                            "grammar": module_scores["grammar"],
+                            "vocabulary": module_scores["vocabulary"],
+                            "reading": module_scores["reading"],
+                            "speaking": module_scores["speaking"],
+                            "total": total_score,
+                        }
                     else:
                         logger.warning(f"Assessment {assessment_id} not found in database")
                         
@@ -1006,6 +1056,80 @@ async def submit_answer(
         raise HTTPException(status_code=500, detail=detail)
 
 
+@router.get("/api/results/scores")
+async def get_results_scores_api(request: Request, db: AsyncSession = Depends(get_db)):
+    """JSON API: Return current assessment scores. Used by results page to ensure correct display."""
+    session = request.session
+    assessment_id = session.get("assessment_id")
+    if not assessment_id:
+        return {"error": "No assessment", "scores": None}
+    try:
+        from models.assessment import Assessment, AssessmentStatus
+        from sqlalchemy import select
+        result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
+        assessment = result.scalar_one_or_none()
+        if not assessment:
+            return {"error": "Assessment not found", "scores": None}
+        answers = {}
+        if assessment.analytics_data:
+            answers = assessment.analytics_data.get("ui_answers") or {}
+        if not answers:
+            answers = session.get("answers", {})
+        if answers:
+            module_scores = {"listening": 0, "time_numbers": 0, "grammar": 0, "vocabulary": 0, "reading": 0, "speaking": 0}
+            for _q, answer_data in answers.items():
+                if isinstance(answer_data, str) and ":" in answer_data:
+                    parts = answer_data.split(":")
+                    module = parts[0].lower().replace(" & ", "_").replace(" ", "_")
+                    try:
+                        points = int(parts[1])
+                    except (ValueError, IndexError):
+                        points = 0
+                elif isinstance(answer_data, dict):
+                    module = answer_data.get("module", "unknown").lower().replace(" & ", "_").replace(" ", "_")
+                    points = answer_data.get("points_earned", 0)
+                else:
+                    continue
+                if module in module_scores:
+                    module_scores[module] += points
+            total = sum(module_scores.values())
+            assessment.status = AssessmentStatus.COMPLETED
+            assessment.completed_at = datetime.now()
+            assessment.total_score = total
+            assessment.listening_score = module_scores["listening"]
+            assessment.time_numbers_score = module_scores["time_numbers"]
+            assessment.grammar_score = module_scores["grammar"]
+            assessment.vocabulary_score = module_scores["vocabulary"]
+            assessment.reading_score = module_scores["reading"]
+            assessment.speaking_score = module_scores["speaking"]
+            assessment.passed = total >= settings.PASS_THRESHOLD_TOTAL
+            await db.commit()
+        total_possible = 100
+        modules = [
+            {"name": "Listening", "score": assessment.listening_score or 0, "possible": 16},
+            {"name": "Time & Numbers", "score": assessment.time_numbers_score or 0, "possible": 16},
+            {"name": "Grammar", "score": assessment.grammar_score or 0, "possible": 16},
+            {"name": "Vocabulary", "score": assessment.vocabulary_score or 0, "possible": 16},
+            {"name": "Reading", "score": assessment.reading_score or 0, "possible": 16},
+            {"name": "Speaking", "score": assessment.speaking_score or 0, "possible": 20}
+        ]
+        total_score = assessment.total_score or sum(m["score"] for m in modules)
+        percentage = int(round((total_score / total_possible) * 100)) if total_possible > 0 else 0
+        return {
+            "listening_score": int(modules[0]["score"]),
+            "time_numbers_score": int(modules[1]["score"]),
+            "grammar_score": int(modules[2]["score"]),
+            "vocabulary_score": int(modules[3]["score"]),
+            "reading_score": int(modules[4]["score"]),
+            "speaking_score": int(modules[5]["score"]),
+            "total_score": int(total_score),
+            "score_percentage": percentage
+        }
+    except Exception as e:
+        logger.error(f"API get_results_scores: {e}", exc_info=True)
+        return {"error": str(e), "scores": None}
+
+
 @router.get("/results", response_class=HTMLResponse)
 async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
     """
@@ -1042,7 +1166,62 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
 
                 if assessment:
                     logger.debug(f"Found assessment {assessment_id} with total_score={assessment.total_score}")
-                    # Use actual scores from database (calculated by complete_assessment)
+
+                    # ALWAYS prefer computing from ui_answers when available - ensures current scores
+                    # (handles timer redirect, retakes, session loss)
+                    answers = {}
+                    if assessment.analytics_data:
+                        answers = assessment.analytics_data.get("ui_answers") or {}
+                    if not answers:
+                        answers = session.get("answers", {})
+                    # Fallback: use scores stored in session by submit (survives redirect)
+                    computed = session.get("computed_scores")
+                    if not answers and computed and computed.get("total", 0) > 0:
+                        total_score = computed.get("total", 0)
+                        assessment.status = AssessmentStatus.COMPLETED
+                        assessment.completed_at = datetime.now()
+                        assessment.total_score = total_score
+                        assessment.listening_score = computed.get("listening", 0)
+                        assessment.time_numbers_score = computed.get("time_numbers", 0)
+                        assessment.grammar_score = computed.get("grammar", 0)
+                        assessment.vocabulary_score = computed.get("vocabulary", 0)
+                        assessment.reading_score = computed.get("reading", 0)
+                        assessment.speaking_score = computed.get("speaking", 0)
+                        assessment.passed = total_score >= settings.PASS_THRESHOLD_TOTAL
+                        await db.commit()
+                        logger.info(f"Results page: used session computed_scores fallback, total={total_score}")
+                    elif answers:
+                            module_scores = {"listening": 0, "time_numbers": 0, "grammar": 0, "vocabulary": 0, "reading": 0, "speaking": 0}
+                            for _q, answer_data in answers.items():
+                                if isinstance(answer_data, str) and ":" in answer_data:
+                                    parts = answer_data.split(":")
+                                    module = parts[0].lower().replace(" & ", "_").replace(" ", "_")
+                                    try:
+                                        points = int(parts[1])
+                                    except (ValueError, IndexError):
+                                        points = 0
+                                elif isinstance(answer_data, dict):
+                                    module = answer_data.get("module", "unknown").lower().replace(" & ", "_").replace(" ", "_")
+                                    points = answer_data.get("points_earned", 0)
+                                else:
+                                    continue
+                                if module in module_scores:
+                                    module_scores[module] += points
+                            total = sum(module_scores.values())
+                            assessment.status = AssessmentStatus.COMPLETED
+                            assessment.completed_at = datetime.now()
+                            assessment.total_score = total
+                            assessment.listening_score = module_scores["listening"]
+                            assessment.time_numbers_score = module_scores["time_numbers"]
+                            assessment.grammar_score = module_scores["grammar"]
+                            assessment.vocabulary_score = module_scores["vocabulary"]
+                            assessment.reading_score = module_scores["reading"]
+                            assessment.speaking_score = module_scores["speaking"]
+                            assessment.passed = total >= settings.PASS_THRESHOLD_TOTAL
+                            await db.commit()
+                            logger.info(f"Calculated scores on results page for assessment {assessment_id} (timer/direct): total={total}")
+
+                    # Use actual scores from database (calculated by complete_assessment or above)
                     modules = [
                         {"name": "Listening", "score": assessment.listening_score or 0, "possible": 16, "icon": "🎧"},
                         {"name": "Time & Numbers", "score": assessment.time_numbers_score or 0, "possible": 16, "icon": "🔢"},
@@ -1144,10 +1323,12 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
         speaking_score = int(round(modules[5]["score"]))
         speaking_percentage = int(round((modules[5]["score"] / modules[5]["possible"]) * 100))
 
+        operation = session.get("operation", "HOTEL")
         return render_template(
             request,
             "results.html",
             {
+                "operation": operation,
                 "total_score": total_score_int,
                 "score_percentage": percentage,
                 "score_gradient": score_gradient,

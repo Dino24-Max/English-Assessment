@@ -428,12 +428,8 @@
     <script>
         function startAssessment(event) {
             event.preventDefault();
-            // Clear any previous assessment data from sessionStorage
             sessionStorage.removeItem('answeredQuestions');
-            // Also clear localStorage timer data
-            localStorage.removeItem('assessmentTimer');
-            localStorage.removeItem('timerStarted');
-            // Navigate to the first question
+            localStorage.removeItem('assessmentEndTime');
             window.location.href = event.target.href;
         }
     </script>

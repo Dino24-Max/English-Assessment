@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
 from core.database import engine, Base
 from api.routes import assessment, admin, analytics, ui, auth
 from core.config import settings
@@ -38,7 +39,25 @@ async def lifespan(app: FastAPI):
     # Initialize database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+        # Migration: add InvitationCode columns if missing (model was extended)
+        migrations = [
+            ("first_name", "VARCHAR(100)"),
+            ("last_name", "VARCHAR(100)"),
+            ("nationality", "VARCHAR(100)"),
+            ("assessment_completed", "INTEGER DEFAULT 0"),
+        ]
+        for col, col_type in migrations:
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE invitation_codes ADD COLUMN {col} {col_type}"
+                ))
+                logger.info(f"Added column invitation_codes.{col}")
+            except Exception as e:
+                if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                    pass
+                else:
+                    raise
+
     # Initialize Redis cache
     await cache_manager.connect()
     

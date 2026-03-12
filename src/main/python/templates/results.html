@@ -6,8 +6,6 @@
     <title>Assessment Results - CCL English Assessment</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/carnival-theme.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -155,7 +153,7 @@
             font-weight: 500;
         }
 
-        /* Download PDF Button */
+        /* Action Buttons */
         .download-btn {
             display: inline-block;
             padding: 15px 40px;
@@ -402,76 +400,55 @@
                 <div class="score-percentage">{{ score_percentage }}%</div>
             </div>
             <div class="score-label">Overall Score</div>
-            <button class="download-btn" onclick="downloadPDF()">📥 Download as PDF</button>
+            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                <a href="/start-assessment?operation={{ operation }}" class="download-btn" style="text-decoration: none; display: inline-flex; align-items: center;">🔄 Retake Assessment</a>
+            </div>
         </div>
 
         <script>
-            // Animate circular progress on load
-            window.addEventListener('load', function() {
-                const percentage = {{ score_percentage }};
+            // Server-rendered scores (used as initial display and fallback)
+            const SERVER_SCORES = {
+                listening_score: {{ listening_score }},
+                time_numbers_score: {{ time_numbers_score }},
+                grammar_score: {{ grammar_score }},
+                vocabulary_score: {{ vocabulary_score }},
+                reading_score: {{ reading_score }},
+                speaking_score: {{ speaking_score }},
+                score_percentage: {{ score_percentage }}
+            };
+            function updateScores(data) {
+                if (!data || data.error) data = SERVER_SCORES;
+                const pct = document.querySelector('.score-percentage');
+                if (pct) pct.textContent = (data.score_percentage ?? SERVER_SCORES.score_percentage) + '%';
+                const scores = document.querySelectorAll('.module-score');
+                if (scores.length >= 6) {
+                    scores[0].textContent = (data.listening_score ?? SERVER_SCORES.listening_score) + '/16';
+                    scores[1].textContent = (data.time_numbers_score ?? SERVER_SCORES.time_numbers_score) + '/16';
+                    scores[2].textContent = (data.grammar_score ?? SERVER_SCORES.grammar_score) + '/16';
+                    scores[3].textContent = (data.vocabulary_score ?? SERVER_SCORES.vocabulary_score) + '/16';
+                    scores[4].textContent = (data.reading_score ?? SERVER_SCORES.reading_score) + '/16';
+                    scores[5].textContent = (data.speaking_score ?? SERVER_SCORES.speaking_score) + '/20';
+                }
                 const circle = document.getElementById('progressCircle');
-                const circumference = 880; // 2 * PI * 140
-                const offset = circumference - (percentage / 100 * circumference);
-                
-                setTimeout(() => {
-                    circle.style.strokeDashoffset = offset;
-                }, 100);
-            });
-
-            // Download PDF function using html2canvas
-            async function downloadPDF() {
-                const button = document.querySelector('.download-btn');
-                if (button) button.textContent = '⏳ Generating PDF...';
-                
-                try {
-                    // Check if libraries are loaded
-                    if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
-                        throw new Error('PDF libraries not loaded');
-                    }
-                    
-                    // Capture the page as canvas
-                    const canvas = await html2canvas(document.querySelector('.results-container'), {
-                        scale: 2,
-                        useCORS: true,
-                        logging: false,
-                        backgroundColor: '#f5f7fa',
-                        windowWidth: document.querySelector('.results-container').scrollWidth,
-                        windowHeight: document.querySelector('.results-container').scrollHeight
-                    });
-                    
-                    // Create PDF
-                    const imgWidth = 190; // A4 width in mm
-                    const pageHeight = 277; // A4 height in mm
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    
-                    const { jsPDF } = jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    
-                    // Scale to fit in one page
-                    let finalWidth = imgWidth;
-                    let finalHeight = imgHeight;
-                    
-                    if (imgHeight > pageHeight) {
-                        finalHeight = pageHeight;
-                        finalWidth = (canvas.width * pageHeight) / canvas.height;
-                    }
-                    
-                    const xOffset = (210 - finalWidth) / 2; // Center horizontally on A4
-                    const yOffset = 5;
-                    
-                    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
-                    pdf.save('Assessment_Results.pdf');
-                    
-                    if (button) button.textContent = '📥 Download as PDF';
-                    
-                } catch (error) {
-                    console.error('PDF generation error:', error);
-                    alert('PDF generation failed. Using fallback print method...');
-                    window.print();
-                    if (button) button.textContent = '📥 Download as PDF';
+                if (circle) {
+                    const p = data.score_percentage ?? SERVER_SCORES.score_percentage;
+                    circle.style.strokeDashoffset = 880 - (p / 100 * 880);
                 }
             }
+            window.addEventListener('load', function() {
+                updateScores(SERVER_SCORES);
+                fetch('/api/results/scores', { credentials: 'same-origin' })
+                    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+                    .then(data => { if (data && !data.error) updateScores(data); })
+                    .catch(() => {});
+                const circle = document.getElementById('progressCircle');
+                if (circle) {
+                    setTimeout(() => {
+                        circle.style.strokeDashoffset = 880 - (SERVER_SCORES.score_percentage / 100 * 880);
+                    }, 100);
+                }
+            });
+
         </script>
 
         <!-- Module Performance Section -->
