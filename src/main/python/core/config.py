@@ -164,7 +164,7 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "Cruise Employee Assessment")
 
     # Security Settings
-    CSRF_ENABLED: bool = os.getenv("CSRF_ENABLED", "false").lower() == "true"
+    CSRF_ENABLED: bool = os.getenv("CSRF_ENABLED", "true").lower() == "true"
     CSRF_TOKEN_LENGTH: int = 32
     CSRF_COOKIE_SECURE: bool = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
 

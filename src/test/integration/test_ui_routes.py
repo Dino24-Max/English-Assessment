@@ -33,9 +33,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 # Import application modules (path should be set now)
+import re
 from main import app
 from core.database import get_db, Base
 from models.assessment import User, Assessment, Question, AssessmentResponse, DivisionType, ModuleType, AssessmentStatus
+
+
+def _extract_csrf_token(html: str) -> str | None:
+    """Extract CSRF token from page HTML (csrfToken = '...' or hidden input)."""
+    m = re.search(r"csrfToken\s*=\s*'([^']*)'", html)
+    if m:
+        return m.group(1) or None
+    m = re.search(r'name="csrf_token"\s+value="([^"]*)"', html)
+    if m:
+        return m.group(1) or None
+    return None
 
 
 # Test database URL (in-memory SQLite)
@@ -161,27 +173,28 @@ class TestAnswerSubmission:
         # Override get_db dependency to return our test database
         async def override_get_db():
             yield test_db
-        
+
         app.dependency_overrides[get_db] = override_get_db
-        
+
         try:
-            # Use AsyncClient with ASGITransport for async database dependency
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=False) as ac:
-                # Simulate form submission
-                response = await ac.post(
-                    "/submit",
-                    data={
-                        "question_num": 1,
-                        "answer": "Test answer",
-                        "operation": "HOTEL"
-                    }
-                )
+                # Establish session and get CSRF token (required when CSRF_ENABLED=true)
+                login_resp = await ac.get("/login")
+                assert login_resp.status_code == 200
+                csrf_token = _extract_csrf_token(login_resp.text)
+                assert csrf_token, "CSRF token should be present on login page"
+
+                data = {"question_num": 1, "answer": "Test answer", "operation": "HOTEL"}
+                headers = {}
+                if csrf_token:
+                    headers["X-CSRF-Token"] = csrf_token
+
+                response = await ac.post("/submit", data=data, headers=headers)
 
                 # Should redirect (not error) - AsyncClient returns 307 for redirects
-                assert response.status_code in [303, 307, 302, 200]
+                assert response.status_code in [303, 307, 302, 200], f"Unexpected {response.status_code}: {response.text}"
         finally:
-            # Clean up dependency override
             app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
@@ -468,22 +481,25 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_submit_answer_invalid_question_number(self, client):
         """Test submitting answer with invalid question number"""
-        response = client.post(
-            "/submit",
-            data={"question_num": 999, "answer": "test"},
-            follow_redirects=False
-        )
-        # Should return error status
+        login_resp = client.get("/login")
+        assert login_resp.status_code == 200
+        csrf_token = _extract_csrf_token(login_resp.text)
+        data = {"question_num": 999, "answer": "test"}
+        if csrf_token:
+            data["csrf_token"] = csrf_token
+        response = client.post("/submit", data=data, follow_redirects=False)
         assert response.status_code in [400, 422, 500]
 
     @pytest.mark.asyncio
     async def test_submit_answer_missing_data(self, client):
         """Test submitting answer with missing required fields"""
-        response = client.post(
-            "/submit",
-            data={"question_num": 1},  # Missing answer
-            follow_redirects=False
-        )
+        login_resp = client.get("/login")
+        assert login_resp.status_code == 200
+        csrf_token = _extract_csrf_token(login_resp.text)
+        data = {"question_num": 1}  # Missing answer
+        if csrf_token:
+            data["csrf_token"] = csrf_token
+        response = client.post("/submit", data=data, follow_redirects=False)
         assert response.status_code in [400, 422]
 
     @pytest.mark.asyncio

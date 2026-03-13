@@ -49,9 +49,16 @@ async def create_assessment(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Create new assessment session"""
+    """Create new assessment session. Requires authenticated session - user_id must match session."""
 
     try:
+        # Authorization: require session and user_id must match logged-in user
+        session_user_id = request.session.get("user_id")
+        if not session_user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if int(user_id) != int(session_user_id):
+            raise HTTPException(status_code=403, detail="Cannot create assessment for another user")
+
         # Validate division
         try:
             division_enum = DivisionType(division.lower())

@@ -1,0 +1,31 @@
+{% extends "question.html" %}
+{% block module_instruction %}
+<div class="module-instruction-banner" style="background: linear-gradient(135deg, rgba(0,122,255,0.15) 0%, rgba(88,86,214,0.12) 100%); border-left: 4px solid #007aff; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; font-size: 1.7rem; font-weight: 600; color: #1a1a1a;">
+    🎧 <strong>Listening:</strong> Listen to the dialogue and select the best answer.
+</div>
+{% endblock %}
+{% block question_content %}
+{% if question_data.audio_text %}
+<div class="audio-section">
+    <p class="audio-instruction">🎧 Listen to the audio and answer the question:</p>
+    <div class="audio-controls">
+        <button class="audio-btn play-btn" onclick="playAudio()" id="playBtn">
+            <span class="btn-icon">▶</span> Play Audio
+        </button>
+        <button class="audio-btn" onclick="pauseAudio()" id="pauseBtn" style="display:none;">
+            <span class="btn-icon">⏸</span> Pause
+        </button>
+        <div class="play-count" id="playCount">Plays remaining: <span id="playsLeft">2</span>/2</div>
+    </div>
+</div>
+{% endif %}
+{% if question_data.options %}
+<div class="options-container">
+    {% for option in question_data.options %}
+    <button class="option" onclick="selectAnswer({{ option|tojson }}, this)">
+        {{ option }}
+    </button>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

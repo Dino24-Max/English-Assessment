@@ -1,0 +1,22 @@
+{% extends "question.html" %}
+{% block module_instruction %}
+<div class="module-instruction-banner" style="background: linear-gradient(135deg, rgba(0,122,255,0.15) 0%, rgba(88,86,214,0.12) 100%); border-left: 4px solid #007aff; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; font-size: 1.7rem; font-weight: 600; color: #1a1a1a;">
+    📝 <strong>Grammar:</strong> Choose the correct answer to complete the sentence, or type your answer.
+</div>
+{% endblock %}
+{% block question_content %}
+{% if question_data.options %}
+<div class="options-container">
+    {% for option in question_data.options %}
+    <button class="option" onclick="selectAnswer({{ option|tojson }}, this)">
+        {{ option }}
+    </button>
+    {% endfor %}
+</div>
+{% endif %}
+{% if not question_data.options %}
+<div class="input-section">
+    <input type="text" id="answerInput" class="answer-input" placeholder="Type your answer here..." onkeyup="checkInput()">
+</div>
+{% endif %}
+{% endblock %}

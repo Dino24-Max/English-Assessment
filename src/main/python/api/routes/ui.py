@@ -765,9 +765,18 @@ async def question_page(request: Request, question_num: int, operation: Optional
             "operation": operation  # Pass operation to template
         }
 
-        # Use generic question template for all modules
-        # TODO: Create module-specific templates in the future
-        return render_template(request, "question.html", context)
+        # Use module-specific template when available, fall back to generic question.html
+        _MODULE_TEMPLATE_MAP = {
+            "listening": "question_listening.html",
+            "time_numbers": "question_time_numbers.html",
+            "grammar": "question_grammar.html",
+            "vocabulary": "question_vocabulary.html",
+            "reading": "question_reading.html",
+            "speaking": "question_speaking.html",
+        }
+        module = question_data.get("module")
+        template_name = _MODULE_TEMPLATE_MAP.get(module, "question.html")
+        return render_template(request, template_name, context)
 
     except HTTPException:
         raise

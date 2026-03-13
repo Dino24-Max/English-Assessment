@@ -13,6 +13,8 @@ Production: https://assessment.example.com
 
 Most endpoints require session-based authentication. Authentication cookies are automatically managed by the browser.
 
+**CSRF Protection:** For state-changing POST requests (e.g., submit answer, create assessment), include the `X-CSRF-Token` header. The token is available in the page HTML or from a previous response. When CSRF is enabled, requests without a valid token will return 403.
+
 ## Response Format
 
 All API responses follow this structure:
@@ -81,7 +83,7 @@ Register a new candidate for assessment.
 
 ### Create Assessment
 
-Create a new assessment session for a registered candidate.
+Create a new assessment session for a registered candidate. Admin authentication required (invitation flow or admin context). UI flow uses session; direct API calls may require `admin_key` or session cookie.
 
 **Endpoint:** `POST /api/v1/assessment/create`
 

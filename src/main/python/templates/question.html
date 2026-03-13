@@ -48,6 +48,9 @@
         <div class="question-wrapper">
             <h2 class="question-text">{{ question_data.question }}</h2>
 
+            {% block module_instruction %}{% endblock %}
+
+            {% block question_content %}
             {# LISTENING MODULE - AI Audio Playback #}
             {% if question_data.module == "listening" and question_data.audio_text %}
             <div class="audio-section">
@@ -175,6 +178,7 @@
                 <input type="text" id="answerInput" class="answer-input" placeholder="Type your answer here..." onkeyup="checkInput()">
             </div>
             {% endif %}
+            {% endblock %}
 
             <div class="submit-section">
                 <button class="submit-btn" id="submitBtn" onclick="submitAnswer()" disabled>
@@ -247,7 +251,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        assessment_id: '{{ session.get("assessment_id", "") if session else "" }}',
+                        assessment_id: '{{ (session.get("assessment_id", "") if session else "")|e }}',
                         count: tabSwitchCount
                     })
                 }).catch(err => console.log('Tab switch tracking error:', err));
@@ -278,7 +282,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    assessment_id: '{{ session.get("assessment_id", "") if session else "" }}',
+                    assessment_id: '{{ (session.get("assessment_id", "") if session else "")|e }}',
                     action: 'paste',
                     count: copyPasteCount
                 })
@@ -298,7 +302,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    assessment_id: '{{ session.get("assessment_id", "") if session else "" }}',
+                    assessment_id: '{{ (session.get("assessment_id", "") if session else "")|e }}',
                     action: action,
                     count: copyPasteCount
                 })
@@ -707,7 +711,7 @@
                             {% endif %}
                             formData.append('question_context', {{ question_data.question|tojson if question_data.question else '""' }});
                             
-                            const assessmentId = '{{ session.get("assessment_id", "") if session else "" }}';
+                            const assessmentId = '{{ (session.get("assessment_id", "") if session else "")|e }}';
                             const response = await fetch(`/api/v1/assessment/${assessmentId}/speaking-transcribe`, {
                                 method: 'POST',
                                 body: formData

@@ -1,0 +1,47 @@
+{% extends "question.html" %}
+{% block module_instruction %}
+{% if question_data.speaking_type == "repeat" %}
+<div class="module-instruction-banner" style="background: linear-gradient(135deg, rgba(0,122,255,0.15) 0%, rgba(88,86,214,0.12) 100%); border-left: 4px solid #007aff; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; font-size: 1.7rem; font-weight: 600; color: #1a1a1a;">
+    🎤 <strong>Speaking (Repeat):</strong> Listen to the audio carefully, then repeat exactly what you hear.
+</div>
+{% else %}
+<div class="module-instruction-banner" style="background: linear-gradient(135deg, rgba(0,122,255,0.15) 0%, rgba(88,86,214,0.12) 100%); border-left: 4px solid #007aff; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; font-size: 1.7rem; font-weight: 600; color: #1a1a1a;">
+    🎤 <strong>Speaking:</strong> Record your response to the scenario (minimum {{ question_data.min_duration }} seconds).
+</div>
+{% endif %}
+{% endblock %}
+{% block question_content %}
+<div class="speaking-section">
+    {% if question_data.speaking_type == "repeat" %}
+    <div class="audio-section" style="margin-bottom: 25px;">
+        <p class="audio-instruction">🎧 Listen to the audio carefully, then repeat exactly what you hear:</p>
+        <div class="audio-controls">
+            <button class="audio-btn play-btn" onclick="playAudio()" id="playBtn">
+                <span class="btn-icon">▶</span> Play Audio
+            </button>
+            <button class="audio-btn" onclick="pauseAudio()" id="pauseBtn" style="display:none;">
+                <span class="btn-icon">⏸</span> Pause
+            </button>
+            <div class="play-count" id="playCount">Plays remaining: <span id="playsLeft">2</span>/2</div>
+        </div>
+    </div>
+    <p class="speaking-instruction">🎤 Click below to record your repetition:</p>
+    {% elif question_data.speaking_type != "repeat" %}
+    <p class="speaking-instruction">🎤 Click the button below to record your response (minimum {{ question_data.min_duration }} seconds):</p>
+    {% endif %}
+    <div class="recording-controls">
+        <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+            <span class="record-icon">⏺</span> Start Recording
+        </button>
+        <div class="recording-timer" id="timer">0:00</div>
+        <div class="recording-status" id="status">Ready to record</div>
+    </div>
+    <div class="recording-visual" id="visualizer"></div>
+    <audio id="audioPlayback" controls style="display:none; margin-top: 20px; width: 100%;"></audio>
+
+    <button type="button" id="testBypassBtn" onclick="bypassSpeakingForTest()"
+            style="margin-top: 20px; padding: 15px 30px; background: #ff9500; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
+        🧪 Test Mode: Skip Recording
+    </button>
+</div>
+{% endblock %}

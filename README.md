@@ -189,6 +189,8 @@ cruise-assessment/
 
 ## Installation
 
+> **Quick setup:** For a streamlined development setup including question bank loading and common tasks, see [docs/SETUP_RUNBOOK.md](docs/SETUP_RUNBOOK.md).
+
 ### Prerequisites
 
 - Python 3.10 or higher

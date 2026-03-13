@@ -412,7 +412,7 @@
                 formData.append('question_id', {{ question.id }});
 
                 // Submit to server
-                const response = await fetch('/api/v1/assessment/{{ assessment_id }}/speaking', {
+                const response = await fetch('/api/v1/assessment/{{ assessment_id|e }}/speaking', {
                     method: 'POST',
                     body: formData
                 });

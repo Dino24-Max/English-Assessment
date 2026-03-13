@@ -36,6 +36,7 @@ DEPARTMENTS: Dict[str, List[str]] = {
         "PROVISIONS",
         "REST. SERVICE",
         "SHORE EXCURS",
+        "SPA",
         "YOUTH PROGRAMS",
     ],
     MARINE_OPERATION: [
@@ -59,6 +60,7 @@ DEPARTMENT_COUNT: int = len(ALL_DEPARTMENTS)
 DEPARTMENT_TO_SCENARIO: Dict[str, str] = {
     "AUDIO/VISUAL MEDIA": "Auxiliary Service",
     "AUX SERV": "Auxiliary Service",
+    "SPA": "Guest Services",
     "BEVERAGE GUEST SERV": "Bar Service",
     "CASINO": "Table Games",
     "CULINARY ARTS": "Food & Beverage",

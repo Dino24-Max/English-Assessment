@@ -1204,7 +1204,7 @@ def main():
     generator = QuestionBankGenerator()
 
     print("Generating questions...")
-    print("  - 29 departments (25 Hotel + 4 Marine)")
+    print("  - 30 departments (26 Hotel + 4 Marine)")
     print("  - 100 questions per department")
     print("  - CEFR levels A1-C2 per module")
     print(f"  - Total: {DEPARTMENT_COUNT * 100:,} questions")

@@ -4,6 +4,8 @@ Complete guide for deploying the Cruise Employee English Assessment Platform to 
 
 ## Table of Contents
 
+- [Phase 4: Pre-Deploy Checklist](#phase-4-pre-deploy-checklist)
+- [Environment Variables Reference](#environment-variables-reference)
 - [Prerequisites](#prerequisites)
 - [Environment Setup](#environment-setup)
 - [Database Setup](#database-setup)
@@ -38,6 +40,52 @@ Complete guide for deploying the Cruise Employee English Assessment Platform to 
 - Nginx (for production)
 - Git
 - Docker & Docker Compose (for containerized deployment)
+
+## Phase 4: Pre-Deploy Checklist
+
+Before deploying to production, verify:
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | `DEBUG=False` | |
+| 2 | `SECRET_KEY` set (random, 32+ chars) | |
+| 3 | `ADMIN_API_KEY` set (random, 24+ chars) | |
+| 4 | `DATABASE_URL` set (PostgreSQL for prod) | |
+| 5 | `SESSION_SECURE_COOKIE=True` (HTTPS) | |
+| 6 | `CSRF_COOKIE_SECURE=True` (HTTPS) | |
+| 7 | `ALLOWED_ORIGINS` includes production domain | |
+| 8 | SSL/HTTPS configured | |
+| 9 | Firewall: 80, 443 open; DB/Redis localhost only | |
+| 10 | Question bank loaded (`scripts/load_question_bank.py`) | |
+
+Run checks:
+```bash
+# Health check
+curl -s http://localhost:8000/health | jq .
+
+# Test admin (replace YOUR_ADMIN_KEY)
+curl -X POST "http://localhost:8000/api/v1/admin/load-full-question-bank" \
+  -H "Content-Type: application/json" \
+  -d '{"admin_key": "YOUR_ADMIN_KEY"}'
+```
+
+## Environment Variables Reference
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DEBUG` | No | `false` | Enable debug mode; **must be false in production** |
+| `SECRET_KEY` | Yes (prod) | — | Session/encryption key; `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `ADMIN_API_KEY` | Yes (prod) | — | Admin API auth; `python -c "import secrets; print(secrets.token_urlsafe(24))"` |
+| `DATABASE_URL` | No | SQLite (dev) | `postgresql+asyncpg://user:pass@host:5432/db` for prod |
+| `SESSION_SECURE_COOKIE` | No | `false` | Set `true` when using HTTPS |
+| `CSRF_ENABLED` | No | `true` | CSRF protection (keep enabled) |
+| `CSRF_COOKIE_SECURE` | No | `false` | Set `true` when using HTTPS |
+| `ALLOWED_ORIGINS` | No | localhost | JSON array of allowed origins |
+| `REDIS_URL` | No | `redis://localhost:6379` | For caching/sessions (optional) |
+| `OPENAI_API_KEY` | No | — | For AI features (optional) |
+| `ANTHROPIC_API_KEY` | No | — | For AI features (optional) |
+
+See `src/main/python/core/config.py` for full list.
 
 ## Environment Setup
 

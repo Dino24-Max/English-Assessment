@@ -323,7 +323,7 @@
                 <h3>Session Details</h3>
                 <div class="info-row">
                     <span class="info-label">Assessment ID:</span>
-                    <span class="info-value">{{ assessment_id }}</span>
+                    <span class="info-value">{{ assessment_id|e }}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Your IP Address:</span>
@@ -335,7 +335,7 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Session Start:</span>
-                    <span class="info-value">{{ session_start_time }}</span>
+                    <span class="info-value">{{ session_start_time|e }}</span>
                 </div>
             </div>
 
