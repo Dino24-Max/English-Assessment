@@ -17,6 +17,7 @@ from pathlib import Path
 from core.database import get_db
 from core.config import settings
 from core.security import get_csrf_token
+from data.cefr_spec import score_percentage_to_cefr
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -1300,6 +1301,7 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
         # Convert to integers for display
         total_score_int = int(round(total_score))
         percentage = int(round((total_score / total_possible) * 100)) if total_possible > 0 else 0
+        cefr_level = score_percentage_to_cefr(percentage)
 
         # Use neutral gradient for score display (no pass/fail judgment)
         score_gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
@@ -1331,6 +1333,7 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                 "operation": operation,
                 "total_score": total_score_int,
                 "score_percentage": percentage,
+                "cefr_level": cefr_level,
                 "score_gradient": score_gradient,
                 "listening_score": listening_score,
                 "listening_percentage": listening_percentage,

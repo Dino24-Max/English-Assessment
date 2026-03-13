@@ -1,118 +1,103 @@
 """
-Generate Sample Question Bank for Cruise Employee English Assessment Platform
+Generate Question Bank for Cruise Employee English Assessment Platform
 
-This script generates 288 high-quality questions across 16 departments:
-- 18 questions per department
-- Distributed across 6 modules (Listening, Time & Numbers, Grammar, Vocabulary, Reading, Speaking)
-- Based on 10 realistic scenarios per department
-- Output: question_bank_sample.json
-
-Author: Claude Code
-Date: 2025-09-30
+Generates 3,000 questions across 30 departments:
+- 100 questions per department
+- CEFR distribution per module (A1-C2)
+- Output format compatible with question_bank_loader.py
 """
 
 import json
 import random
-from typing import Dict, List, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
+from config.departments import (
+    DEPARTMENTS,
+    DEPARTMENT_COUNT,
+    DEPARTMENT_TO_SCENARIO,
+    HOTEL_OPERATION,
+    MARINE_OPERATION,
+)
+from data.cefr_spec import MODULE_CEFR_DISTRIBUTION, CEFR_LEVELS
+
+# Loader-friendly module keys
+MODULE_TO_LOADER = {
+    "Listening": "listening",
+    "TimeNumbers": "time_numbers",
+    "Grammar": "grammar",
+    "Vocabulary": "vocabulary",
+    "Reading": "reading",
+    "Speaking": "speaking",
+}
 
 
 class QuestionBankGenerator:
-    """Generate comprehensive question bank for all departments"""
+    """Generate comprehensive question bank for all 30 departments with CEFR levels"""
 
     def __init__(self):
         self.questions = []
         self.question_counter = 1
 
-        # Department structure (16 correct departments)
-        self.departments = {
-            "HOTEL": [
-                ("AUX SERV", "AUX"),
-                ("BEVERAGE GUEST SERV", "BGS"),
-                ("CULINARY ARTS", "CUL"),
-                ("GUEST SERVICES", "GSV"),
-                ("HOUSEKEEPING", "HSK"),
-                ("LAUNDRY", "LND"),
-                ("PHOTO", "PHT"),
-                ("PROVISIONS", "PRV"),
-                ("REST. SERVICE", "RST"),
-                ("SHORE EXCURS", "SHR")
-            ],
-            "MARINE": [
-                ("Deck", "DCK"),
-                ("Engine", "ENG"),
-                ("Security Services", "SEC")
-            ],
-            "CASINO": [
-                ("Table Games", "TBL"),
-                ("Slot Machines", "SLT"),
-                ("Casino Services", "CSN")
-            ]
-        }
-
-        # Module distribution (18 questions per department)
-        self.module_distribution = {
-            "Listening": 4,
-            "TimeNumbers": 2,
-            "Grammar": 4,
-            "Vocabulary": 4,
-            "Reading": 2,
-            "Speaking": 2
-        }
-
     def generate_all_questions(self) -> List[Dict[str, Any]]:
-        """Generate all 288 questions across all departments"""
+        """Generate 3,000 questions across 30 departments (100 per department)"""
 
-        for operation, depts in self.departments.items():
-            for dept_name, dept_code in depts:
-                self._generate_department_questions(operation, dept_name, dept_code)
+        for operation, depts in DEPARTMENTS.items():
+            for dept_name in depts:
+                self._generate_department_questions(operation, dept_name)
 
         return self.questions
 
-    def _generate_department_questions(self, operation: str, dept_name: str, dept_code: str):
-        """Generate 18 questions for a specific department"""
+    def _generate_department_questions(self, operation: str, dept_name: str):
+        """Generate 100 questions for a department with CEFR distribution"""
 
-        # Generate questions for each module
-        for module, count in self.module_distribution.items():
-            for i in range(count):
-                scenario_id = random.randint(1, 10)
+        division = operation  # hotel or marine
+        scenario_key = DEPARTMENT_TO_SCENARIO.get(dept_name, "Guest Services")
+        dept_code = dept_name[:3].upper().replace(" ", "").replace("/", "") or "GEN"
 
-                if module == "Listening":
-                    question = self._generate_listening_question(
-                        operation, dept_name, dept_code, scenario_id, i + 1
-                    )
-                elif module == "TimeNumbers":
-                    question = self._generate_time_numbers_question(
-                        operation, dept_name, dept_code, scenario_id, i + 1
-                    )
-                elif module == "Grammar":
-                    question = self._generate_grammar_question(
-                        operation, dept_name, dept_code, scenario_id, i + 1
-                    )
-                elif module == "Vocabulary":
-                    question = self._generate_vocabulary_question(
-                        operation, dept_name, dept_code, scenario_id, i + 1
-                    )
-                elif module == "Reading":
-                    question = self._generate_reading_question(
-                        operation, dept_name, dept_code, scenario_id, i + 1
-                    )
-                elif module == "Speaking":
-                    question = self._generate_speaking_question(
-                        operation, dept_name, dept_code, scenario_id, i + 1
-                    )
+        # Build (module, cefr_level) pairs from MODULE_CEFR_DISTRIBUTION
+        for module, cefr_counts in MODULE_CEFR_DISTRIBUTION.items():
+            for cefr_level, count in cefr_counts.items():
+                for i in range(count):
+                    scenario_id = random.randint(1, 10)
 
-                self.questions.append(question)
+                    if module == "Listening":
+                        question = self._generate_listening_question(
+                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
+                        )
+                    elif module == "TimeNumbers":
+                        question = self._generate_time_numbers_question(
+                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
+                        )
+                    elif module == "Grammar":
+                        question = self._generate_grammar_question(
+                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
+                        )
+                    elif module == "Vocabulary":
+                        question = self._generate_vocabulary_question(
+                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
+                        )
+                    elif module == "Reading":
+                        question = self._generate_reading_question(
+                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
+                        )
+                    elif module == "Speaking":
+                        question = self._generate_speaking_question(
+                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
+                        )
 
-    def _generate_listening_question(self, operation: str, dept_name: str,
-                                    dept_code: str, scenario_id: int, q_num: int) -> Dict[str, Any]:
+                    self.questions.append(question)
+
+    def _generate_listening_question(self, division: str, dept_name: str,
+                                    dept_code: str, scenario_key: str, scenario_id: int,
+                                    cefr_level: str, q_num: int) -> Dict[str, Any]:
         """Generate realistic listening question"""
 
-        question_id = f"{operation}_{dept_code}_L_{str(self.question_counter).zfill(3)}"
+        question_id = f"{division}_{dept_code}_L_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        # Department-specific listening scenarios
-        listening_scenarios = self._get_listening_scenarios(dept_name)
+        listening_scenarios = self._get_listening_scenarios(scenario_key)
         scenario = random.choice(listening_scenarios)
 
         difficulty = random.choice(["easy", "medium", "hard"])
@@ -121,7 +106,9 @@ class QuestionBankGenerator:
         return {
             "question_id": question_id,
             "department": dept_name,
-            "operation": operation,
+            "division": division,
+            "module_type": "listening",
+            "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "Listening",
             "difficulty": difficulty,
@@ -134,20 +121,23 @@ class QuestionBankGenerator:
             "explanation": scenario["explanation"]
         }
 
-    def _generate_time_numbers_question(self, operation: str, dept_name: str,
-                                       dept_code: str, scenario_id: int, q_num: int) -> Dict[str, Any]:
+    def _generate_time_numbers_question(self, division: str, dept_name: str,
+                                       dept_code: str, scenario_key: str, scenario_id: int,
+                                       cefr_level: str, q_num: int) -> Dict[str, Any]:
         """Generate time and numbers question"""
 
-        question_id = f"{operation}_{dept_code}_TN_{str(self.question_counter).zfill(3)}"
+        question_id = f"{division}_{dept_code}_TN_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        time_number_scenarios = self._get_time_numbers_scenarios(dept_name)
+        time_number_scenarios = self._get_time_numbers_scenarios(scenario_key)
         scenario = random.choice(time_number_scenarios)
 
         return {
             "question_id": question_id,
             "department": dept_name,
-            "operation": operation,
+            "division": division,
+            "module_type": "time_numbers",
+            "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "TimeNumbers",
             "difficulty": "medium",
@@ -159,14 +149,15 @@ class QuestionBankGenerator:
             "explanation": scenario["explanation"]
         }
 
-    def _generate_grammar_question(self, operation: str, dept_name: str,
-                                  dept_code: str, scenario_id: int, q_num: int) -> Dict[str, Any]:
+    def _generate_grammar_question(self, division: str, dept_name: str,
+                                  dept_code: str, scenario_key: str, scenario_id: int,
+                                  cefr_level: str, q_num: int) -> Dict[str, Any]:
         """Generate grammar question"""
 
-        question_id = f"{operation}_{dept_code}_G_{str(self.question_counter).zfill(3)}"
+        question_id = f"{division}_{dept_code}_G_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        grammar_scenarios = self._get_grammar_scenarios(dept_name)
+        grammar_scenarios = self._get_grammar_scenarios(scenario_key)
         scenario = random.choice(grammar_scenarios)
 
         difficulty = random.choice(["easy", "medium", "hard"])
@@ -175,7 +166,9 @@ class QuestionBankGenerator:
         return {
             "question_id": question_id,
             "department": dept_name,
-            "operation": operation,
+            "division": division,
+            "module_type": "grammar",
+            "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "Grammar",
             "difficulty": difficulty,
@@ -187,40 +180,55 @@ class QuestionBankGenerator:
             "explanation": scenario["explanation"]
         }
 
-    def _generate_vocabulary_question(self, operation: str, dept_name: str,
-                                     dept_code: str, scenario_id: int, q_num: int) -> Dict[str, Any]:
+    def _generate_vocabulary_question(self, division: str, dept_name: str,
+                                     dept_code: str, scenario_key: str, scenario_id: int,
+                                     cefr_level: str, q_num: int) -> Dict[str, Any]:
         """Generate vocabulary matching question"""
 
-        question_id = f"{operation}_{dept_code}_V_{str(self.question_counter).zfill(3)}"
+        question_id = f"{division}_{dept_code}_V_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        vocab_scenarios = self._get_vocabulary_scenarios(dept_name)
+        vocab_scenarios = self._get_vocabulary_scenarios(scenario_key)
         scenario = random.choice(vocab_scenarios)
+
+        # Loader expects options and correct_answer for category_match
+        options = scenario.get("categories", {
+            "terms": scenario.get("terms", []),
+            "definitions": scenario.get("definitions", [])
+        })
+        correct_answer = scenario.get("correct_answer") or ", ".join(
+            f"{k}: {v}" for k, v in (scenario.get("matches", {}) or {}).items()
+        )
 
         return {
             "question_id": question_id,
             "department": dept_name,
-            "operation": operation,
+            "division": division,
+            "module_type": "vocabulary",
+            "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "Vocabulary",
             "difficulty": "medium",
             "points": 4,
-            "question_type": "matching",
+            "question_type": "category_match",
             "question_text": scenario["question"],
-            "terms": scenario["terms"],
-            "definitions": scenario["definitions"],
-            "correct_matches": scenario["matches"],
-            "explanation": scenario["explanation"]
+            "options": options,
+            "correct_answer": correct_answer,
+            "terms": scenario.get("terms"),
+            "definitions": scenario.get("definitions"),
+            "correct_matches": scenario.get("matches"),
+            "explanation": scenario.get("explanation")
         }
 
-    def _generate_reading_question(self, operation: str, dept_name: str,
-                                  dept_code: str, scenario_id: int, q_num: int) -> Dict[str, Any]:
+    def _generate_reading_question(self, division: str, dept_name: str,
+                                  dept_code: str, scenario_key: str, scenario_id: int,
+                                  cefr_level: str, q_num: int) -> Dict[str, Any]:
         """Generate reading comprehension question"""
 
-        question_id = f"{operation}_{dept_code}_R_{str(self.question_counter).zfill(3)}"
+        question_id = f"{division}_{dept_code}_R_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        reading_scenarios = self._get_reading_scenarios(dept_name)
+        reading_scenarios = self._get_reading_scenarios(scenario_key)
         scenario = random.choice(reading_scenarios)
 
         difficulty = random.choice(["medium", "hard"])
@@ -229,7 +237,9 @@ class QuestionBankGenerator:
         return {
             "question_id": question_id,
             "department": dept_name,
-            "operation": operation,
+            "division": division,
+            "module_type": "reading",
+            "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "Reading",
             "difficulty": difficulty,
@@ -241,20 +251,23 @@ class QuestionBankGenerator:
             "explanation": scenario["explanation"]
         }
 
-    def _generate_speaking_question(self, operation: str, dept_name: str,
-                                   dept_code: str, scenario_id: int, q_num: int) -> Dict[str, Any]:
+    def _generate_speaking_question(self, division: str, dept_name: str,
+                                   dept_code: str, scenario_key: str, scenario_id: int,
+                                   cefr_level: str, q_num: int) -> Dict[str, Any]:
         """Generate speaking question"""
 
-        question_id = f"{operation}_{dept_code}_S_{str(self.question_counter).zfill(3)}"
+        question_id = f"{division}_{dept_code}_S_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        speaking_scenarios = self._get_speaking_scenarios(dept_name)
+        speaking_scenarios = self._get_speaking_scenarios(scenario_key)
         scenario = random.choice(speaking_scenarios)
 
         return {
             "question_id": question_id,
             "department": dept_name,
-            "operation": operation,
+            "division": division,
+            "module_type": "speaking",
+            "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "Speaking",
             "difficulty": "hard",
@@ -1130,24 +1143,24 @@ class QuestionBankGenerator:
         return speaking_prompts.get(dept_name, default_speaking)
 
     def save_to_json(self, output_path: str):
-        """Save generated questions to JSON file"""
+        """Save generated questions to JSON file (loader-compatible format)"""
 
         output_data = {
             "metadata": {
                 "title": "Cruise Employee English Assessment Question Bank",
-                "version": "1.0",
+                "version": "2.0",
                 "generated_date": datetime.now().strftime("%Y-%m-%d"),
                 "total_questions": len(self.questions),
-                "departments": 16,
-                "questions_per_department": 18,
-                "modules": ["Listening", "Time & Numbers", "Grammar", "Vocabulary", "Reading", "Speaking"]
+                "departments": DEPARTMENT_COUNT,
+                "questions_per_department": 100,
+                "modules": ["Listening", "Time & Numbers", "Grammar", "Vocabulary", "Reading", "Speaking"],
+                "cefr_levels": CEFR_LEVELS
             },
             "statistics": {
                 "total_questions": len(self.questions),
-                "by_operation": {
-                    "HOTEL": len([q for q in self.questions if q["operation"] == "HOTEL"]),
-                    "MARINE": len([q for q in self.questions if q["operation"] == "MARINE"]),
-                    "CASINO": len([q for q in self.questions if q["operation"] == "CASINO"])
+                "by_division": {
+                    "hotel": len([q for q in self.questions if q.get("division") == "hotel"]),
+                    "marine": len([q for q in self.questions if q.get("division") == "marine"])
                 },
                 "by_module": {
                     "Listening": len([q for q in self.questions if q["module"] == "Listening"]),
@@ -1172,9 +1185,8 @@ class QuestionBankGenerator:
         print(f"[SUCCESS] Successfully generated {len(self.questions)} questions")
         print(f"[SUCCESS] Saved to: {output_path}")
         print(f"\nStatistics:")
-        print(f"  - Hotel Operations: {output_data['statistics']['by_operation']['HOTEL']} questions")
-        print(f"  - Marine Operations: {output_data['statistics']['by_operation']['MARINE']} questions")
-        print(f"  - Casino Operations: {output_data['statistics']['by_operation']['CASINO']} questions")
+        print(f"  - Hotel: {output_data['statistics']['by_division']['hotel']} questions")
+        print(f"  - Marine: {output_data['statistics']['by_division']['marine']} questions")
         print(f"\nModule Distribution:")
         for module, count in output_data['statistics']['by_module'].items():
             print(f"  - {module}: {count} questions")
@@ -1189,22 +1201,20 @@ def main():
     print("="*70)
     print()
 
-    # Initialize generator
     generator = QuestionBankGenerator()
 
-    # Generate all questions
     print("Generating questions...")
-    print("  - 16 departments")
-    print("  - 18 questions per department")
-    print("  - 6 modules per department")
-    print("  - Total: 288 questions")
+    print("  - 29 departments (25 Hotel + 4 Marine)")
+    print("  - 100 questions per department")
+    print("  - CEFR levels A1-C2 per module")
+    print(f"  - Total: {DEPARTMENT_COUNT * 100:,} questions")
     print()
 
     questions = generator.generate_all_questions()
 
-    # Save to JSON
-    output_path = r"C:\Users\szh2051\OneDrive - Carnival Corporation\Desktop\Python\Claude Demo\src\main\python\data\question_bank_sample.json"
-    generator.save_to_json(output_path)
+    data_dir = Path(__file__).parent
+    output_path = data_dir / "question_bank_full.json"
+    generator.save_to_json(str(output_path))
 
     print()
     print("="*70)

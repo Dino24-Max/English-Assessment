@@ -98,6 +98,7 @@ class Question(BaseModel):
     department = Column(String(100), nullable=True)  # e.g., "HOUSEKEEPING", "Deck", "Table Games" (indexed via composite indexes)
     scenario_id = Column(Integer, nullable=True)  # 1-10 for each department (indexed via composite indexes)
     scenario_description = Column(Text, nullable=True)  # Description of the scenario
+    cefr_level = Column(String(2), nullable=True)  # A1, A2, B1, B2, C1, C2 per Council of Europe
 
     # Question specific data
     question_metadata = Column(JSON, nullable=True)  # Additional question-specific data (renamed from 'metadata' to avoid SQLAlchemy reserved word)
@@ -111,6 +112,7 @@ class Question(BaseModel):
         Index('ix_questions_department', 'department', 'module_type'),
         Index('ix_questions_scenario', 'department', 'scenario_id'),
         Index('ix_questions_division_dept', 'division', 'department'),
+        Index('ix_questions_dept_cefr', 'department', 'cefr_level'),
     )
 
 

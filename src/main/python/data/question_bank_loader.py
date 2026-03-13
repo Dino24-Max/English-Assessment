@@ -25,8 +25,8 @@ class QuestionBankLoader:
             json_file_path: Path to question_bank_full.json (optional)
         """
         if not json_file_path:
-            # Default path
-            data_dir = Path(__file__).parent.parent.parent.parent / "data"
+            # Default path: question_bank_full.json in same directory as this module
+            data_dir = Path(__file__).parent
             json_file_path = data_dir / "question_bank_full.json"
         
         print(f"Loading full question bank from: {json_file_path}")
@@ -81,6 +81,7 @@ class QuestionBankLoader:
                 department=q_data.get("department"),
                 scenario_id=q_data.get("scenario_id"),
                 scenario_description=q_data.get("scenario_description"),
+                cefr_level=q_data.get("cefr_level"),
                 question_metadata=q_data.get("question_metadata")
             )
             
@@ -90,7 +91,7 @@ class QuestionBankLoader:
             if i % 100 == 0:
                 self.db.add_all(questions_to_add)
                 await self.db.commit()
-                print(f"  ✅ Loaded {i}/{len(questions_data)} questions")
+                print(f"  [OK] Loaded {i}/{len(questions_data)} questions")
                 questions_to_add = []
         
         # Commit remaining questions
@@ -98,7 +99,7 @@ class QuestionBankLoader:
             self.db.add_all(questions_to_add)
             await self.db.commit()
         
-        print(f"✅ Successfully loaded {len(questions_data)} questions into database!")
+        print(f"[OK] Successfully loaded {len(questions_data)} questions into database!")
         
         return len(questions_data)
 

@@ -93,12 +93,17 @@ class AssessmentEngine:
         if assessment.status != AssessmentStatus.NOT_STARTED:
             raise ValueError("Assessment already started or completed")
 
+        # Fetch user to get department for question selection
+        user_result = await self.db.execute(select(User).where(User.id == assessment.user_id))
+        user = user_result.scalar_one_or_none()
+        department = user.department if user else None
+
         # Update status
         assessment.status = AssessmentStatus.IN_PROGRESS
         assessment.started_at = datetime.now()
 
-        # Generate question set
-        questions = await self._generate_question_set(assessment.division)
+        # Generate question set (department-specific when user has department)
+        questions = await self._generate_question_set(assessment.division, department=department)
 
         await self.db.commit()
 
@@ -111,8 +116,14 @@ class AssessmentEngine:
             "total_questions": len(questions)
         }
 
-    async def _generate_question_set(self, division: DivisionType) -> Dict[str, List[Dict]]:
-        """Generate randomized question set for assessment - Optimized with single query"""
+    async def _generate_question_set(
+        self, division: DivisionType, department: Optional[str] = None
+    ) -> Dict[str, List[Dict]]:
+        """Generate randomized question set for assessment - Optimized with single query.
+
+        When department is set (from invitation), selects department-specific questions.
+        Falls back to division-only if not enough department-specific questions exist.
+        """
 
         questions = {
             "listening": [],
@@ -133,13 +144,15 @@ class AssessmentEngine:
             ModuleType.SPEAKING: 3        # 3 questions: 7+7+6 = 20 points
         }
         
-        # Enhanced: Ensure diversity by sampling from different departments and scenarios
-        # This prevents getting all questions from same scenario
+        # Build filter: division always required; add department when provided
+        base_filter = Question.division == division
+        if department:
+            q_filter = and_(base_filter, Question.department == department)
+        else:
+            q_filter = base_filter
 
-        # OPTIMIZATION: Fetch all questions for this division in ONE query
-        result = await self.db.execute(
-            select(Question).where(Question.division == division)
-        )
+        # OPTIMIZATION: Fetch all questions for this division (and department) in ONE query
+        result = await self.db.execute(select(Question).where(q_filter))
         all_questions = result.scalars().all()
         
         # Group questions by module type in memory (much faster than multiple DB queries)

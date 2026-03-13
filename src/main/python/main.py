@@ -58,6 +58,18 @@ async def lifespan(app: FastAPI):
                 else:
                     raise
 
+        # Migration: add questions.cefr_level if missing (CEFR per department bank)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE questions ADD COLUMN cefr_level VARCHAR(2)"
+            ))
+            logger.info("Added column questions.cefr_level")
+        except Exception as e:
+            if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                pass
+            else:
+                raise
+
     # Initialize Redis cache
     await cache_manager.connect()
     

@@ -191,13 +191,17 @@ async def register(
                             detail="This invitation code has already been used by another user. Please contact administrator for a new code."
                         )
                 
-                # Update user info if needed
+                # Update user info if needed (including division/department from invitation)
                 if request_data.first_name:
                     existing_user.first_name = request_data.first_name
                 if request_data.last_name:
                     existing_user.last_name = request_data.last_name
                 if request_data.nationality:
                     existing_user.nationality = request_data.nationality
+                if division:
+                    existing_user.division = division
+                if department is not None:
+                    existing_user.department = department
                 
                 # Mark invitation as used if not already
                 if not invitation.is_used:
