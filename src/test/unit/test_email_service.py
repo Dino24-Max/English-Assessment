@@ -230,9 +230,7 @@ class TestAssessmentCompletionEmail:
             to_email="user@example.com",
             user_name="John Doe",
             total_score=81,
-            passed=True,
-            module_scores=module_scores,
-            certificate_url="https://example.com/certificate/123"
+            module_scores=module_scores
         )
         
         assert result.success == True
@@ -253,7 +251,6 @@ class TestAssessmentCompletionEmail:
             to_email="user@example.com",
             user_name="Jane Doe",
             total_score=45,
-            passed=False,
             module_scores=module_scores
         )
         

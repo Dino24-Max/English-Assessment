@@ -365,6 +365,14 @@ class AssessmentEngine:
         if self._is_number_match(user_clean, correct_clean):
             return True
 
+        # User number with unit suffix in correct (e.g. "25" matches "25 knots")
+        try:
+            user_num = int(user_clean.replace(" ", ""))
+            if correct_clean.startswith(str(user_num) + " ") or correct_clean.startswith(str(user_num) + "\t"):
+                return True
+        except ValueError:
+            pass
+
         # No substring matching - must be exact or recognized variation
         return False
 
@@ -468,6 +476,11 @@ class AssessmentEngine:
         correct_num = text_to_number(correct)
 
         if user_num is not None and correct_num is not None:
+            # Strict format: do not match word form with digit form (e.g. "seven" vs "7")
+            user_is_digit = user.strip().replace(" ", "").replace(",", "").replace(".", "").isdigit()
+            correct_is_digit = correct.strip().replace(" ", "").replace(",", "").replace(".", "").isdigit()
+            if user_is_digit != correct_is_digit:
+                return False
             return user_num == correct_num
 
         return False
