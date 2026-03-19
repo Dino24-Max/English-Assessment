@@ -158,6 +158,30 @@ class SpeakingScorerService:
         # Normalize inputs
         transcript_lower = transcript.lower().strip()
         expected_lower = [kw.lower().strip() for kw in expected_keywords]
+
+        # Hard guardrail: no meaningful speech => zero score
+        meaningful_words = re.findall(r"\b[a-zA-Z]{2,}\b", transcript_lower)
+        if len(meaningful_words) < 2:
+            return SpeakingScoreResult(
+                total_points=0.0,
+                max_points=self.base_points,
+                percentage=0.0,
+                level=SpeakingScoreLevel.POOR,
+                keyword_score=0.0,
+                keyword_max=self.base_points * 0.6,
+                fluency_score=0.0,
+                fluency_max=self.base_points * 0.2,
+                completeness_score=0.0,
+                completeness_max=self.base_points * 0.2,
+                matched_keywords=[],
+                missing_keywords=expected_keywords,
+                partial_matches=[],
+                feedback="No clear speech detected.",
+                improvement_tips=[
+                    "Speak clearly and provide a complete verbal response.",
+                    "Try recording again in a quieter environment.",
+                ],
+            )
         
         # 1. Keyword matching (60% of score)
         keyword_result = self._score_keywords(transcript_lower, expected_lower)

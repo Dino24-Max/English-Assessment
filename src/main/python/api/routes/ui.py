@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 import os
+import re
 from pathlib import Path
 
 import sqlalchemy
@@ -118,6 +119,24 @@ def _normalize_options(options) -> Optional[List[str]]:
     return out if out else None
 
 
+def _normalize_time_numbers_audio(text: str) -> str:
+    """Clean common artifacts after filling Time & Numbers blanks."""
+    cleaned = (text or "").replace("$$", "$")
+    cleaned = re.sub(r"\b(AM|PM)\s+\1\b", r"\1", cleaned, flags=re.IGNORECASE)
+    return " ".join(cleaned.split())
+
+
+def _time_numbers_audio_sentence(question_text: str, correct_answer: Optional[str], context: Optional[str]) -> str:
+    """
+    Build answer-bearing sentence for Time & Numbers audio.
+    Prefer correct_answer; context can include extra units/suffixes.
+    """
+    fill = (correct_answer or context or "").strip()
+    if not fill:
+        return question_text or ""
+    return _normalize_time_numbers_audio((question_text or "").replace("___", fill))
+
+
 def _map_db_question_to_template_data(q) -> Dict[str, Any]:
     """
     Map DB Question model to template question_data format.
@@ -130,12 +149,15 @@ def _map_db_question_to_template_data(q) -> Dict[str, Any]:
     # Listening: TTS must play the DIALOGUE (guest request, scenario), NOT the instruction. Never fall back to
     # question_text for listening—that is the instruction ("Listen to the guest request and choose the best response").
     # If audio_text/audio_file_path are missing, leave audio_text unset so we don't play wrong content.
-    # Time & Numbers: TTS must speak the answer-bearing sentence (e.g. "Patrol rounds every 45 minutes"), not the prompt.
-    # When metadata has no audio_text, build sentence by filling the blank with correct_answer so the user hears the answer.
+    # Time & Numbers: always synthesize from prompt + answer to avoid stale/odd
+    # metadata audio_text values and duplicated units like "PM PM" or "$$5000".
     module_val = getattr(q.module_type, "value", None) or str(q.module_type)
-    if module_val == "time_numbers" and not audio_text and not audio_file_path and q.question_text:
-        fill = (q.correct_answer or "").strip()
-        audio_text = q.question_text.replace("___", fill) if fill else q.question_text
+    if module_val == "time_numbers":
+        audio_text = _time_numbers_audio_sentence(
+            q.question_text,
+            q.correct_answer,
+            meta.get("context"),
+        )
     return {
         "module": q.module_type.value,
         "question": q.question_text,
@@ -435,6 +457,25 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                 points_earned = 0
                 logger.debug(f"Speaking Q{question_num}: Recording detected but no speech - 0 points")
             else:
+                # Guardrail: very short/noise transcripts should not score points.
+                spoken_words = re.findall(r"\b[a-zA-Z]{2,}\b", transcript)
+                if len(spoken_words) < 2:
+                    is_correct = False
+                    points_earned = 0
+                    logger.debug(
+                        f"Speaking Q{question_num}: Transcript too short/noisy ({len(spoken_words)} words) - 0 points"
+                    )
+                    correct_answer_display = f"Expected keywords: {', '.join(expected_keywords)}"
+                    result = {
+                        "is_correct": is_correct,
+                        "points_earned": points_earned,
+                        "points_possible": points,
+                        "feedback": "❌ No clear speech detected. Please record a clear spoken response.",
+                        "module": module
+                    }
+                    logger.debug(f"Final scoring Q{question_num}: is_correct={is_correct}, points={points_earned}/{points}")
+                    return result
+
                 # Use enhanced SpeakingScorerService for intelligent scoring
                 try:
                     from services.speaking_scorer import score_speaking_response
@@ -449,7 +490,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                         base_points=float(points)
                     )
                     
-                    points_earned = int(round(score_result.total_points))
+                    points_earned = min(points, int(round(score_result.total_points)))
                     is_correct = score_result.percentage >= 50
                     
                     logger.debug(
@@ -973,7 +1014,8 @@ async def question_page(request: Request, question_num: int, operation: Optional
             "is_last_question": is_last_question,
             "next_question": next_question,
             "previous_question": previous_question,
-            "operation": operation  # Pass operation to template
+            "operation": operation,  # Pass operation to template
+            "debug_mode": settings.DEBUG,
         }
 
         # Use module-specific template when available, fall back to generic question.html
@@ -1245,7 +1287,17 @@ async def submit_answer(
                         if module in module_scores:
                             module_scores[module] += points
                     
-                    total_score = sum(module_scores.values())
+                    module_max = {
+                        "listening": 16,
+                        "time_numbers": 16,
+                        "grammar": 16,
+                        "vocabulary": 16,
+                        "reading": 16,
+                        "speaking": 20,
+                    }
+                    for m in module_scores:
+                        module_scores[m] = min(module_scores[m], module_max[m])
+                    total_score = min(100, sum(module_scores.values()))
                     logger.info(f"Calculated total_score={total_score} for assessment {assessment_id}. Module breakdown: {module_scores}")
                     
                     # Update database with final scores
@@ -1377,7 +1429,17 @@ async def get_results_scores_api(request: Request, db: AsyncSession = Depends(ge
                     continue
                 if module in module_scores:
                     module_scores[module] += points
-            total = sum(module_scores.values())
+            module_max = {
+                "listening": 16,
+                "time_numbers": 16,
+                "grammar": 16,
+                "vocabulary": 16,
+                "reading": 16,
+                "speaking": 20,
+            }
+            for m in module_scores:
+                module_scores[m] = min(module_scores[m], module_max[m])
+            total = min(100, sum(module_scores.values()))
             assessment.status = _models_assessment.AssessmentStatus.COMPLETED
             assessment.completed_at = datetime.now()
             assessment.total_score = total
@@ -1556,7 +1618,17 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                                     continue
                                 if module in module_scores:
                                     module_scores[module] += points
-                            total = sum(module_scores.values())
+                            module_max = {
+                                "listening": 16,
+                                "time_numbers": 16,
+                                "grammar": 16,
+                                "vocabulary": 16,
+                                "reading": 16,
+                                "speaking": 20,
+                            }
+                            for m in module_scores:
+                                module_scores[m] = min(module_scores[m], module_max[m])
+                            total = min(100, sum(module_scores.values()))
                             assessment.status = _models_assessment.AssessmentStatus.COMPLETED
                             assessment.completed_at = datetime.now()
                             assessment.total_score = total

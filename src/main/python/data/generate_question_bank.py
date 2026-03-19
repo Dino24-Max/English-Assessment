@@ -2132,98 +2132,98 @@ class QuestionBankGenerator:
                 {"cefr_band": "basic", "question": "Facial treatment takes ___ minutes.", "context": "60 minutes", "answer": "60", "explanation": "Standard facial duration."},
                 {"cefr_band": "intermediate", "question": "Couples package: $___ for 2 guests.", "context": "$349", "answer": "349", "explanation": "Couples spa bundle pricing."},
                 {"cefr_band": "intermediate", "question": "Sauna temperature set to ___°F.", "context": "185°F", "answer": "185", "explanation": "Sauna operating temperature."},
-                {"cefr_band": "advanced", "question": "Spa revenue target: $___ per sea day with ___% product upsell rate.", "context": "$8,500 revenue, 35% upsell", "answer": "8500", "explanation": "Daily revenue and conversion targets."}
+                {"cefr_band": "advanced", "question": "Spa revenue target: $___ per sea day.", "context": "$8,500 revenue", "answer": "8500", "explanation": "Daily revenue target."}
             ],
             "Entertainment Technical": [
                 {"cefr_band": "basic", "question": "Sound check at ___ PM.", "context": "3:00 PM", "answer": "3:00", "explanation": "Pre-show sound check time."},
                 {"cefr_band": "basic", "question": "Stage lights: ___ fixtures total.", "context": "48 fixtures", "answer": "48", "explanation": "Lighting rig count."},
                 {"cefr_band": "intermediate", "question": "Audio level set to ___ decibels.", "context": "92 dB", "answer": "92", "explanation": "Performance volume level."},
                 {"cefr_band": "intermediate", "question": "LED wall resolution: ___x1080 pixels.", "context": "1920x1080", "answer": "1920", "explanation": "Display resolution width."},
-                {"cefr_band": "advanced", "question": "Rigging load capacity: ___ kg across ___ motor points.", "context": "2,400 kg, 12 points", "answer": "2400", "explanation": "Structural weight limits for overhead rigging."}
+                {"cefr_band": "advanced", "question": "Rigging load capacity: ___ kg.", "context": "2,400 kg", "answer": "2400", "explanation": "Structural weight limit for overhead rigging."}
             ],
             "Entertainment": [
                 {"cefr_band": "basic", "question": "Main show starts at ___ PM.", "context": "8:30 PM", "answer": "8:30", "explanation": "Evening showtime."},
                 {"cefr_band": "basic", "question": "Comedy club seats ___ guests.", "context": "150 guests", "answer": "150", "explanation": "Venue seating capacity."},
                 {"cefr_band": "intermediate", "question": "Deck party runs from 10 PM to ___ AM.", "context": "1:00 AM", "answer": "1:00", "explanation": "Late-night event end time."},
                 {"cefr_band": "intermediate", "question": "Cast rehearsal: ___ hours before doors.", "context": "2 hours", "answer": "2", "explanation": "Pre-show rehearsal lead time."},
-                {"cefr_band": "advanced", "question": "Guest satisfaction target: ___% for shows with ___ performances per cruise.", "context": "92%, 14 shows", "answer": "92", "explanation": "Quality benchmark across full sailing schedule."}
+                {"cefr_band": "advanced", "question": "Guest satisfaction target: ___%.", "context": "92%", "answer": "92", "explanation": "Quality benchmark across the sailing schedule."}
             ],
             "Fleet Finance": [
                 {"cefr_band": "basic", "question": "Daily float: $___.", "context": "$5,000", "answer": "5000", "explanation": "Cash register starting float."},
-                {"cefr_band": "basic", "question": "End-of-day report due by ___ PM.", "context": "11:00 PM", "answer": "11:00", "explanation": "Nightly financial closing deadline."},
+                {"cefr_band": "basic", "question": "End-of-day report due by ___.", "context": "11:00 PM", "answer": "11:00 PM", "explanation": "Nightly financial closing deadline."},
                 {"cefr_band": "intermediate", "question": "Currency exchange rate: 1 USD = ___ EUR.", "context": "0.92 EUR", "answer": "0.92", "explanation": "Foreign exchange conversion rate."},
                 {"cefr_band": "intermediate", "question": "Onboard revenue this voyage: $___,000.", "context": "$1,250,000", "answer": "1250", "explanation": "Voyage revenue tracking in thousands."},
-                {"cefr_band": "advanced", "question": "Variance analysis: bar spend ___% above forecast of $___,000.", "context": "12% above, $320,000 forecast", "answer": "12", "explanation": "Budget variance percentage against projections."}
+                {"cefr_band": "advanced", "question": "Variance analysis: bar spend ___% above forecast.", "context": "12% above", "answer": "12", "explanation": "Budget variance percentage against projections."}
             ],
             "Guest Technology": [
                 {"cefr_band": "basic", "question": "WiFi password expires in ___ days.", "context": "7 days", "answer": "7", "explanation": "Internet access validity period."},
                 {"cefr_band": "basic", "question": "Tech support open until ___ PM.", "context": "10:00 PM", "answer": "10:00", "explanation": "Help desk closing time."},
                 {"cefr_band": "intermediate", "question": "Premium WiFi speed: ___ Mbps.", "context": "50 Mbps", "answer": "50", "explanation": "High-speed internet bandwidth."},
                 {"cefr_band": "intermediate", "question": "Streaming package: $___ per device per day.", "context": "$20", "answer": "20", "explanation": "Per-device streaming cost."},
-                {"cefr_band": "advanced", "question": "Satellite bandwidth allocation: ___ Gbps shared across ___,000 concurrent users.", "context": "3.2 Gbps, 4,000 users", "answer": "3.2", "explanation": "Ship-wide bandwidth capacity and load."}
+                {"cefr_band": "advanced", "question": "Satellite bandwidth allocation: ___ Gbps.", "context": "3.2 Gbps", "answer": "3.2", "explanation": "Ship-wide bandwidth capacity."}
             ],
             "Human Resources": [
                 {"cefr_band": "basic", "question": "Contract length: ___ months.", "context": "6 months", "answer": "6", "explanation": "Standard crew contract duration."},
                 {"cefr_band": "basic", "question": "Crew muster drill at ___ AM.", "context": "10:30 AM", "answer": "10:30", "explanation": "Mandatory safety drill time."},
                 {"cefr_band": "intermediate", "question": "Annual leave: ___ days after 2 contracts.", "context": "60 days", "answer": "60", "explanation": "Earned vacation entitlement."},
                 {"cefr_band": "intermediate", "question": "Payroll processed on the ___th of each month.", "context": "15th", "answer": "15", "explanation": "Monthly pay date."},
-                {"cefr_band": "advanced", "question": "Crew retention rate: ___% with ___% targeted improvement this fiscal year.", "context": "78%, 5% improvement", "answer": "78", "explanation": "Workforce retention metrics and targets."}
+                {"cefr_band": "advanced", "question": "Crew retention rate: ___%.", "context": "78%", "answer": "78", "explanation": "Workforce retention metric."}
             ],
             "Info Technology": [
                 {"cefr_band": "basic", "question": "Server backup at ___ AM daily.", "context": "3:00 AM", "answer": "3:00", "explanation": "Scheduled nightly backup time."},
                 {"cefr_band": "basic", "question": "Help desk ticket #___.", "context": "Ticket #4817", "answer": "4817", "explanation": "Support ticket reference number."},
                 {"cefr_band": "intermediate", "question": "System uptime: ___% this quarter.", "context": "99.7%", "answer": "99.7", "explanation": "Service availability metric."},
                 {"cefr_band": "intermediate", "question": "Network switch on deck ___.", "context": "Deck 4", "answer": "4", "explanation": "Infrastructure location by deck."},
-                {"cefr_band": "advanced", "question": "Patch deployment window: ___ to ___ AM across ___ servers.", "context": "2:00 to 4:00 AM, 86 servers", "answer": "86", "explanation": "Maintenance window and fleet server count."}
+                {"cefr_band": "advanced", "question": "Patch deployment covers ___ servers.", "context": "86 servers", "answer": "86", "explanation": "Fleet server count in maintenance scope."}
             ],
             "Infotainment": [
                 {"cefr_band": "basic", "question": "Cabin TV has ___ channels.", "context": "45 channels", "answer": "45", "explanation": "In-cabin entertainment channel count."},
                 {"cefr_band": "basic", "question": "Movie starts at ___ PM on channel 12.", "context": "7:00 PM", "answer": "7:00", "explanation": "On-demand movie showtime."},
                 {"cefr_band": "intermediate", "question": "Interactive map updates every ___ seconds.", "context": "30 seconds", "answer": "30", "explanation": "Voyage tracker refresh interval."},
-                {"cefr_band": "intermediate", "question": "Content library: ___ movies and ___ TV series.", "context": "200 movies, 85 series", "answer": "200", "explanation": "On-demand entertainment catalogue size."},
-                {"cefr_band": "advanced", "question": "Streaming server capacity: ___ concurrent HD streams at ___ Mbps each.", "context": "1,500 streams, 8 Mbps each", "answer": "1500", "explanation": "Infrastructure throughput for peak demand."}
+                {"cefr_band": "intermediate", "question": "Content library: ___ movies available.", "context": "200 movies", "answer": "200", "explanation": "On-demand entertainment catalogue size."},
+                {"cefr_band": "advanced", "question": "Streaming server capacity: ___ concurrent HD streams.", "context": "1,500 streams", "answer": "1500", "explanation": "Infrastructure throughput for peak demand."}
             ],
             "Musicians": [
                 {"cefr_band": "basic", "question": "Set starts at ___ PM.", "context": "9:00 PM", "answer": "9:00", "explanation": "Evening performance start time."},
                 {"cefr_band": "basic", "question": "Each set lasts ___ minutes.", "context": "45 minutes", "answer": "45", "explanation": "Standard set duration."},
                 {"cefr_band": "intermediate", "question": "Band performs ___ sets per night.", "context": "3 sets", "answer": "3", "explanation": "Nightly performance count."},
                 {"cefr_band": "intermediate", "question": "Break between sets: ___ minutes.", "context": "20 minutes", "answer": "20", "explanation": "Intermission duration."},
-                {"cefr_band": "advanced", "question": "Repertoire: ___ songs across ___ genres covering ___ decades.", "context": "120 songs, 8 genres, 5 decades", "answer": "120", "explanation": "Full catalogue scope for varied audiences."}
+                {"cefr_band": "advanced", "question": "Repertoire includes ___ songs.", "context": "120 songs", "answer": "120", "explanation": "Full song catalogue size."}
             ],
             "Production Staff": [
                 {"cefr_band": "basic", "question": "Costume change in ___ seconds.", "context": "90 seconds", "answer": "90", "explanation": "Quick-change timing backstage."},
                 {"cefr_band": "basic", "question": "Props check at ___ PM.", "context": "4:00 PM", "answer": "4:00", "explanation": "Pre-show props inspection time."},
                 {"cefr_band": "intermediate", "question": "Fog machine runs for ___ minutes during act 2.", "context": "8 minutes", "answer": "8", "explanation": "Special effects duration."},
                 {"cefr_band": "intermediate", "question": "Wardrobe inventory: ___ costumes for this production.", "context": "64 costumes", "answer": "64", "explanation": "Total costume pieces per show."},
-                {"cefr_band": "advanced", "question": "Tech run-through: ___ hours with ___ cue-to-cue sequences before opening night.", "context": "5 hours, 140 cues", "answer": "140", "explanation": "Technical rehearsal complexity."}
+                {"cefr_band": "advanced", "question": "Tech run-through includes ___ cue-to-cue sequences.", "context": "140 cues", "answer": "140", "explanation": "Technical rehearsal complexity."}
             ],
             "Shore Excursions": [
                 {"cefr_band": "basic", "question": "Tour departs at ___ AM.", "context": "8:45 AM", "answer": "8:45", "explanation": "Shore excursion departure time."},
                 {"cefr_band": "basic", "question": "Snorkeling trip: $___ per person.", "context": "$75", "answer": "75", "explanation": "Excursion pricing."},
                 {"cefr_band": "intermediate", "question": "Return to ship by ___ PM (all aboard).", "context": "4:30 PM", "answer": "4:30", "explanation": "Mandatory return time before sailing."},
                 {"cefr_band": "intermediate", "question": "Tour group maximum: ___ guests per bus.", "context": "44 guests", "answer": "44", "explanation": "Transport capacity limit."},
-                {"cefr_band": "advanced", "question": "Excursion revenue: $___,000 with ___% guest participation rate.", "context": "$185,000, 62% participation", "answer": "185", "explanation": "Port-day revenue and uptake metrics."}
+                {"cefr_band": "advanced", "question": "Excursion revenue: $___,000.", "context": "$185,000", "answer": "185", "explanation": "Port-day revenue metric."}
             ],
             "Youth Programs": [
                 {"cefr_band": "basic", "question": "Kids club opens at ___ AM.", "context": "9:00 AM", "answer": "9:00", "explanation": "Morning opening time."},
                 {"cefr_band": "basic", "question": "Age group: ___ to 11 years.", "context": "3 to 11 years", "answer": "3", "explanation": "Minimum age for kids club."},
                 {"cefr_band": "intermediate", "question": "Teen night ends at ___ PM.", "context": "11:30 PM", "answer": "11:30", "explanation": "Teen activity curfew time."},
                 {"cefr_band": "intermediate", "question": "Maximum ___ children per counselor.", "context": "12 children", "answer": "12", "explanation": "Staff-to-child supervision ratio."},
-                {"cefr_band": "advanced", "question": "Enrollment: ___ kids across ___ age groups with ___:1 staff ratio.", "context": "280 kids, 4 groups, 10:1 ratio", "answer": "280", "explanation": "Program capacity and staffing metrics."}
+                {"cefr_band": "advanced", "question": "Enrollment: ___ kids.", "context": "280 kids", "answer": "280", "explanation": "Program capacity metric."}
             ],
             "Audio Visual Media": [
                 {"cefr_band": "basic", "question": "Projector in conference room ___.", "context": "Room 3", "answer": "3", "explanation": "Meeting room assignment."},
                 {"cefr_band": "basic", "question": "Microphone check at ___ PM.", "context": "2:00 PM", "answer": "2:00", "explanation": "Equipment test time."},
                 {"cefr_band": "intermediate", "question": "Video wall: ___ panels in a 4x3 grid.", "context": "12 panels", "answer": "12", "explanation": "Display panel count."},
                 {"cefr_band": "intermediate", "question": "Camera memory card: ___ GB capacity.", "context": "256 GB", "answer": "256", "explanation": "Storage media size."},
-                {"cefr_band": "advanced", "question": "Live broadcast: ___ cameras, ___ feeds mixed to ___K output.", "context": "6 cameras, 8 feeds, 4K output", "answer": "6", "explanation": "Multi-camera production setup complexity."}
+                {"cefr_band": "advanced", "question": "Live broadcast uses ___ cameras.", "context": "6 cameras", "answer": "6", "explanation": "Multi-camera production setup complexity."}
             ],
             "Onboard Media": [
                 {"cefr_band": "basic", "question": "Daily newsletter printed at ___ AM.", "context": "5:00 AM", "answer": "5:00", "explanation": "Morning print run time."},
                 {"cefr_band": "basic", "question": "Digital signage updates ___ times per day.", "context": "4 times", "answer": "4", "explanation": "Content refresh frequency."},
                 {"cefr_band": "intermediate", "question": "Photo gallery: ___ images from last port.", "context": "350 images", "answer": "350", "explanation": "Port-day photo collection size."},
                 {"cefr_band": "intermediate", "question": "Social media post scheduled at ___ PM.", "context": "6:00 PM", "answer": "6:00", "explanation": "Peak engagement posting time."},
-                {"cefr_band": "advanced", "question": "Content calendar: ___ assets across ___ channels with ___ daily touchpoints.", "context": "45 assets, 6 channels, 18 touchpoints", "answer": "45", "explanation": "Multi-channel content distribution scope."}
+                {"cefr_band": "advanced", "question": "Content calendar includes ___ assets.", "context": "45 assets", "answer": "45", "explanation": "Content distribution scope metric."}
             ]
         }
 

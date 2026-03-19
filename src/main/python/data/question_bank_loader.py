@@ -5,6 +5,7 @@ Supports both legacy format and new 1600-question full bank
 """
 
 import json
+import re
 from typing import Dict, List, Any
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,10 +16,14 @@ from config.departments import normalize_department
 
 def _time_numbers_audio_sentence(question_text: str, context: str = None, correct_answer: str = None) -> str:
     """Build the sentence to be read for Time & Numbers: fill blank with context or correct_answer so TTS speaks the answer."""
-    fill = (context or correct_answer or "").strip()
+    # Prefer correct_answer; context can contain extra unit/suffix text.
+    fill = (correct_answer or context or "").strip()
     if not fill:
         return question_text
-    return question_text.replace("___", fill)
+    sentence = question_text.replace("___", fill)
+    sentence = sentence.replace("$$", "$")
+    sentence = re.sub(r"\b(AM|PM)\s+\1\b", r"\1", sentence, flags=re.IGNORECASE)
+    return " ".join(sentence.split())
 
 
 class QuestionBankLoader:
