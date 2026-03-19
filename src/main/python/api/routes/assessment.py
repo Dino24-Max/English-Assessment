@@ -46,10 +46,11 @@ async def register_candidate(
 async def create_assessment(
     user_id: int,
     division: str,
-    request: Request,
+    department: Optional[str] = None,
+    request: Request = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """Create new assessment session. Requires authenticated session - user_id must match session."""
+    """Create new assessment session. Requires authenticated session - user_id must match session. Optional department for department-based question pool."""
 
     try:
         # Authorization: require session and user_id must match logged-in user
@@ -64,6 +65,11 @@ async def create_assessment(
             division_enum = DivisionType(division.lower())
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid division")
+
+        # Normalize department if provided (plan: wire department)
+        if department is not None:
+            from config.departments import normalize_department
+            department = (normalize_department(department) or "").strip() or None
 
         # Get user
         user = await db.get(User, user_id)
@@ -83,9 +89,9 @@ async def create_assessment(
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="User has incomplete assessment")
 
-        # Create assessment using engine
+        # Create assessment using engine (department for department-based question pool)
         engine = AssessmentEngine(db)
-        assessment = await engine.create_assessment(user_id, division_enum)
+        assessment = await engine.create_assessment(user_id, division_enum, department=department)
 
         # Record anti-cheating data
         anti_cheat = AntiCheatingService()
@@ -167,18 +173,41 @@ async def submit_answer(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _debug_log(message: str, data: dict, hypothesis_id: str = ""):
+    try:
+        from pathlib import Path
+        log_path = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
+        payload = {
+            "sessionId": "ccd1fc",
+            "timestamp": datetime.now().timestamp() * 1000,
+            "location": "assessment.py:submit_speaking_response",
+            "message": message,
+            "data": data,
+            "hypothesisId": hypothesis_id,
+        }
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, default=str) + "\n")
+    except Exception:
+        pass
+
+
 @router.post("/{assessment_id}/speaking")
 async def submit_speaking_response(
     assessment_id: int,
-    question_id: int,
+    question_id: int = Form(...),
     audio_file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db)
 ):
     """Submit speaking module audio response"""
 
+    # #region agent log
+    _debug_log("speaking submit entry", {"assessment_id": assessment_id, "question_id": question_id, "content_type": getattr(audio_file, "content_type", None)}, "A")
+    # #endregion
     try:
-        # Validate file type
-        if not audio_file.content_type.startswith("audio/"):
+        # Validate file type (allow None/octet-stream for some browsers)
+        ct = getattr(audio_file, "content_type", None) or ""
+        if not (ct.startswith("audio/") or ct == "application/octet-stream"):
+            _debug_log("invalid audio type", {"content_type": ct}, "B")
             raise HTTPException(status_code=400, detail="Invalid audio file")
 
         # Save audio file
@@ -238,7 +267,13 @@ async def submit_speaking_response(
             "feedback": analysis.get("feedback")
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        # #region agent log
+        import traceback
+        _debug_log("speaking submit exception", {"type": type(e).__name__, "message": str(e), "tb": traceback.format_exc()[:500]}, "C")
+        # #endregion
         raise HTTPException(status_code=500, detail=str(e))
 
 

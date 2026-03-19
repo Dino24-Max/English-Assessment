@@ -3,7 +3,7 @@ CEFR (Common European Framework of Reference) specification for question bank ge
 Levels A1-C2 per Council of Europe / Global English Test. Content and language must match level.
 """
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 # Valid CEFR levels
 CEFR_LEVELS: List[str] = ["A1", "A2", "B1", "B2", "C1", "C2"]
@@ -47,6 +47,47 @@ CEFR_VOCABULARY_HINTS: Dict[str, List[str]] = {
     "B2": ["specialized terms", "formal language", "collocations", "nuanced adjectives"],
     "C1": ["professional jargon", "idioms", "precise terminology", "academic vocabulary"],
     "C2": ["near-native fluency", "subtle distinctions", "domain expertise", "sophisticated expressions"],
+}
+
+# Sentence length and complexity constraints by CEFR (for content generation)
+# max_words: approximate max words per sentence; clauses: typical clause count range
+CEFR_SENTENCE_COMPLEXITY: Dict[str, Dict[str, Any]] = {
+    "A1": {"max_words": 8, "clauses_min": 1, "clauses_max": 1, "passive_ok": False},
+    "A2": {"max_words": 12, "clauses_min": 1, "clauses_max": 2, "passive_ok": False},
+    "B1": {"max_words": 18, "clauses_min": 1, "clauses_max": 2, "passive_ok": True},
+    "B2": {"max_words": 25, "clauses_min": 2, "clauses_max": 3, "passive_ok": True},
+    "C1": {"max_words": 35, "clauses_min": 2, "clauses_max": 4, "passive_ok": True},
+    "C2": {"max_words": 45, "clauses_min": 2, "clauses_max": 5, "passive_ok": True},
+}
+
+# Module-specific CEFR rules (Council of Europe descriptors)
+# Listening: audio script length/complexity
+# Reading: passage length, inference required
+# Grammar: grammar structures
+# Vocabulary: term difficulty
+# Speaking: prompt complexity
+# TimeNumbers: context wording complexity
+CEFR_MODULE_RULES: Dict[str, Dict[str, Dict[str, Any]]] = {
+    "Listening": {
+        "A1": {"script_sentences": 1, "inference": False, "register": "familiar daily"},
+        "A2": {"script_sentences": 1, "inference": False, "register": "direct exchange"},
+        "B1": {"script_sentences": 2, "inference": False, "register": "clear standard"},
+        "B2": {"script_sentences": 2, "inference": True, "register": "fluent"},
+        "C1": {"script_sentences": 3, "inference": True, "register": "professional"},
+        "C2": {"script_sentences": 4, "inference": True, "register": "nuanced"},
+    },
+    "Reading": {
+        "A1": {"paragraphs": 1, "sentences": 2, "inference": False},
+        "A2": {"paragraphs": 1, "sentences": 3, "inference": False},
+        "B1": {"paragraphs": 1, "sentences": 5, "inference": False},
+        "B2": {"paragraphs": 1, "sentences": 6, "inference": True},
+        "C1": {"paragraphs": 2, "sentences": 8, "inference": True},
+        "C2": {"paragraphs": 3, "sentences": 12, "inference": True},
+    },
+    "Grammar": {"A1": {}, "A2": {}, "B1": {}, "B2": {}, "C1": {}, "C2": {}},  # Use CEFR_GRAMMAR_HINTS
+    "Vocabulary": {"A1": {}, "A2": {}, "B1": {}, "B2": {}, "C1": {}, "C2": {}},  # Use CEFR_VOCABULARY_HINTS
+    "Speaking": {"A1": {"prompt_words": 8}, "A2": {"prompt_words": 12}, "B1": {"prompt_words": 18}, "B2": {"prompt_words": 25}, "C1": {"prompt_words": 35}, "C2": {"prompt_words": 45}},
+    "TimeNumbers": {"A1": {"context_simple": True}, "A2": {}, "B1": {}, "B2": {}, "C1": {}, "C2": {}},
 }
 
 

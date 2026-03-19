@@ -6,6 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    {% if csrf_token %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
     <title>Question {{ question_num }} - CCL English Assessment</title>
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/assessment.css">
@@ -52,7 +53,7 @@
 
             {% block question_content %}
             {# LISTENING MODULE - AI Audio Playback #}
-            {% if question_data.module == "listening" and question_data.audio_text %}
+            {% if question_data.module == "listening" and (question_data.audio_text or question_data.audio_file_path) %}
             <div class="audio-section">
                 <p class="audio-instruction">🎧 Listen to the audio and answer the question:</p>
                 <div class="audio-controls">
@@ -67,8 +68,8 @@
             </div>
             {% endif %}
 
-            {# TIME & NUMBERS MODULE - Audio + Text Input #}
-            {% if question_data.module == "time_numbers" and question_data.audio_text %}
+            {# TIME & NUMBERS MODULE - Audio + Text Input (always show Play; use question as TTS if no audio_text) #}
+            {% if question_data.module == "time_numbers" %}
             <div class="audio-section">
                 <p class="audio-instruction">🎧 Listen carefully and fill in the answer:</p>
                 <div class="audio-controls">
@@ -141,7 +142,7 @@
                 <p class="speaking-instruction">🎤 Click below to record your repetition:</p>
                 {% else %}
                 {# SCENARIO TYPE - Respond to scenario #}
-                <p class="speaking-instruction">🎤 Click the button below to record your response (minimum {{ question_data.min_duration }} seconds):</p>
+                <p class="speaking-instruction">🎤 Click the button below to record your response (minimum {{ question_data.min_duration or 3 }} seconds):</p>
                 {% endif %}
                 <div class="recording-controls">
                     <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
@@ -161,11 +162,11 @@
             </div>
             {% endif %}
 
-            {# MULTIPLE CHOICE OPTIONS #}
+            {# MULTIPLE CHOICE OPTIONS - use data-option to avoid onclick breakage with quotes/apostrophes #}
             {% if question_data.options and question_data.module != "vocabulary" %}
             <div class="options-container">
                 {% for option in question_data.options %}
-                <button class="option" onclick="selectAnswer('{{ option }}', this)">
+                <button type="button" class="option" data-option="{{ option|e }}" onclick="selectAnswer(this.getAttribute('data-option'), this)">
                     {{ option }}
                 </button>
                 {% endfor %}
@@ -369,6 +370,9 @@
         // ======================================
 
         let selectedAnswer = '';
+        // #region agent log
+        (function(){var _m={{ question_data.module|tojson }};var _sb=document.getElementById('submitBtn');var _in=document.getElementById('answerInput');var _op=document.querySelectorAll('.option');var _dz=document.querySelectorAll('.drop-zone');fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:init',message:'page load',data:{module:_m,submitBtnExists:!!_sb,answerInputExists:!!_in,optionCount:_op.length,dropZoneCount:_dz.length},hypothesisId:'H6',timestamp:Date.now()})}).catch(function(){});})();
+        // #endregion
         let audioSynthesis = null;
         let playsRemaining = 2;
         let isPlaying = false;
@@ -380,11 +384,14 @@
         let speechRecognition = null;
         let transcribedText = '';
 
+        {# For time_numbers, allow TTS from question text when audio_text is missing #}
+        {% set audio_play_text = question_data.audio_text or (question_data.question if question_data.module == "time_numbers" else '') %}
+
         // Audio playback - prefer pre-generated MP3, fallback to TTS
         function playAudio() {
             if (isPlaying) return;
 
-            {% if question_data.audio_text %}
+            {% if audio_play_text %}
             const questionNum = {{ question_num }};
             const module = {{ question_data.module|tojson }};
             
@@ -422,7 +429,7 @@
             audio.addEventListener('error', function() {
                 console.log('Pre-generated audio not found, using TTS fallback');
                 // Fallback to Web Speech Synthesis
-                const text = {{ question_data.audio_text|tojson }};
+                const text = {{ audio_play_text|tojson }};
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.rate = 0.9;
                 utterance.pitch = 1.0;
@@ -454,6 +461,33 @@
             
             // Try to load the audio file
             audio.load();
+            {% elif question_data.audio_file_path %}
+            const path = {{ question_data.audio_file_path|tojson }};
+            const audioUrl = (path && path.startsWith('/')) ? path : ('/static/' + (path || ''));
+            const audio = new Audio(audioUrl);
+            currentAudio = audio;
+            audio.play();
+            isPlaying = true;
+            document.getElementById('playBtn').style.display = 'none';
+            if (document.getElementById('pauseBtn')) document.getElementById('pauseBtn').style.display = 'inline-block';
+            audio.onended = function() {
+                isPlaying = false;
+                currentAudio = null;
+                document.getElementById('playBtn').style.display = 'inline-block';
+                if (document.getElementById('pauseBtn')) document.getElementById('pauseBtn').style.display = 'none';
+                {% if question_data.module == "listening" or question_data.module == "time_numbers" or question_data.module == "speaking" %}
+                if (typeof playsRemaining !== 'undefined') {
+                    playsRemaining--;
+                    var el = document.getElementById('playsLeft');
+                    if (el) el.textContent = playsRemaining;
+                    if (playsRemaining <= 0) {
+                        var btn = document.getElementById('playBtn');
+                        if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+                    }
+                }
+                {% endif %}
+            };
+            audio.addEventListener('error', function() { console.error('Audio load failed:', audioUrl); isPlaying = false; currentAudio = null; });
             {% endif %}
         }
 
@@ -530,18 +564,22 @@
             const term = selectedTermElement.getAttribute('data-term');
             const termText = selectedTermElement.textContent.trim();
             
-            // Check if this definition already has a match
-            const existingMatch = defElement.querySelector('.dropped-term');
+            // Container for dropped terms (inside the drop-zone button)
+            const matchedTermContainer = defElement.querySelector('.matched-term');
+            if (!matchedTermContainer) return;
+            
+            // Check if this definition already has a match - return it to terms box
+            const existingMatch = matchedTermContainer.querySelector('.dropped-term');
             if (existingMatch) {
-                // Return the existing match back to terms box
                 const existingTerm = existingMatch.getAttribute('data-term');
                 const termsBox = document.getElementById('termsBox');
-                const termDiv = document.createElement('div');
-                termDiv.className = 'term-item clickable';
-                termDiv.setAttribute('data-term', existingTerm);
-                termDiv.setAttribute('onclick', 'selectTerm(this)');
-                termDiv.textContent = existingTerm;
-                termsBox.appendChild(termDiv);
+                const returnBtn = document.createElement('button');
+                returnBtn.type = 'button';
+                returnBtn.className = 'term-item clickable';
+                returnBtn.setAttribute('data-term', existingTerm);
+                returnBtn.textContent = existingTerm;
+                returnBtn.onclick = function() { selectTerm(this); };
+                termsBox.appendChild(returnBtn);
                 existingMatch.remove();
             }
             
@@ -551,8 +589,8 @@
             matchedTermDiv.setAttribute('data-term', term);
             matchedTermDiv.textContent = termText;
             
-            // Add to definition zone
-            defElement.appendChild(matchedTermDiv);
+            // Add inside .matched-term container (not the button directly)
+            matchedTermContainer.appendChild(matchedTermDiv);
             
             // Remove from terms box
             selectedTermElement.remove();
@@ -584,6 +622,9 @@
             });
 
             if (allMatched) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:checkVocabularyMatches',message:'vocab allMatched',data:{},hypothesisId:'H7c',timestamp:Date.now()})}).catch(function(){});
+                // #endregion
                 selectedAnswer = JSON.stringify(matches);
                 document.getElementById('submitBtn').disabled = false;
             } else {
@@ -602,6 +643,10 @@
 
         async function startRecording() {
             try {
+                {% if question_data.module == "speaking" %}
+                // Disable submit until we have a recording that meets minimum duration
+                document.getElementById('submitBtn').disabled = true;
+                {% endif %}
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
@@ -679,8 +724,8 @@
                     // Upload audio to backend for Whisper transcription
                     {% if question_data.module == "speaking" %}
                     // Check if this is a repeat-type speaking question (no minimum duration)
-                    const hasMinDuration = {{ 'true' if question_data.min_duration else 'false' }};
-                    const minDuration = {{ question_data.min_duration if question_data.min_duration else 0 }};
+                    const hasMinDuration = {{ 'true' if (question_data.min_duration or 0) > 0 else 'false' }};
+                    const minDuration = {{ question_data.min_duration if question_data.min_duration is not none else 3 }};
                     
                     // IMMEDIATELY enable submit button after first recording if min_duration is satisfied
                     // Set a temporary selectedAnswer with browser transcript (will be updated when AI transcription completes)
@@ -730,36 +775,47 @@
                                 } else {
                                     // Backend returned error, keep browser transcript
                                     console.warn('Backend returned error transcript, using browser fallback:', backendTranscript);
-                                    if (transcribedText) {
-                                        document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 100)}"`;
+                                    if (savedRecordingSeconds >= minDuration) {
+                                        if (transcribedText) {
+                                            document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 100)}"`;
+                                        } else {
+                                            document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                        }
                                     } else {
-                                        document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                        document.getElementById('status').textContent = `⏱ Recording too short (min ${minDuration}s). Record again.`;
                                     }
                                 }
                             } else {
                                 // Fallback to browser transcript if backend fails
                                 console.error('Backend transcription failed, using browser fallback');
-                                if (transcribedText) {
-                                    document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 50)}"`;
+                                if (savedRecordingSeconds >= minDuration) {
+                                    if (transcribedText) {
+                                        document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 50)}"`;
+                                    } else {
+                                        document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                    }
                                 } else {
-                                    document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                    document.getElementById('status').textContent = `⏱ Recording too short (min ${minDuration}s). Record again.`;
                                 }
                             }
                         } catch (error) {
                             console.error('Transcription error:', error);
                             // Keep the existing selectedAnswer with browser transcript
-                            if (transcribedText) {
-                                document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 50)}"`;
+                            if (savedRecordingSeconds >= minDuration) {
+                                if (transcribedText) {
+                                    document.getElementById('status').textContent = `✅ Recording complete: "${transcribedText.substring(0, 50)}"`;
+                                } else {
+                                    document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                }
                             } else {
-                                document.getElementById('status').textContent = '✅ Recording complete. You can continue.';
+                                document.getElementById('status').textContent = `⏱ Recording too short (min ${minDuration}s). Record again.`;
                             }
                         }
                     })();
                     {% else %}
                     // Non-speaking questions: just use browser transcript
                     selectedAnswer = `recorded_${recordingSeconds}s|${transcribedText || ''}`;
-                    {% if question_data.min_duration %}
-                    if (recordingSeconds >= {{ question_data.min_duration }}) {
+                    if (recordingSeconds >= {{ question_data.min_duration or 3 }}) {
                         document.getElementById('submitBtn').disabled = false;
                         if (transcribedText) {
                             document.getElementById('status').textContent = `Recording complete. Transcribed: "${transcribedText.substring(0, 100)}"`;
@@ -767,7 +823,6 @@
                             document.getElementById('status').textContent = 'Recording complete (no speech detected)';
                         }
                     }
-                    {% endif %}
                     {% endif %}
                 };
 
@@ -812,8 +867,12 @@
 
         // Standard answer selection
         function selectAnswer(answer, element) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:selectAnswer',message:'selectAnswer called',data:{answerLen:(answer&&answer.length)||0,hasElement:!!element},hypothesisId:'H7',timestamp:Date.now()})}).catch(function(){});
+            // #endregion
             selectedAnswer = answer;
-            document.getElementById('submitBtn').disabled = false;
+            var sb = document.getElementById('submitBtn');
+            if (sb) sb.disabled = false;
             if (element) {
                 document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
                 element.classList.add('selected');
@@ -831,6 +890,9 @@
 
         function checkInput() {
             const input = document.getElementById('answerInput');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:checkInput',message:'checkInput called',data:{hasInput:!!input,valueLen:input?input.value.length:0,trimmed:input?input.value.trim().length:0},hypothesisId:'H7b',timestamp:Date.now()})}).catch(function(){});
+            // #endregion
             if (input) {
                 selectedAnswer = input.value;
                 document.getElementById('submitBtn').disabled = input.value.trim() === '';
@@ -838,8 +900,12 @@
         }
 
         function submitAnswer() {
-            if (!selectedAnswer || !selectedAnswer.trim()) {
-                alert('Please provide an answer before continuing');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:submitAnswer',message:'submitAnswer called',data:{answerLen:(selectedAnswer&&String(selectedAnswer).length)||0},hypothesisId:'H8',timestamp:Date.now()})}).catch(function(){});
+            // #endregion
+            var answerStr = (selectedAnswer != null && typeof selectedAnswer === 'string') ? selectedAnswer : (selectedAnswer != null ? JSON.stringify(selectedAnswer) : '');
+            if (!answerStr || !answerStr.trim()) {
+                alert('Please select an answer before continuing.');
                 return;
             }
 
@@ -862,17 +928,20 @@
             // Create form data
             const formData = new FormData();
             formData.append('question_num', {{ question_num }});
-            formData.append('answer', selectedAnswer);
+            formData.append('answer', answerStr);
             {% if operation %}
             formData.append('operation', '{{ operation }}');
             {% endif %}
-            {% if csrf_token %}
-            formData.append('csrf_token', '{{ csrf_token }}');
-            {% endif %}
 
             // Submit to backend (credentials ensures session cookie is sent)
+            // CSRF in header avoids middleware consuming form body (fixes 422)
+            const headers = {};
+            {% if csrf_token %}
+            headers['X-CSRF-Token'] = '{{ csrf_token }}';
+            {% endif %}
             fetch('/submit', {
                 method: 'POST',
+                headers: headers,
                 body: formData,
                 credentials: 'same-origin'
             })

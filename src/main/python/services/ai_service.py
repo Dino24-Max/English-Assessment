@@ -430,7 +430,35 @@ class AIService:
         except Exception as e:
             logger.error(f"Unexpected error in speech analysis for {audio_file_path}: {e}")
             return self._get_fallback_speech_response("error")
-    
+
+    async def analyze_speech_from_transcript(self, transcript: str, expected_response: str,
+                                              question_context: str) -> Dict[str, Any]:
+        """
+        Score a speaking response from transcript only (no audio file).
+        Used when the unified question page submits "recorded_XXs|transcript" after client-side transcription.
+        """
+        try:
+            content_analysis = await self._analyze_speech_content(
+                transcript, expected_response, question_context
+            )
+            # No audio file: use neutral audio quality so we don't penalize
+            audio_analysis = {"clarity": 0.8}
+            scores = self._calculate_speech_scores(audio_analysis, content_analysis)
+            return {
+                "transcript": transcript,
+                "transcription_confidence": 1.0,
+                "transcription_method": "client_transcript",
+                "audio_quality": audio_analysis,
+                "content_analysis": content_analysis,
+                "scores": scores,
+                "total_points": scores["total_score"],
+                "overall_score": scores["overall_score"],
+                "feedback": self._generate_speech_feedback(scores, content_analysis)
+            }
+        except Exception as e:
+            logger.error(f"Speech-from-transcript analysis error: {e}")
+            return self._get_fallback_speech_response("error")
+
     def _get_fallback_speech_response(self, error_type: str = "error") -> Dict[str, Any]:
         """
         Generate fallback response when AI analysis fails

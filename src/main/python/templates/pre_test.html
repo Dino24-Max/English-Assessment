@@ -418,8 +418,25 @@
                 </div>
             </div>
 
+            {% if from_invitation and department_from_invitation %}
+            <div class="department-section" style="margin-bottom: 24px; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto;">
+                <p style="font-size: 1.1rem; font-weight: 600; color: #333;">Your assessment is for department: <strong>{{ department_from_invitation }}</strong></p>
+                <p style="font-size: 0.95rem; color: #666; margin-top: 6px;">Questions are tailored to the department selected in your invitation link.</p>
+            </div>
+            {% elif departments %}
+            <div class="department-section" style="margin-bottom: 24px; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto;">
+                <label for="departmentSelect" style="display: block; font-size: 1.1rem; font-weight: 600; color: #333; margin-bottom: 10px;">Select your department (for tailored questions):</label>
+                <select id="departmentSelect" style="width: 100%; padding: 14px 18px; font-size: 1.1rem; border: 2px solid #e0e6ed; border-radius: 12px; background: white; cursor: pointer;">
+                    <option value="">Any department</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept|e }}">{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
             <div class="action-section">
-                <a href="/question/1?operation={{ operation }}" class="start-btn" onclick="startAssessment(event)">I'm Ready - Start Assessment</a>
+                <a href="/start-assessment?operation={{ operation }}" class="start-btn" id="startLink" onclick="startAssessment(event)">I'm Ready - Start Assessment</a>
                 <a href="/instructions?operation={{ operation }}" class="back-link">← Back to Instructions</a>
             </div>
         </div>
@@ -430,7 +447,14 @@
             event.preventDefault();
             sessionStorage.removeItem('answeredQuestions');
             localStorage.removeItem('assessmentEndTime');
-            window.location.href = event.target.href;
+            let url = document.getElementById('startLink').href;
+            // When from invitation, department is fixed (no dropdown); backend uses session department.
+            const deptEl = document.getElementById('departmentSelect');
+            if (deptEl && deptEl.value && deptEl.value.trim()) {
+                const sep = url.includes('?') ? '&' : '?';
+                url = url + sep + 'department=' + encodeURIComponent(deptEl.value.trim());
+            }
+            window.location.href = url;
         }
     </script>
 

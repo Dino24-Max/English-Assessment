@@ -12,16 +12,6 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src" / "main" / "python"))
 
 
-def _truncate_questions(db_path: Path):
-    """Clear questions table before load to avoid duplicates on re-run."""
-    conn = sqlite3.connect(str(db_path))
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM questions")
-    conn.commit()
-    conn.close()
-    print("Cleared existing questions (will reload from JSON).")
-
-
 def _ensure_questions_schema(db_path: Path):
     """Add missing columns to questions table if needed (migration for existing DBs)."""
     conn = sqlite3.connect(str(db_path))
@@ -29,6 +19,7 @@ def _ensure_questions_schema(db_path: Path):
     cursor.execute("PRAGMA table_info(questions)")
     columns = [row[1] for row in cursor.fetchall()]
     for col_name, col_def in [
+        ("department", "VARCHAR(100)"),
         ("cefr_level", "VARCHAR(2)"),
         ("scenario_id", "INTEGER"),
         ("scenario_description", "TEXT"),
@@ -46,18 +37,18 @@ async def main():
     from core.database import async_session_maker
     from data.question_bank_loader import QuestionBankLoader
 
-    # Resolve DB path (sqlite URL like sqlite+aiosqlite:///./data/assessment.db)
+    # Ensure schema has department column (migration for existing DBs)
     url = settings.DATABASE_URL
     if "sqlite" in url:
         db_path = project_root / "data" / "assessment.db"
         if db_path.exists():
             _ensure_questions_schema(db_path)
-            _truncate_questions(db_path)
 
     async with async_session_maker() as db:
         loader = QuestionBankLoader(db)
-        count = await loader.load_full_question_bank()
-        print(f"Done. Loaded {count} questions.")
+        # clear_first=True: reset in-progress assessments, remove all old questions, then load fresh bank
+        count = await loader.load_full_question_bank(clear_first=True)
+        print(f"Done. Loaded {count} questions (department-specific pools).")
 
 
 if __name__ == "__main__":

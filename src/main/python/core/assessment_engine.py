@@ -6,14 +6,13 @@ Handles assessment flow, scoring, and validation
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 import random
 import json
+import uuid
 
-from models.assessment import (
-    Assessment, AssessmentResponse, Question, User,
-    AssessmentStatus, ModuleType, DivisionType, QuestionType
-)
+import models.assessment as _ma  # Use module ref to avoid UnboundLocalError
+from config.departments import normalize_department
 from core.config import settings
 from services.ai_service import AIService
 from utils.scoring import ScoringEngine
@@ -29,13 +28,13 @@ class AssessmentEngine:
         self.scoring_engine = ScoringEngine(self.db)
 
     @cache_result(ttl=CacheTTL.HOUR, key_prefix=CacheKeys.QUESTIONS_BY_DIVISION)
-    async def _get_cached_questions_by_division(self, division: DivisionType) -> List[Question]:
+    async def _get_cached_questions_by_division(self, division: _ma.DivisionType) -> List[_ma.Question]:
         """
         Get all questions for a division with caching
         Cache for 1 hour since question bank rarely changes
         """
         result = await self.db.execute(
-            select(Question).where(Question.division == division)
+            select(_ma.Question).where(_ma.Question.division == division)
         )
         questions = result.scalars().all()
         
@@ -58,25 +57,42 @@ class AssessmentEngine:
             for q in questions
         ]
 
-    async def create_assessment(self, user_id: int, division: DivisionType) -> Assessment:
-        """Create new assessment session"""
+    async def create_assessment(
+        self,
+        user_id: int,
+        division: _ma.DivisionType,
+        department: Optional[str] = None,
+        *,
+        auto_commit: bool = True,
+    ) -> _ma.Assessment:
+        """Create new assessment session. Stores department to record which question pool was used.
+        When auto_commit=False, only flushes (caller must commit) - use for atomic create+start flows."""
+        import logging
+        # Normalize so filter matches DB (e.g. "Guest Services" -> "GUEST SERVICES")
+        department = normalize_department(department) if department else None
+        logging.getLogger(__name__).info(
+            f"create_assessment: user_id={user_id}, division={division.value}, department={department!r}"
+        )
 
-        # Generate unique session ID
-        session_id = f"assess_{user_id}_{int(datetime.now().timestamp())}"
+        # Generate unique session ID (timestamp + short uuid to avoid UNIQUE collision when creating twice in same second)
+        session_id = f"assess_{user_id}_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
 
         # Create assessment record
-        assessment = Assessment(
+        assessment = _ma.Assessment(
             user_id=user_id,
             session_id=session_id,
             division=division,
-            status=AssessmentStatus.NOT_STARTED,
+            department=department,
+            status=_ma.AssessmentStatus.NOT_STARTED,
             expires_at=datetime.now() + timedelta(hours=2),  # 2-hour time limit
             max_possible_score=100.0
         )
 
         self.db.add(assessment)
-        await self.db.commit()
-        await self.db.refresh(assessment)
+        await self.db.flush()
+        if auto_commit:
+            await self.db.commit()
+            await self.db.refresh(assessment)
 
         return assessment
 
@@ -84,27 +100,56 @@ class AssessmentEngine:
         """Start an assessment and generate questions"""
 
         # Get assessment
-        result = await self.db.execute(select(Assessment).where(Assessment.id == assessment_id))
+        result = await self.db.execute(select(_ma.Assessment).where(_ma.Assessment.id == assessment_id))
         assessment = result.scalar_one_or_none()
 
         if not assessment:
             raise ValueError("Assessment not found")
 
-        if assessment.status != AssessmentStatus.NOT_STARTED:
+        if assessment.status != _ma.AssessmentStatus.NOT_STARTED:
             raise ValueError("Assessment already started or completed")
 
-        # Fetch user to get department for question selection
-        user_result = await self.db.execute(select(User).where(User.id == assessment.user_id))
-        user = user_result.scalar_one_or_none()
-        department = user.department if user else None
+        # Use assessment.department only (no backfill from user). When None, question selection is division-only.
+        department = assessment.department
+        department = normalize_department(department) if department else None
 
         # Update status
-        assessment.status = AssessmentStatus.IN_PROGRESS
+        assessment.status = _ma.AssessmentStatus.IN_PROGRESS
         assessment.started_at = datetime.now()
 
-        # Generate question set (department-specific when user has department)
+        # Generate question set (department-specific when department is set)
         questions = await self._generate_question_set(assessment.division, department=department)
 
+        # Persist question order for UI: flatten to [q1_id, q2_id, ..., q21_id]
+        module_order = [
+            _ma.ModuleType.LISTENING, _ma.ModuleType.TIME_NUMBERS, _ma.ModuleType.GRAMMAR,
+            _ma.ModuleType.VOCABULARY, _ma.ModuleType.READING, _ma.ModuleType.SPEAKING
+        ]
+        question_order = []
+        for mt in module_order:
+            for q in questions.get(mt.value, []):
+                question_order.append(q["id"])
+        # When assessment is department-based, never allow empty question set (would trigger generic fallback in UI)
+        if department and len(question_order) == 0:
+            raise ValueError(
+                f"No questions available for department '{department}'. "
+                "Please load the full question bank (30 departments × 100 questions) via Admin and try again."
+            )
+        assessment.question_order = question_order
+        # #region agent log
+        try:
+            import json
+            _p = __import__("pathlib").Path(__file__).resolve().parents[4] / "debug-ccd1fc.log"
+            _listening = questions.get("listening", [])
+            _first = _listening[0] if _listening else None
+            _d = {"assessment_id": assessment_id, "department": department, "first_3_ids": question_order[:3], "first_listening_id": _first["id"] if _first else None, "first_listening_text": (_first.get("question_text") or "")[:80] if _first else None}
+            with open(_p, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId":"ccd1fc","location":"assessment_engine.py:132","message":"start_assessment question_order built","data":_d,"hypothesisId":"H4","timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+
+        await self.db.flush()
         await self.db.commit()
 
         return {
@@ -117,7 +162,7 @@ class AssessmentEngine:
         }
 
     async def _generate_question_set(
-        self, division: DivisionType, department: Optional[str] = None
+        self, division: _ma.DivisionType, department: Optional[str] = None
     ) -> Dict[str, List[Dict]]:
         """Generate randomized question set for assessment - Optimized with single query.
 
@@ -136,25 +181,27 @@ class AssessmentEngine:
 
         # Questions per module (21 questions total = 100 points)
         questions_per_module = {
-            ModuleType.LISTENING: 3,      # 3 questions: 5+5+6 = 16 points
-            ModuleType.TIME_NUMBERS: 3,   # 3 questions: 5+5+6 = 16 points
-            ModuleType.GRAMMAR: 4,        # 4 questions: 4+4+4+4 = 16 points
-            ModuleType.VOCABULARY: 4,     # 4 questions: 4+4+4+4 = 16 points
-            ModuleType.READING: 4,        # 4 questions: 4+4+4+4 = 16 points
-            ModuleType.SPEAKING: 3        # 3 questions: 7+7+6 = 20 points
+            _ma.ModuleType.LISTENING: 3,      # 3 questions: 5+5+6 = 16 points
+            _ma.ModuleType.TIME_NUMBERS: 3,   # 3 questions: 5+5+6 = 16 points
+            _ma.ModuleType.GRAMMAR: 4,        # 4 questions: 4+4+4+4 = 16 points
+            _ma.ModuleType.VOCABULARY: 4,     # 4 questions: 4+4+4+4 = 16 points
+            _ma.ModuleType.READING: 4,        # 4 questions: 4+4+4+4 = 16 points
+            _ma.ModuleType.SPEAKING: 3        # 3 questions: 7+7+6 = 20 points
         }
         
-        # Build filter: division always required; add department when provided
-        base_filter = Question.division == division
+        # Build filter: division always required.
+        # When department is set: use ONLY department-specific questions; do not add generic (department IS NULL)
+        # to the main pool. We will add generic only per-module when department-specific count is insufficient.
+        base_filter = _ma.Question.division == division
         if department:
-            q_filter = and_(base_filter, Question.department == department)
+            q_filter = and_(base_filter, _ma.Question.department == department)
         else:
             q_filter = base_filter
 
-        # OPTIMIZATION: Fetch all questions for this division (and department) in ONE query
-        result = await self.db.execute(select(Question).where(q_filter))
+        # Fetch questions: department-specific only when department set, else all division
+        result = await self.db.execute(select(_ma.Question).where(q_filter))
         all_questions = result.scalars().all()
-        
+
         # Group questions by module type in memory (much faster than multiple DB queries)
         questions_by_module = {}
         for question in all_questions:
@@ -162,27 +209,75 @@ class AssessmentEngine:
                 questions_by_module[question.module_type] = []
             questions_by_module[question.module_type].append(question)
 
+        # Track content keys already used so we never show the same question (or same prompt+content) twice
+        used_content_keys = set()
+
+        def _dedupe_and_filter(questions: list) -> list:
+            """Deduplicate by content key and exclude already-used keys."""
+            seen_key = {}
+            for q in questions:
+                k = self._question_content_key(q)
+                if k and k not in seen_key:
+                    seen_key[k] = q
+            deduped = list(seen_key.values())
+            return [q for q in deduped if self._question_content_key(q) not in used_content_keys]
+
         # Now select questions for each module
         for module_type, count in questions_per_module.items():
-            available_questions = questions_by_module.get(module_type, [])
+            available_questions = list(questions_by_module.get(module_type, []))
 
-            if len(available_questions) < count:
-                # If not enough questions, create sample questions
-                await self._create_sample_questions(module_type, division)
-
-                # Re-fetch only this module's questions
-                result = await self.db.execute(
-                    select(Question).where(
-                        and_(
-                            Question.module_type == module_type,
-                            Question.division == division
+            if department:
+                # Department set: use only this department's questions; no generic/division/sample
+                available_questions = _dedupe_and_filter(available_questions)
+                n_select = min(count, len(available_questions))
+                selected_questions = random.sample(available_questions, n_select) if n_select else []
+            else:
+                # No department: allow generic, division fallback, sample creation
+                available_questions = _dedupe_and_filter(available_questions)
+                if len(available_questions) < count:
+                    fallback_result = await self.db.execute(
+                        select(_ma.Question).where(
+                            and_(
+                                _ma.Question.module_type == module_type,
+                                _ma.Question.division == division,
+                                _ma.Question.department.is_(None),
+                            )
                         )
                     )
-                )
-                available_questions = result.scalars().all()
+                    generic = fallback_result.scalars().all()
+                    available_questions = _dedupe_and_filter(available_questions + list(generic))
 
-            # Randomly select questions
-            selected_questions = random.sample(available_questions, min(count, len(available_questions)))
+                if len(available_questions) < count:
+                    result = await self.db.execute(
+                        select(_ma.Question).where(
+                            and_(
+                                _ma.Question.module_type == module_type,
+                                _ma.Question.division == division
+                            )
+                        )
+                    )
+                    available_questions = _dedupe_and_filter(list(result.scalars().all()))
+
+                if len(available_questions) < count:
+                    await self._create_sample_questions(module_type, division)
+                    result = await self.db.execute(
+                        select(_ma.Question).where(
+                            and_(
+                                _ma.Question.module_type == module_type,
+                                _ma.Question.division == division
+                            )
+                        )
+                    )
+                    available_questions = _dedupe_and_filter(list(result.scalars().all()))
+
+                n_select = min(count, len(available_questions))
+                selected_questions = random.sample(available_questions, n_select) if n_select else []
+
+            # Mark selected content keys as used so they are not repeated in later modules
+            for q in selected_questions:
+                k = self._question_content_key(q)
+                if k:
+                    used_content_keys.add(k)
 
             # Format questions for frontend
             module_key = module_type.value
@@ -209,12 +304,12 @@ class AssessmentEngine:
         import asyncio
         
         # Parallel query execution - Reduce 3 sequential queries to 1 parallel batch
-        assessment_query = select(Assessment).where(Assessment.id == assessment_id)
-        question_query = select(Question).where(Question.id == question_id)
-        existing_query = select(AssessmentResponse).where(
-            and_(
-                AssessmentResponse.assessment_id == assessment_id,
-                AssessmentResponse.question_id == question_id
+        assessment_query = select(_ma.Assessment).where(_ma.Assessment.id == assessment_id)
+        question_query = select(_ma.Question).where(_ma.Question.id == question_id)
+        existing_query = select(_ma.AssessmentResponse).where(
+                and_(
+                _ma.AssessmentResponse.assessment_id == assessment_id,
+                _ma.AssessmentResponse.question_id == question_id
             )
         )
         
@@ -233,7 +328,7 @@ class AssessmentEngine:
         if not assessment or not question:
             raise ValueError("Assessment or question not found")
 
-        if assessment.status != AssessmentStatus.IN_PROGRESS:
+        if assessment.status != _ma.AssessmentStatus.IN_PROGRESS:
             raise ValueError("Assessment is not in progress")
 
         if existing:
@@ -243,7 +338,7 @@ class AssessmentEngine:
         is_correct, points_earned = await self._score_response(question, user_answer)
 
         # Create response record
-        response = AssessmentResponse(
+        response = _ma.AssessmentResponse(
             assessment_id=assessment_id,
             question_id=question_id,
             user_answer=user_answer,
@@ -263,7 +358,7 @@ class AssessmentEngine:
             "feedback": await self._generate_feedback(question, user_answer, is_correct)
         }
 
-    async def _score_response(self, question: Question, user_answer: str) -> Tuple[bool, float]:
+    async def _score_response(self, question: _ma.Question, user_answer: str) -> Tuple[bool, float]:
         """
         Score a user's response to a question
 
@@ -272,32 +367,43 @@ class AssessmentEngine:
         - TITLE_SELECTION (reading module)
         """
 
-        if question.question_type == QuestionType.MULTIPLE_CHOICE:
+        if question.question_type == _ma.QuestionType.MULTIPLE_CHOICE:
             is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
             points = question.points if is_correct else 0
 
-        elif question.question_type == QuestionType.FILL_BLANK:
+        elif question.question_type == _ma.QuestionType.FILL_BLANK:
             # More flexible matching for fill-in-the-blank (time & numbers)
             is_correct = self._flexible_text_match(user_answer, question.correct_answer)
             points = question.points if is_correct else 0
 
-        elif question.question_type == QuestionType.CATEGORY_MATCH:
+        elif question.question_type == _ma.QuestionType.CATEGORY_MATCH:
             # Vocabulary module - match category terms
             is_correct = self._score_category_match(user_answer, question.correct_answer)
             points = question.points if is_correct else 0
 
-        elif question.question_type == QuestionType.TITLE_SELECTION:
+        elif question.question_type == _ma.QuestionType.TITLE_SELECTION:
             # Reading module - select best title
             is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
             points = question.points if is_correct else 0
 
-        elif question.question_type == QuestionType.SPEAKING_RESPONSE:
+        elif question.question_type == _ma.QuestionType.SPEAKING_RESPONSE:
             # AI-powered scoring for speaking
-            analysis = await self.ai_service.analyze_speech_response(
-                user_answer, question.correct_answer, question.question_text
-            )
+            # Unified question page submits "recorded_XXs|transcript" when transcription is used
+            if user_answer and "|" in user_answer and user_answer.strip().startswith("recorded_"):
+                parts = user_answer.split("|", 1)
+                transcript = parts[1].strip() if len(parts) > 1 else ""
+                analysis = await self.ai_service.analyze_speech_from_transcript(
+                    transcript, question.correct_answer or "", question.question_text or ""
+                )
+            else:
+                analysis = await self.ai_service.analyze_speech_response(
+                    user_answer, question.correct_answer or "", question.question_text or ""
+                )
             is_correct = analysis["overall_score"] >= 0.6  # 60% threshold
-            points = analysis["total_points"]
+            # AI returns total_points on 0–20 scale; scale to this question's points so DB constraint holds
+            raw_points = float(analysis.get("total_points", 0))
+            points = round((raw_points / 20.0) * question.points, 2)
+            points = min(question.points, max(0, points))
 
         else:
             # Default exact match for any other type
@@ -305,6 +411,21 @@ class AssessmentEngine:
             points = question.points if is_correct else 0
 
         return is_correct, points
+
+    def _question_content_key(self, q) -> str:
+        """
+        Unique key for deduplication: same prompt + same content (terms/passage) = same question.
+        Vocabulary: question_text + sorted terms; Reading: question_text + passage; others: question_text.
+        """
+        text = (q.question_text or "").strip()
+        meta = getattr(q, "question_metadata", None) or {}
+        if q.module_type == _ma.ModuleType.VOCABULARY:
+            terms = meta.get("terms") or []
+            return text + "|" + "|".join(sorted(str(t) for t in terms))
+        if q.module_type == _ma.ModuleType.READING:
+            passage = (meta.get("passage") or "").strip()
+            return text + "|" + passage
+        return text
 
     def _score_category_match(self, user_answer: str, correct_answer: str) -> bool:
         """
@@ -490,7 +611,7 @@ class AssessmentEngine:
 
         # Get assessment with responses
         assessment_result = await self.db.execute(
-            select(Assessment).where(Assessment.id == assessment_id)
+            select(_ma.Assessment).where(_ma.Assessment.id == assessment_id)
         )
         assessment = assessment_result.scalar_one_or_none()
 
@@ -499,7 +620,7 @@ class AssessmentEngine:
 
         # Get all responses
         responses_result = await self.db.execute(
-            select(AssessmentResponse).where(AssessmentResponse.assessment_id == assessment_id)
+            select(_ma.AssessmentResponse).where(_ma.AssessmentResponse.assessment_id == assessment_id)
         )
         responses = responses_result.scalars().all()
 
@@ -507,7 +628,7 @@ class AssessmentEngine:
         scores = await self.scoring_engine.calculate_final_scores(responses)
 
         # Update assessment
-        assessment.status = AssessmentStatus.COMPLETED
+        assessment.status = _ma.AssessmentStatus.COMPLETED
         assessment.completed_at = datetime.now()
         assessment.total_score = scores["total_score"]
 
@@ -536,15 +657,13 @@ class AssessmentEngine:
         assessment.feedback = feedback
         
         # Mark invitation code as completed if this assessment was from an invitation
-        from models.assessment import InvitationCode
         from sqlalchemy import select
-        
-        # Find invitation code by user_id
+
         inv_result = await self.db.execute(
-            select(InvitationCode).where(
-                InvitationCode.used_by_user_id == assessment.user_id,
-                InvitationCode.is_used == True,
-                InvitationCode.assessment_completed == False
+            select(_ma.InvitationCode).where(
+                _ma.InvitationCode.used_by_user_id == assessment.user_id,
+                _ma.InvitationCode.is_used == True,
+                _ma.InvitationCode.assessment_completed == False
             )
         )
         invitation = inv_result.scalar_one_or_none()
@@ -563,7 +682,7 @@ class AssessmentEngine:
             "completed_at": assessment.completed_at
         }
 
-    async def _generate_feedback(self, question: Question, user_answer: str, is_correct: bool) -> str:
+    async def _generate_feedback(self, question: _ma.Question, user_answer: str, is_correct: bool) -> str:
         """Generate feedback for individual question"""
         if is_correct:
             return "Correct! Well done."
@@ -598,36 +717,109 @@ class AssessmentEngine:
 
         return feedback
 
-    async def _create_sample_questions(self, module_type: ModuleType, division: DivisionType):
-        """Create sample questions when question bank is empty"""
-
-        # This would typically be populated from a comprehensive question bank
-        # For now, create a few sample questions
-
-        sample_questions = []
-
-        if module_type == ModuleType.LISTENING and division == DivisionType.HOTEL:
-            sample_questions = [
+    def _get_sample_questions_for_module(
+        self, module_type: _ma.ModuleType, division: _ma.DivisionType, need_count: int
+    ) -> List[Dict[str, Any]]:
+        """Return sample question dicts for a module/division so we always have enough per-division questions."""
+        div_val = division.value
+        # Division-agnostic samples (same content for all divisions; can be extended to division-specific later)
+        if module_type == _ma.ModuleType.LISTENING:
+            # Listening: question_text = prompt; question_metadata.audio_text = dialogue for TTS
+            samples = [
                 {
-                    "question_text": "Listen to the guest request and choose the best response.",
-                    "options": ["Certainly, sir", "Maybe later", "I don't know", "Ask someone else"],
-                    "correct_answer": "Certainly, sir",
-                    "points": 4
-                }
+                    "question_text": "What time is the reservation?",
+                    "question_type": _ma.QuestionType.MULTIPLE_CHOICE,
+                    "options": ["6 PM", "7 PM", "8 PM", "4 PM"],
+                    "correct_answer": "7 PM",
+                    "points": 5,
+                    "question_metadata": {
+                        "audio_text": "Hello, I would like to book a table for four people at seven PM tonight, please."
+                    },
+                },
+                {
+                    "question_text": "What is the room number?",
+                    "question_type": _ma.QuestionType.MULTIPLE_CHOICE,
+                    "options": ["8245", "8254", "8524", "2548"],
+                    "correct_answer": "8254",
+                    "points": 5,
+                    "question_metadata": {
+                        "audio_text": "Excuse me, the air conditioning is way too cold in room eight-two-five-four. Could you please send someone to fix it?"
+                    },
+                },
+                {
+                    "question_text": "What deck is the buffet restaurant on?",
+                    "question_type": _ma.QuestionType.MULTIPLE_CHOICE,
+                    "options": ["Deck 10", "Deck 12", "Deck 14", "Deck 16"],
+                    "correct_answer": "Deck 12",
+                    "points": 6,
+                    "question_metadata": {
+                        "audio_text": "Excuse me, I am trying to find the buffet restaurant. Is it on deck twelve or deck fourteen? Yes sir, the buffet restaurant is on deck twelve."
+                    },
+                },
             ]
+        elif module_type == _ma.ModuleType.TIME_NUMBERS:
+            samples = [
+                {"question_text": "What time does breakfast start? (e.g. 7:00)", "question_type": _ma.QuestionType.FILL_BLANK, "options": None, "correct_answer": "7:00", "points": 5, "question_metadata": {"audio_text": "Good morning! Breakfast is served from seven AM to ten-thirty AM daily in the main dining room."}},
+                {"question_text": "How many guests are in the reservation?", "question_type": _ma.QuestionType.FILL_BLANK, "options": None, "correct_answer": "8", "points": 5, "question_metadata": {"audio_text": "We need a table for eight people at six-thirty tonight. Can you accommodate us?"}},
+                {"question_text": "What is the cabin number?", "question_type": _ma.QuestionType.FILL_BLANK, "options": None, "correct_answer": "9173", "points": 6, "question_metadata": {"audio_text": "I am in cabin nine one seven three and my safe is not working properly. Could you send maintenance?"}},
+            ]
+        elif module_type == _ma.ModuleType.GRAMMAR:
+            samples = [
+                {"question_text": "___ I help you with your luggage?", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["May", "Do", "Will", "Am"], "correct_answer": "May", "points": 4, "question_metadata": None},
+                {"question_text": "The guest ___ arrived at the port this morning.", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["have", "has", "had", "having"], "correct_answer": "has", "points": 4, "question_metadata": None},
+                {"question_text": "Could you please ___ me to the spa?", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["direct", "directing", "directed", "direction"], "correct_answer": "direct", "points": 4, "question_metadata": None},
+                {"question_text": "The restaurant is ___ the third deck.", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["in", "on", "at", "by"], "correct_answer": "on", "points": 4, "question_metadata": None},
+            ]
+        elif module_type == _ma.ModuleType.VOCABULARY:
+            samples = [
+                {"question_text": "Match the cruise ship terms with their meanings:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Bridge", "Gangway", "Tender", "Muster"], "definitions": ["Ship's walkway to shore", "Emergency assembly", "Small boat for shore trips", "Ship's control center"], "correct_matches": {"Bridge": "Ship's control center", "Gangway": "Ship's walkway to shore", "Tender": "Small boat for shore trips", "Muster": "Emergency assembly"}}},
+                {"question_text": "Match the hospitality terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Concierge", "Amenities", "Excursion", "Embark"], "definitions": ["To board the ship", "Guest services specialist", "Shore activities", "Hotel facilities"], "correct_matches": {"Concierge": "Guest services specialist", "Amenities": "Hotel facilities", "Excursion": "Shore activities", "Embark": "To board the ship"}}},
+                {"question_text": "Match the dining terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Buffet", "A la carte", "Galley", "Sommelier"], "definitions": ["Wine expert", "Self-service dining", "Ship's kitchen", "Menu with individual prices"], "correct_matches": {"Buffet": "Self-service dining", "A la carte": "Menu with individual prices", "Galley": "Ship's kitchen", "Sommelier": "Wine expert"}}},
+                {"question_text": "Match the safety terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Muster drill", "Life jacket", "Assembly station", "All aboard"], "definitions": ["Final boarding call", "Safety meeting", "Personal flotation device", "Emergency meeting point"], "correct_matches": {"Muster drill": "Safety meeting", "Life jacket": "Personal flotation device", "Assembly station": "Emergency meeting point", "All aboard": "Final boarding call"}}},
+            ]
+        elif module_type == _ma.ModuleType.READING:
+            samples = [
+                {"question_text": "What should guests do if they miss the ship's departure?", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["Wait at the port", "Contact the Port Agent", "Call the cruise line", "Take a taxi to catch up"], "correct_answer": "Contact the Port Agent", "points": 4, "question_metadata": {"passage": "IMPORTANT NOTICE: Ship departures are strictly scheduled. Guests who miss departure must contact the Port Agent immediately."}},
+                {"question_text": "What time does the casino close?", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["12:00 AM", "1:00 AM", "2:00 AM", "3:00 AM"], "correct_answer": "2:00 AM", "points": 4, "question_metadata": {"passage": "CASINO HOURS: Sea Days: 8:00 AM - 2:00 AM | Port Days: 6:00 PM - 2:00 AM. Guests must be 21+ to gamble."}},
+                {"question_text": "What is required for the specialty restaurant?", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["Formal attire", "Reservations", "Advance payment", "Group booking"], "correct_answer": "Reservations", "points": 4, "question_metadata": {"passage": "SPECIALTY DINING: Reservations required for all specialty restaurants. Cover charges apply. Dress code: Smart casual after 6 PM."}},
+                {"question_text": "When is the muster drill scheduled?", "question_type": _ma.QuestionType.MULTIPLE_CHOICE, "options": ["3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"], "correct_answer": "4:00 PM", "points": 4, "question_metadata": {"passage": "SAFETY FIRST: All guests must participate in the mandatory muster drill. Drill times: Embarkation Day at 4:00 PM."}},
+            ]
+        elif module_type == _ma.ModuleType.SPEAKING:
+            samples = [
+                {"question_text": "Listen to the audio and repeat exactly what you hear.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 7, "question_metadata": {"speaking_type": "repeat", "audio_text": "Good morning! Welcome aboard. My name is Maria and I will be your cabin steward during this voyage.", "min_duration": 3, "expected_keywords": ["welcome", "aboard", "cabin", "steward", "voyage"]}},
+                {"question_text": "Listen to the audio and repeat exactly what you hear.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 7, "question_metadata": {"speaking_type": "repeat", "audio_text": "The pool deck is located on deck twelve. Please remember to bring your cruise card for towel service.", "min_duration": 3, "expected_keywords": ["pool", "deck", "twelve", "cruise", "card", "towel"]}},
+                {"question_text": "A guest is lost and asks: 'How do I get to the spa?' Give clear directions.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 6, "question_metadata": {"speaking_type": "scenario", "min_duration": 5, "expected_keywords": ["elevator", "deck", "directions", "follow", "signs", "spa"]}},
+            ]
+        else:
+            return []
+        return samples[:need_count] if need_count <= len(samples) else samples
 
-        # Add more sample questions as needed...
-
+    async def _create_sample_questions(self, module_type: _ma.ModuleType, division: _ma.DivisionType):
+        """Create sample questions when question bank is empty. Ensures enough questions per module per division."""
+        questions_per_module = {
+            _ma.ModuleType.LISTENING: 3,
+            _ma.ModuleType.TIME_NUMBERS: 3,
+            _ma.ModuleType.GRAMMAR: 4,
+            _ma.ModuleType.VOCABULARY: 4,
+            _ma.ModuleType.READING: 4,
+            _ma.ModuleType.SPEAKING: 3,
+        }
+        need_count = questions_per_module.get(module_type, 0)
+        if need_count <= 0:
+            return
+        sample_questions = self._get_sample_questions_for_module(module_type, division, need_count)
         for q_data in sample_questions:
-            question = Question(
+            meta = q_data.get("question_metadata")
+            question = _ma.Question(
                 module_type=module_type,
                 division=division,
-                question_type=QuestionType.MULTIPLE_CHOICE,
+                question_type=q_data.get("question_type", _ma.QuestionType.MULTIPLE_CHOICE),
                 question_text=q_data["question_text"],
-                options=q_data["options"],
+                options=q_data.get("options"),
                 correct_answer=q_data["correct_answer"],
-                points=q_data["points"]
+                points=q_data["points"],
+                question_metadata=meta,
             )
             self.db.add(question)
-
+        await self.db.flush()
         await self.db.commit()

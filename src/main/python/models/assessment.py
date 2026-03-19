@@ -3,8 +3,11 @@ Assessment-related database models
 """
 
 from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, JSON, Enum, Index, CheckConstraint
+
+# DivisionType: Use DivisionTypeEnumType for all columns - DB stores lowercase values (hotel/marine/casino)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import TypeDecorator
 from models.base import BaseModel
 from enum import Enum as PyEnum
 from typing import Dict, Any, Optional
@@ -16,6 +19,28 @@ class DivisionType(str, PyEnum):
     HOTEL = "hotel"
     MARINE = "marine"
     CASINO = "casino"
+
+
+class DivisionTypeEnumType(TypeDecorator):
+    """Stores DivisionType as lowercase value string. Bypasses SQLAlchemy Enum validation."""
+
+    impl = String(20)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, DivisionType):
+            return value.value
+        return str(value).lower() if value else None
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        try:
+            return DivisionType(value.lower())
+        except (ValueError, TypeError):
+            return None
 
 
 class ModuleType(str, PyEnum):
@@ -45,6 +70,28 @@ class AssessmentStatus(str, PyEnum):
     EXPIRED = "expired"
 
 
+class AssessmentStatusEnumType(TypeDecorator):
+    """Stores AssessmentStatus as lowercase value string. Tolerates legacy uppercase DB values on load."""
+
+    impl = String(20)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, AssessmentStatus):
+            return value.value
+        return str(value).lower() if value else None
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        try:
+            return AssessmentStatus(str(value).lower())
+        except (ValueError, TypeError):
+            return None
+
+
 class User(BaseModel):
     """User/Candidate model"""
     __tablename__ = "users"
@@ -57,7 +104,7 @@ class User(BaseModel):
     nationality = Column(String(100), nullable=False)
 
     # Assessment Information
-    division = Column(Enum(DivisionType), nullable=True, index=True)  # Will be set during operation selection
+    division = Column(DivisionTypeEnumType, nullable=True, index=True)
     department = Column(String(100), nullable=True)  # Will be set during operation selection
 
     # Status
@@ -79,9 +126,9 @@ class Question(BaseModel):
     __tablename__ = "questions"
 
     # Question Details
-    module_type = Column(Enum(ModuleType), nullable=False, index=True)
-    division = Column(Enum(DivisionType), nullable=False, index=True)
-    question_type = Column(Enum(QuestionType), nullable=False)
+    module_type = Column(Enum(ModuleType, values_callable=lambda x: [e.value for e in x], native_enum=False), nullable=False, index=True)
+    division = Column(DivisionTypeEnumType, nullable=False, index=True)
+    question_type = Column(Enum(QuestionType, values_callable=lambda x: [e.value for e in x], native_enum=False), nullable=False)
 
     # Content
     question_text = Column(Text, nullable=False)
@@ -113,6 +160,7 @@ class Question(BaseModel):
         Index('ix_questions_scenario', 'department', 'scenario_id'),
         Index('ix_questions_division_dept', 'division', 'department'),
         Index('ix_questions_dept_cefr', 'department', 'cefr_level'),
+        Index('ix_questions_dept_module_cefr', 'department', 'module_type', 'cefr_level'),
     )
 
 
@@ -125,8 +173,9 @@ class Assessment(BaseModel):
     session_id = Column(String(100), unique=True, nullable=False, index=True)
 
     # Assessment Details
-    division = Column(Enum(DivisionType), nullable=False, index=True)
-    status = Column(Enum(AssessmentStatus), default=AssessmentStatus.NOT_STARTED, index=True)
+    division = Column(DivisionTypeEnumType, nullable=False, index=True)
+    department = Column(String(100), nullable=True)  # Question pool used (from user/invitation)
+    status = Column(AssessmentStatusEnumType, default=AssessmentStatus.NOT_STARTED, index=True)
 
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -157,6 +206,8 @@ class Assessment(BaseModel):
     # Additional Data
     feedback = Column(JSON, nullable=True)
     analytics_data = Column(JSON, nullable=True)
+    # Question order: list of 21 question IDs [id1, id2, ...] - persisted when assessment starts
+    question_order = Column(JSON, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="assessments")
@@ -224,7 +275,7 @@ class DivisionDepartment(BaseModel):
     """Division and department mapping"""
     __tablename__ = "division_departments"
 
-    division = Column(Enum(DivisionType), nullable=False, index=True)
+    division = Column(DivisionTypeEnumType, nullable=False, index=True)
     department_name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -273,7 +324,7 @@ class InvitationCode(BaseModel):
     nationality = Column(String(100), nullable=True)
     
     # Assignment
-    operation = Column(Enum(DivisionType), nullable=False, index=True)
+    operation = Column(DivisionTypeEnumType, nullable=False, index=True)
     department = Column(String(100), nullable=True)  # Optional specific department
     
     # Creation Info

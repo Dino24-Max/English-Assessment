@@ -4,10 +4,12 @@ Main FastAPI application entry point
 """
 
 import os
+import traceback
 import uvicorn
 import logging
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -36,7 +38,8 @@ async def lifespan(app: FastAPI):
     # Startup
     from utils.cache import cache_manager
     
-    # Initialize database
+    # Initialize database - import all models so they register with Base.metadata before create_all
+    import models.assessment  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Migration: add InvitationCode columns if missing (model was extended)
@@ -69,6 +72,113 @@ async def lifespan(app: FastAPI):
                 pass
             else:
                 raise
+
+        # Migration: add assessments.department if missing (record question pool used)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE assessments ADD COLUMN department VARCHAR(100)"
+            ))
+            logger.info("Added column assessments.department")
+        except Exception as e:
+            if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                pass
+            else:
+                raise
+
+        # Migration: add assessments.question_order if missing (department-specific question IDs)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE assessments ADD COLUMN question_order TEXT"
+            ))
+            logger.info("Added column assessments.question_order")
+        except Exception as e:
+            if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                pass
+            else:
+                raise
+
+    # Ensure default admin exists (admin@carnival.com / admin123)
+    from sqlalchemy import select
+    from core.database import async_session_maker
+    from models.assessment import User, DivisionType
+    from utils.auth import hash_password
+
+    admin_email = "admin@carnival.com"
+    admin_password = "admin123"
+    # #region agent log
+    try:
+        import json
+        _lp = __import__("pathlib").Path(__file__).resolve().parents[3] / "debug-ccd1fc.log"
+        with open(_lp, "a", encoding="utf-8") as _lf:
+            _lf.write(json.dumps({"sessionId":"ccd1fc","location":"main.py:lifespan","message":"admin ensure start","data":{"email":admin_email},"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
+    except Exception:
+        pass
+    # #endregion
+    async with async_session_maker() as db:
+        result = await db.execute(select(User).where(User.email == admin_email))
+        admin_user = result.scalar_one_or_none()
+        if admin_user:
+            admin_user.is_admin = True
+            admin_user.password_hash = hash_password(admin_password)
+            await db.commit()
+            logger.info(f"Updated existing user {admin_email} to admin")
+            # #region agent log
+            try:
+                import json
+                _lp = __import__("pathlib").Path(__file__).resolve().parents[3] / "debug-ccd1fc.log"
+                with open(_lp, "a", encoding="utf-8") as _lf:
+                    _lf.write(json.dumps({"sessionId":"ccd1fc","location":"main.py:lifespan","message":"admin updated","data":{"email":admin_email,"user_id":admin_user.id},"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
+            except Exception:
+                pass
+            # #endregion
+        else:
+            admin_user = User(
+                first_name="Admin",
+                last_name="User",
+                email=admin_email,
+                password_hash=hash_password(admin_password),
+                nationality="Admin",
+                division=DivisionType.HOTEL,
+                department="Admin",
+                is_active=True,
+                is_admin=True,
+            )
+            db.add(admin_user)
+            await db.commit()
+            await db.refresh(admin_user)
+            logger.info(f"Created default admin: {admin_email}")
+            # #region agent log
+            try:
+                import json
+                _lp = __import__("pathlib").Path(__file__).resolve().parents[3] / "debug-ccd1fc.log"
+                with open(_lp, "a", encoding="utf-8") as _lf:
+                    _lf.write(json.dumps({"sessionId":"ccd1fc","location":"main.py:lifespan","message":"admin created","data":{"email":admin_email,"user_id":admin_user.id},"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
+            except Exception:
+                pass
+            # #endregion
+
+    # Auto-load question bank when empty (so invitation links get department-specific questions without manual Admin step)
+    from models.assessment import Question
+    from sqlalchemy import func
+    from data.question_bank_loader import QuestionBankLoader
+
+    async with async_session_maker() as db:
+        r = await db.execute(select(func.count()).select_from(Question))
+        question_count = r.scalar() or 0
+        if question_count == 0:
+            data_dir = Path(__file__).parent / "data"
+            full_path = data_dir / "question_bank_full.json"
+            sample_path = data_dir / "question_bank_sample.json"
+            json_path = str(full_path) if full_path.exists() else (str(sample_path) if sample_path.exists() else None)
+            if json_path:
+                try:
+                    loader = QuestionBankLoader(db)
+                    count = await loader.load_full_question_bank(json_file_path=json_path, clear_first=True)
+                    logger.info(f"Auto-loaded question bank: {count} questions from {Path(json_path).name}")
+                except Exception as e:
+                    logger.warning(f"Auto-load question bank failed (non-fatal): {e}")
+            else:
+                logger.warning("Question bank empty and no question_bank_full.json or question_bank_sample.json found; load via Admin API when ready.")
 
     # Initialize Redis cache
     await cache_manager.connect()
@@ -169,6 +279,29 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health_check():
         return {"status": "healthy", "database": "connected"}
+
+    # Global handler to log full traceback for unhandled exceptions (excluding HTTPException)
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        if isinstance(exc, HTTPException):
+            raise exc  # Let FastAPI handle HTTPException
+        tb_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        tb = "".join(tb_lines)
+        logger.error(f"Unhandled exception: {exc}\n{tb}", exc_info=True)
+        for base in [Path(__file__).resolve().parent, Path(__file__).resolve().parents[2], Path.cwd()]:
+            try:
+                fpath = base / "unhandled_error_traceback.txt"
+                fpath.write_text(f"Error: {exc}\n\n{tb}", encoding="utf-8")
+                logger.info(f"Traceback written to {fpath}")
+                break
+            except Exception as we:
+                logger.warning(f"Could not write traceback to {base}: {we}")
+        # Always include traceback in response when UnboundLocalError (debugging)
+        include_tb = settings.DEBUG or "UnboundLocalError" in type(exc).__name__
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(exc), "traceback": tb if include_tb else None}
+        )
 
     return app
 

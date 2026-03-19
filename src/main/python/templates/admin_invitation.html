@@ -455,7 +455,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Department</label>
+                        <label class="form-label">Department <span class="required">*</span> (required for Hotel/Marine)</label>
                         <select id="department" class="form-select" required disabled>
                             <option value="">Select Operation First</option>
                         </select>
@@ -495,7 +495,9 @@
                 <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0; font-size: 0.9rem; color: #666;">
                     <p><strong>Email:</strong> <span id="invitationEmail"></span></p>
                     <p><strong>Operation:</strong> <span id="invitationOperation"></span></p>
+                    <p><strong>Department:</strong> <span id="invitationDepartment"></span></p>
                     <p><strong>Expires:</strong> <span id="invitationExpires"></span></p>
+                    <p><strong>Email status:</strong> <span id="emailStatus" class="email-status"></span></p>
                 </div>
             </div>
 
@@ -620,6 +622,12 @@
             const nationality = document.getElementById('nationality').value;
             const operation = document.getElementById('operation').value;
             const department = document.getElementById('department').value;
+
+            // Require department for hotel/marine
+            if ((operation === 'hotel' || operation === 'marine') && !department) {
+                alert('Please select a Department. Each department has its own question set.');
+                return;
+            }
             const expires_days = parseInt(document.getElementById('expires_days').value);
             const admin_key = document.getElementById('admin_key').value;
             
@@ -651,7 +659,19 @@
                 document.getElementById('generatedLink').textContent = data.link;
                 document.getElementById('invitationEmail').textContent = data.email;
                 document.getElementById('invitationOperation').textContent = data.operation.toUpperCase();
+                const deptEl = document.getElementById('invitationDepartment');
+                if (deptEl) {
+                    deptEl.textContent = data.department || '(none - division-only questions)';
+                }
                 document.getElementById('invitationExpires').textContent = new Date(data.expires_at).toLocaleString();
+                const statusEl = document.getElementById('emailStatus');
+                if (data.email_sent) {
+                    statusEl.textContent = '✅ Email sent successfully';
+                    statusEl.style.color = '#155724';
+                } else {
+                    statusEl.textContent = '⚠️ Email not sent – copy and send the link manually';
+                    statusEl.style.color = '#856404';
+                }
                 
                 document.getElementById('resultBox').classList.add('show');
                 document.getElementById('errorBox').style.display = 'none';
@@ -756,6 +776,7 @@ Best regards,`;
                                     <td>
                                         ${inv.status === 'active' ? `
                                             <button class="btn btn-copy" onclick="copyInvitationLink('${inv.code}')">Copy Link</button>
+                                            <button class="btn btn-copy" onclick="resendInvitationEmail('${inv.code}')" title="Send invitation email">📧 Send Email</button>
                                             <button class="btn btn-revoke" onclick="revokeInvitation('${inv.code}')">Revoke</button>
                                         ` : `
                                             <button class="btn btn-delete" onclick="deleteInvitation('${inv.code}', ${inv.used_by_user_id || 'null'})">Delete</button>
@@ -783,6 +804,21 @@ Best regards,`;
             const link = `${window.location.origin}/register?code=${code}`;
             navigator.clipboard.writeText(link);
             alert('Registration link copied!');
+        }
+        
+        async function resendInvitationEmail(code) {
+            try {
+                const response = await fetch(`/api/v1/admin/invitation/${code}/resend-email?admin_key=${adminKey}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to send email');
+                }
+                alert(data.email_sent ? '✅ Email sent successfully!' : '⚠️ ' + (data.message || 'Failed to send email'));
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
         }
         
         async function revokeInvitation(code) {
@@ -830,8 +866,14 @@ Best regards,`;
             const admin_key = prompt('Enter admin key to confirm deletion:');
             if (!admin_key) return;
             
+            // #region agent log
             try {
-                const response = await fetch(`/api/v1/admin/invitation/${code}/delete?admin_key=${admin_key}`, {
+                fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'admin_invitation.html:delete',message:'delete_invitation client attempt',data:{code_len:code.length},timestamp:Date.now(),hypothesisId:'H0'})}).catch(()=>{});
+            } catch (_) {}
+            // #endregion
+
+            try {
+                const response = await fetch(`/api/v1/admin/invitation/${encodeURIComponent(code)}/delete?admin_key=${encodeURIComponent(admin_key)}`, {
                     method: 'DELETE'
                 });
                 
@@ -860,6 +902,11 @@ Best regards,`;
                 loadInvitations();
                 
             } catch (error) {
+                // #region agent log
+                try {
+                    fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'admin_invitation.html:delete catch',message:'delete_invitation client error',data:{err:error.message,name:error.name},timestamp:Date.now(),hypothesisId:'H0'})}).catch(()=>{});
+                } catch (_) {}
+                // #endregion
                 alert(`Error: ${error.message}`);
             }
         }

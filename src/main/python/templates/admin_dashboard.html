@@ -150,6 +150,10 @@
             background: linear-gradient(135deg, #014E8F 0%, #B61B38 100%);
         }
 
+        .module-card.users::before {
+            background: linear-gradient(135deg, #2e7d32 0%, #014E8F 100%);
+        }
+
         .module-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 24px 70px rgba(182, 27, 56, 0.15),
@@ -195,6 +199,10 @@
 
         .module-card.scoreboard .module-button {
             background: linear-gradient(135deg, #014E8F 0%, #B61B38 100%);
+        }
+
+        .module-card.users .module-button {
+            background: linear-gradient(135deg, #2e7d32 0%, #014E8F 100%);
         }
 
         .module-button:hover {
@@ -248,6 +256,16 @@
                 <div class="module-description">
                     Create, manage, and track invitation codes for candidate registration. 
                     Monitor code usage and send invitations to candidates.
+                </div>
+                <div class="module-button">Enter Module →</div>
+            </a>
+
+            <!-- User Management -->
+            <a href="/admin/users" class="module-card users">
+                <div class="module-title">User Management</div>
+                <div class="module-description">
+                    List and manage registered users. Filter by division and department, 
+                    search by name or email, and export user data.
                 </div>
                 <div class="module-button">Enter Module →</div>
             </a>

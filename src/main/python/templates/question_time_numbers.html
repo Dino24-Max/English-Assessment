@@ -22,7 +22,7 @@
 {% if question_data.options %}
 <div class="options-container">
     {% for option in question_data.options %}
-    <button class="option" onclick="selectAnswer({{ option|tojson }}, this)">
+    <button type="button" class="option" data-option="{{ option|e }}" onclick="selectAnswer(this.getAttribute('data-option'), this)">
         {{ option }}
     </button>
     {% endfor %}
@@ -30,7 +30,7 @@
 {% endif %}
 {% if not question_data.options %}
 <div class="input-section">
-    <input type="text" id="answerInput" class="answer-input" placeholder="Type your answer here..." onkeyup="checkInput()">
+    <input type="text" id="answerInput" class="answer-input" placeholder="Type your answer here..." onkeyup="checkInput()" oninput="checkInput()" onpaste="setTimeout(checkInput, 0)">
 </div>
 {% endif %}
 {% endblock %}

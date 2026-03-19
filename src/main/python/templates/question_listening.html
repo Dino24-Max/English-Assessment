@@ -5,7 +5,7 @@
 </div>
 {% endblock %}
 {% block question_content %}
-{% if question_data.audio_text %}
+{% if question_data.audio_text or question_data.audio_file_path %}
 <div class="audio-section">
     <p class="audio-instruction">🎧 Listen to the audio and answer the question:</p>
     <div class="audio-controls">
@@ -18,11 +18,15 @@
         <div class="play-count" id="playCount">Plays remaining: <span id="playsLeft">2</span>/2</div>
     </div>
 </div>
+{% else %}
+<div class="audio-unavailable" style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; color: #856404;">
+    ⚠️ Audio for this question is not available. You may skip or contact support.
+</div>
 {% endif %}
 {% if question_data.options %}
 <div class="options-container">
     {% for option in question_data.options %}
-    <button class="option" onclick="selectAnswer({{ option|tojson }}, this)">
+    <button type="button" class="option" data-option="{{ option|e }}" onclick="selectAnswer(this.getAttribute('data-option'), this)">
         {{ option }}
     </button>
     {% endfor %}

@@ -53,11 +53,13 @@ ALL_DEPARTMENTS: List[str] = DEPARTMENTS[HOTEL_OPERATION] + DEPARTMENTS[MARINE_O
 # Department count
 DEPARTMENT_COUNT: int = len(ALL_DEPARTMENTS)
 
-# Map each of 30 canonical departments to scenario key used by generate_question_bank
-# Scenario keys: Front Desk, Housekeeping, Food & Beverage, Bar Service, Guest Services,
-# Cabin Service, Auxiliary Service, Laundry, Photo, Provisions, Deck Department,
-# Engine Department, Security Department, Table Games, Slot Machines, Casino Services
-DEPARTMENT_TO_SCENARIO: Dict[str, str] = {
+# Plan alias: single source of truth for 30 departments (26 hotel + 4 marine)
+DEPARTMENT_MAPPING: Dict[str, List[str]] = DEPARTMENTS
+
+# Map each of 30 canonical departments to content pool key for scenario lookup.
+# Every department has an explicit mapping—no generic fallback.
+# Content pools: department-appropriate scenarios (e.g., DECK→deck content, ENGINE→engine content)
+DEPARTMENT_TO_CONTENT_POOL: Dict[str, str] = {
     "AUDIO/VISUAL MEDIA": "Auxiliary Service",
     "AUX SERV": "Auxiliary Service",
     "SPA": "Guest Services",
@@ -86,9 +88,12 @@ DEPARTMENT_TO_SCENARIO: Dict[str, str] = {
     "YOUTH PROGRAMS": "Guest Services",
     "DECK": "Deck Department",
     "ENGINE": "Engine Department",
-    "MEDICAL": "Security Department",
+    "MEDICAL": "Medical Department",
     "SECURITY SERVICES": "Security Department",
 }
+
+# Backward compatibility
+DEPARTMENT_TO_SCENARIO = DEPARTMENT_TO_CONTENT_POOL
 
 # Mapping from legacy/generator display names to canonical department names
 # Used when migrating from old question bank keys to new 30-department structure
@@ -106,9 +111,12 @@ LEGACY_TO_CANONICAL: Dict[str, str] = {
     "Deck Department": "DECK",
     "Engine Department": "ENGINE",
     "Security Department": "SECURITY SERVICES",
+    "Medical Department": "MEDICAL",
     "Table Games": "CASINO",
     "Slot Machines": "CASINO",
     "Casino Services": "CASINO",
+    "Human Resource": "HUMAN RESOURCES",
+    "Human Resources": "HUMAN RESOURCES",
 }
 
 
@@ -125,6 +133,11 @@ def get_operation_for_department(department: str) -> Optional[str]:
     return None
 
 
-def normalize_department(name: str) -> str:
-    """Convert legacy/generator name to canonical department name."""
+def normalize_department(name: Optional[str]) -> str:
+    """Convert legacy/generator name to canonical department name. Already canonical names are returned as-is."""
+    if not name or not str(name).strip():
+        return ""
+    name = str(name).strip()
+    if name in ALL_DEPARTMENTS:
+        return name
     return LEGACY_TO_CANONICAL.get(name, name)

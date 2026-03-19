@@ -42,6 +42,17 @@ DATABASE_URL=sqlite+aiosqlite:///./data/assessment.db
 # DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/assessment_db
 ```
 
+#### Environment Variables: Dev vs Prod
+
+| Variable | Development | Production |
+|----------|-------------|------------|
+| `DEBUG` | `true` – enables debug mode, auto-generates `SECRET_KEY` if missing | `false` – must be set explicitly |
+| `SECRET_KEY` | Optional when `DEBUG=true`; can use `dev-only-change-in-production` | Required; use a long random string (e.g. `openssl rand -hex 32`) |
+| `ADMIN_API_KEY` | Any value for local access; store securely | Strong random value; never commit to version control |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./data/assessment.db` (default) | `postgresql+asyncpg://user:pass@host:5432/dbname` recommended |
+| `REDIS_URL` | Optional; not required for dev | Optional; use for sessions/rate limiting in production |
+| `CSRF_SAME_SITE` | `lax` or `none` (if testing cross-origin) | `strict` or `lax` for security |
+
 ### 4. Run Server
 
 ```bash

@@ -12,6 +12,7 @@ import secrets
 import hashlib
 import os
 
+from config.departments import normalize_department
 from core.database import get_db
 from models.assessment import User, InvitationCode, DivisionType, PasswordResetToken
 from utils.auth import hash_password, verify_password
@@ -150,9 +151,19 @@ async def register(
                     detail="Email does not match invitation code. Please use the email associated with your invitation."
                 )
             
-            # Get operation and department from invitation
+            # Get operation and department from invitation (normalize for DB/question filter)
             division = invitation.operation
-            department = invitation.department
+            department = normalize_department(invitation.department) if invitation.department else None
+            # #region agent log
+            try:
+                import json
+                _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
+                _d = {"invitation_department_raw": getattr(invitation, "department", None), "division": str(division) if division else None, "department_normalized": department}
+                with open(_p, "a", encoding="utf-8") as _f:
+                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:156","message":"invitation dept->create_assessment","data":_d,"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
+            except Exception:
+                pass
+            # #endregion
         else:
             # No invitation code - require password for traditional registration
             if not request_data.password:
@@ -212,24 +223,26 @@ async def register(
                 await db.commit()
                 await db.refresh(existing_user)
                 
-                # Create assessment for existing user (but don't start yet - user will see instructions first)
+                # Create and start assessment in one transaction (avoids commit-between timing issues)
                 from core.assessment_engine import AssessmentEngine
                 
                 engine = AssessmentEngine(db)
                 assessment = await engine.create_assessment(
                     user_id=existing_user.id,
-                    division=division
+                    division=division,
+                    department=department,
+                    auto_commit=False,
                 )
-                
-                # Don't start assessment yet - user needs to see instructions first
-                # Assessment will be started when user clicks "Start Assessment" on instructions page
-                
-                # Store in session for UI routes
+                await engine.start_assessment(assessment.id)  # commits assessment + question_order atomically
+
+                # Store in session for UI routes (department so start-assessment uses same pool)
                 request.session["user_id"] = existing_user.id
                 request.session["assessment_id"] = assessment.id
                 request.session["operation"] = division.value.upper()
                 request.session["invitation_code"] = invitation.code
-                
+                if department:
+                    request.session["department"] = department
+
                 return {
                     "success": True,
                     "message": "Registration successful! Please read the instructions before starting.",
@@ -292,22 +305,24 @@ async def register(
             # Invitation-based registration - create assessment
             from core.assessment_engine import AssessmentEngine
             
-            # Create assessment session
+            # Create and start assessment in one transaction (avoids commit-between timing issues)
             engine = AssessmentEngine(db)
             assessment = await engine.create_assessment(
                 user_id=new_user.id,
-                division=division
+                division=division,
+                department=department,
+                auto_commit=False,
             )
-            
-            # Don't start assessment yet - user needs to see instructions first
-            # Assessment will be started when user clicks "Start Assessment" on instructions page
-            
-            # Store in session for UI routes
+            await engine.start_assessment(assessment.id)  # commits assessment + question_order atomically
+
+            # Store in session for UI routes (department so start-assessment uses same pool)
             request.session["user_id"] = new_user.id
             request.session["assessment_id"] = assessment.id
             request.session["operation"] = division.value.upper()
             request.session["invitation_code"] = invitation.code
-            
+            if department:
+                request.session["department"] = department
+
             return {
                 "success": True,
                 "message": "Registration successful! Please read the instructions before starting.",
@@ -360,6 +375,22 @@ async def login(
         )
         user = result.scalar_one_or_none()
 
+        # #region agent log
+        try:
+            import json
+            _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
+            _d = {"email": login_data.email, "user_found": user is not None}
+            if user:
+                _d["user_id"] = user.id
+                _d["password_hash_prefix"] = (user.password_hash or "")[:25]
+                _d["is_active"] = getattr(user, "is_active", None)
+                _d["is_invitation_only"] = bool(user.password_hash and (user.password_hash.startswith("INVITATION_ONLY:") or user.password_hash.startswith("INVITATION_ONLY_")))
+            with open(_p, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"login user lookup","data":_d,"hypothesisId":"H1,H5","timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+
         # Check if user exists
         if not user:
             raise HTTPException(
@@ -371,13 +402,32 @@ async def login(
         # Support both old format (INVITATION_ONLY_) and new secure format (INVITATION_ONLY:)
         if user.password_hash and (user.password_hash.startswith("INVITATION_ONLY:") or 
                                     user.password_hash.startswith("INVITATION_ONLY_")):
+            # #region agent log
+            try:
+                import json
+                _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
+                with open(_p, "a", encoding="utf-8") as _f:
+                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"blocked INVITATION_ONLY","data":{"email":login_data.email},"hypothesisId":"H2","timestamp":int(__import__("time").time()*1000)}) + "\n")
+            except Exception:
+                pass
+            # #endregion
             raise HTTPException(
                 status_code=403,
                 detail="This account was created via invitation link and cannot be accessed with password. Please use your invitation link to access the assessment."
             )
 
         # Verify password is correct
-        if not verify_password(login_data.password, user.password_hash):
+        _verify_ok = verify_password(login_data.password, user.password_hash)
+        # #region agent log
+        try:
+            import json
+            _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
+            with open(_p, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"verify_password result","data":{"email":login_data.email,"verify_ok":_verify_ok},"hypothesisId":"H3","timestamp":int(__import__("time").time()*1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        if not _verify_ok:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid email or password"
@@ -385,6 +435,15 @@ async def login(
 
         # Check if user is active
         if not user.is_active:
+            # #region agent log
+            try:
+                import json
+                _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
+                with open(_p, "a", encoding="utf-8") as _f:
+                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"blocked inactive user","data":{"email":login_data.email},"hypothesisId":"H4","timestamp":int(__import__("time").time()*1000)}) + "\n")
+            except Exception:
+                pass
+            # #endregion
             raise HTTPException(
                 status_code=403,
                 detail="Account is inactive. Please contact support."

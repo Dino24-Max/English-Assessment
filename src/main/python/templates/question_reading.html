@@ -16,7 +16,7 @@
 {% if question_data.options %}
 <div class="options-container">
     {% for option in question_data.options %}
-    <button class="option" onclick="selectAnswer({{ option|tojson }}, this)">
+    <button type="button" class="option" data-option="{{ option|e }}" onclick="selectAnswer(this.getAttribute('data-option'), this)">
         {{ option }}
     </button>
     {% endfor %}

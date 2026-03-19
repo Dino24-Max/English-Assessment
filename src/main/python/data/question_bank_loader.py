@@ -8,7 +8,17 @@ import json
 from typing import Dict, List, Any
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.assessment import Question, ModuleType, DivisionType, QuestionType
+from sqlalchemy import delete, update
+from models.assessment import Question, Assessment, ModuleType, DivisionType, QuestionType, AssessmentStatus
+from config.departments import normalize_department
+
+
+def _time_numbers_audio_sentence(question_text: str, context: str = None, correct_answer: str = None) -> str:
+    """Build the sentence to be read for Time & Numbers: fill blank with context or correct_answer so TTS speaks the answer."""
+    fill = (context or correct_answer or "").strip()
+    if not fill:
+        return question_text
+    return question_text.replace("___", fill)
 
 
 class QuestionBankLoader:
@@ -17,17 +27,57 @@ class QuestionBankLoader:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def load_full_question_bank(self, json_file_path: str = None):
+    async def clear_all_questions(self) -> int:
+        """Delete all questions from database. Returns count of deleted rows."""
+        result = await self.db.execute(delete(Question))
+        await self.db.commit()
+        return result.rowcount or 0
+
+    async def reset_assessments_question_order(self) -> int:
+        """Clear question_order on in-progress and not-started assessments so they get fresh questions. Returns count of updated rows."""
+        from sqlalchemy import or_
+        result = await self.db.execute(
+            update(Assessment)
+            .where(
+                or_(
+                    Assessment.status == AssessmentStatus.IN_PROGRESS,
+                    Assessment.status == AssessmentStatus.NOT_STARTED,
+                )
+            )
+            .values(question_order=None)
+        )
+        await self.db.commit()
+        return result.rowcount or 0
+
+    async def load_full_question_bank(self, json_file_path: str = None, clear_first: bool = False):
         """
         Load complete 1600-question bank from JSON file
         
         Args:
             json_file_path: Path to question_bank_full.json (optional)
+            clear_first: If True, delete all existing questions before loading
         """
+        if clear_first:
+            reset = await self.reset_assessments_question_order()
+            print(f"Reset question_order on {reset} in-progress/not-started assessments.")
+            deleted = await self.clear_all_questions()
+            print(f"Cleared {deleted} existing questions before load.")
         if not json_file_path:
             # Default path: question_bank_full.json in same directory as this module
             data_dir = Path(__file__).parent
-            json_file_path = data_dir / "question_bank_full.json"
+            full_path = data_dir / "question_bank_full.json"
+            sample_path = data_dir / "question_bank_sample.json"
+            if full_path.exists():
+                json_file_path = full_path
+            elif sample_path.exists():
+                json_file_path = sample_path
+                print("question_bank_full.json not found; using question_bank_sample.json (department-specific).")
+            else:
+                raise FileNotFoundError(f"No question bank found: {full_path} or {sample_path}")
+        else:
+            json_file_path = Path(json_file_path)
+            if not json_file_path.exists():
+                raise FileNotFoundError(f"Question bank file not found: {json_file_path}")
         
         print(f"Loading full question bank from: {json_file_path}")
         
@@ -41,21 +91,30 @@ class QuestionBankLoader:
         questions_to_add = []
         
         for i, q_data in enumerate(questions_data, 1):
-            # Map module to ModuleType enum
+            # Map module to ModuleType enum (support both JSON and DB naming)
             module_map = {
                 "listening": ModuleType.LISTENING,
+                "Listening": ModuleType.LISTENING,
                 "grammar": ModuleType.GRAMMAR,
+                "Grammar": ModuleType.GRAMMAR,
                 "vocabulary": ModuleType.VOCABULARY,
+                "Vocabulary": ModuleType.VOCABULARY,
                 "reading": ModuleType.READING,
+                "Reading": ModuleType.READING,
                 "time_numbers": ModuleType.TIME_NUMBERS,
-                "speaking": ModuleType.SPEAKING
+                "TimeNumbers": ModuleType.TIME_NUMBERS,
+                "speaking": ModuleType.SPEAKING,
+                "Speaking": ModuleType.SPEAKING,
             }
             
-            # Map division to DivisionType enum
+            # Map division to DivisionType enum (also accept "operation" from JSON)
             division_map = {
                 "hotel": DivisionType.HOTEL,
                 "marine": DivisionType.MARINE,
-                "casino": DivisionType.CASINO
+                "casino": DivisionType.CASINO,
+                "HOTEL": DivisionType.HOTEL,
+                "MARINE": DivisionType.MARINE,
+                "CASINO": DivisionType.CASINO,
             }
             
             # Map question_type string to QuestionType enum
@@ -67,9 +126,37 @@ class QuestionBankLoader:
                 "speaking_response": QuestionType.SPEAKING_RESPONSE
             }
             
+            # Build question_metadata from top-level fields when not explicitly provided
+            metadata = q_data.get("question_metadata")
+            if metadata is None:
+                metadata = {}
+                for key in ("audio_text", "passage", "terms", "definitions", "correct_matches",
+                            "speaking_type", "min_duration", "expected_keywords"):
+                    if key in q_data and q_data[key] is not None:
+                        metadata[key] = q_data[key]
+                # Generator outputs "audio" for listening dialogue; map to audio_text for TTS
+                if q_data.get("audio") and not metadata.get("audio_text"):
+                    metadata["audio_text"] = q_data["audio"]
+                if q_data.get("audio_context") and not metadata.get("audio_text"):
+                    metadata["audio_text"] = q_data["audio_context"]
+                # Time & Numbers: audio must speak the answer-bearing sentence, not the prompt. Use context/correct_answer to fill the blank.
+                mod = (q_data.get("module_type") or q_data.get("module") or "").lower()
+                if (mod in ("time_numbers", "timenumbers")) and not metadata.get("audio_text"):
+                    metadata["audio_text"] = _time_numbers_audio_sentence(
+                        q_data.get("question_text", ""),
+                        q_data.get("context"),
+                        q_data.get("correct_answer"),
+                    )
+                metadata = metadata if metadata else None
+
+            # Normalize department to canonical name (e.g. "Housekeeping" -> "HOUSEKEEPING")
+            # so it matches invitation/assessment department and engine can filter by department
+            raw_dept = q_data.get("department")
+            department = normalize_department(raw_dept) if raw_dept else None
+
             question = Question(
                 module_type=module_map.get(q_data.get("module_type", q_data.get("module")), ModuleType.LISTENING),
-                division=division_map.get(q_data.get("division"), DivisionType.HOTEL),
+                division=division_map.get(q_data.get("division") or q_data.get("operation"), DivisionType.HOTEL),
                 question_type=type_map.get(q_data.get("question_type"), QuestionType.MULTIPLE_CHOICE),
                 question_text=q_data.get("question_text", ""),
                 options=q_data.get("options"),
@@ -78,11 +165,11 @@ class QuestionBankLoader:
                 difficulty_level=q_data.get("difficulty_level", 2),
                 is_safety_related=q_data.get("is_safety_related", False),
                 points=q_data.get("points", 4),
-                department=q_data.get("department"),
+                department=department,
                 scenario_id=q_data.get("scenario_id"),
                 scenario_description=q_data.get("scenario_description"),
                 cefr_level=q_data.get("cefr_level"),
-                question_metadata=q_data.get("question_metadata")
+                question_metadata=metadata
             )
             
             questions_to_add.append(question)
@@ -620,6 +707,20 @@ class QuestionBankLoader:
                     question_type = QuestionType.MULTIPLE_CHOICE
                     points = 4
 
+                # Build question_metadata (include audio_text for listening from audio_context or audio_text)
+                q_meta = dict(q_data.get("metadata") or q_data.get("question_metadata") or {})
+                if module_type == ModuleType.LISTENING:
+                    if q_data.get("audio_text") and "audio_text" not in q_meta:
+                        q_meta["audio_text"] = q_data["audio_text"]
+                    if q_data.get("audio_context") and "audio_text" not in q_meta:
+                        q_meta["audio_text"] = q_data["audio_context"]
+                elif module_type == ModuleType.TIME_NUMBERS and not q_meta.get("audio_text"):
+                    q_meta["audio_text"] = _time_numbers_audio_sentence(
+                        q_data.get("question_text", ""),
+                        q_data.get("context"),
+                        q_data.get("correct_answer"),
+                    )
+
                 # Create question record
                 question = Question(
                     module_type=module_type,
@@ -630,7 +731,7 @@ class QuestionBankLoader:
                     correct_answer=q_data["correct_answer"],
                     points=points,
                     is_safety_related=self._is_safety_question(q_data["question_text"]),
-                    metadata=q_data.get("metadata", {})
+                    question_metadata=q_meta if q_meta else None
                 )
 
                 self.db.add(question)

@@ -4,10 +4,10 @@ Admin API endpoints
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, delete
 from core.database import get_db
 from core.config import settings
-from models.assessment import Assessment, User, InvitationCode, DivisionType, AssessmentStatus, AssessmentResponse, ModuleType
+from models.assessment import Assessment, User, InvitationCode, DivisionType, AssessmentStatus, AssessmentResponse, ModuleType, Question
 from utils.anti_cheating import AntiCheatingService
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -57,11 +57,14 @@ async def verify_admin_key(admin_key: str = Query(..., description="Admin API ke
 @router.post("/load-full-question-bank")
 async def load_full_question_bank(
     admin_key: str,
+    clear_and_load: bool = True,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Load complete 1600-question bank into database
-    Requires admin authentication
+    Load complete question bank into database (department-specific pools).
+    When clear_and_load=True (default), clears existing questions first then loads
+    from JSON (question_bank_full.json or question_bank_sample.json), ensuring
+    all departments and modules have department-tagged questions. Requires admin authentication.
     """
     from core.config import settings
     from data.question_bank_loader import QuestionBankLoader
@@ -74,13 +77,14 @@ async def load_full_question_bank(
     
     try:
         loader = QuestionBankLoader(db)
-        count = await loader.load_full_question_bank()
+        count = await loader.load_full_question_bank(clear_first=clear_and_load)
         
         return {
             "status": "success",
             "message": f"Successfully loaded {count} questions into database",
             "total_questions": count,
-            "structure": "16 departments × 10 scenarios × 10 questions"
+            "clear_and_load": clear_and_load,
+            "structure": "30 departments with division+department-specific question pools"
         }
     except FileNotFoundError as e:
         logger.error(f"Question bank file not found: {e}", exc_info=True)
@@ -95,6 +99,29 @@ async def load_full_question_bank(
         else:
             detail = "Failed to load questions. Please try again later."
         raise HTTPException(status_code=500, detail=detail)
+
+
+@router.post("/questions/delete-generic")
+async def delete_generic_questions(
+    admin_key: str = Query(..., description="Admin API key"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete all generic questions (department IS NULL) from the question bank.
+    Use after switching to department-specific pools; requires admin authentication.
+    """
+    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    result = await db.execute(delete(Question).where(Question.department.is_(None)))
+    await db.commit()
+    deleted = result.rowcount or 0
+    logger.info(f"Deleted {deleted} generic questions (department IS NULL)")
+    return {
+        "status": "success",
+        "message": f"Deleted {deleted} generic questions",
+        "deleted_count": deleted,
+    }
 
 
 # Pydantic models for invitation API
@@ -116,7 +143,9 @@ class InvitationCreateResponse(BaseModel):
     link: str
     email: str
     operation: str
+    department: Optional[str] = None  # So admin can verify which department the link uses
     expires_at: Optional[datetime]
+    email_sent: bool = False
 
 
 @router.get("/stats")
@@ -345,6 +374,14 @@ async def create_invitation_code(
             status_code=400, 
             detail=f"Invalid operation. Must be: hotel, marine, or casino"
         )
+
+    # Require department for hotel and marine (each has department-specific question pools)
+    if operation_enum in (DivisionType.HOTEL, DivisionType.MARINE):
+        if not request_data.department or not request_data.department.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Department is required for Hotel and Marine operations. Please select a department."
+            )
     
     # Generate unique code
     code = generate_invitation_code(16)
@@ -416,7 +453,9 @@ async def create_invitation_code(
         link=registration_link,
         email=request_data.email,
         operation=operation_enum.value,
-        expires_at=expires_at
+        department=request_data.department,
+        expires_at=expires_at,
+        email_sent=email_sent
     )
 
 
@@ -547,6 +586,63 @@ async def get_invitation_status(
     }
 
 
+@router.post("/invitation/{code}/resend-email")
+async def resend_invitation_email(
+    code: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
+):
+    """
+    Resend invitation email for an existing code
+    """
+    result = await db.execute(
+        select(InvitationCode).where(InvitationCode.code == code)
+    )
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation code not found")
+    
+    if invitation.is_used:
+        raise HTTPException(status_code=400, detail="Cannot resend email for used invitation")
+    
+    is_expired = invitation.expires_at and invitation.expires_at < datetime.now()
+    if is_expired:
+        raise HTTPException(status_code=400, detail="Cannot resend email for expired invitation")
+    
+    base_url = str(request.base_url).rstrip('/')
+    registration_link = f"{base_url}/register?code={code}"
+    
+    email_sent = False
+    try:
+        from services.email_service import get_email_service
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        email_service = get_email_service()
+        email_result = await email_service.send_invitation_email(
+            to_email=invitation.email,
+            invitation_code=code,
+            invitation_link=registration_link,
+            invited_by="Administrator",
+            expires_at=invitation.expires_at
+        )
+        
+        email_sent = email_result.success
+        if email_result.success:
+            logger.info(f"Invitation email resent to {invitation.email}")
+        else:
+            logger.warning(f"Failed to resend invitation email: {email_result.error}")
+            
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Email service error: {e}")
+    
+    return {"email_sent": email_sent, "message": "Email sent" if email_sent else "Failed to send email"}
+
+
 @router.delete("/invitation/{code}")
 async def revoke_invitation(
     code: str,
@@ -589,10 +685,28 @@ async def revoke_invitation(
     }
 
 
+def _admin_debug_log(message: str, data: dict, hypothesis_id: str = ""):
+    import json
+    from pathlib import Path
+    # Prefer workspace root (from __file__) so log is always in project
+    workspace_root = Path(__file__).resolve().parents[5]
+    for base in (workspace_root, Path.cwd()):
+        try:
+            log_path = base / "debug-ccd1fc.log"
+            payload = {"sessionId": "ccd1fc", "location": "admin.py:delete_invitation", "message": message, "data": data, "timestamp": datetime.utcnow().isoformat() + "Z"}
+            if hypothesis_id:
+                payload["hypothesisId"] = hypothesis_id
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(payload, default=str) + "\n")
+            return
+        except Exception:
+            continue
+
+
 @router.delete("/invitation/{code}/delete")
 async def delete_invitation_with_data(
     code: str,
-    admin_key: str,
+    admin_key: str = Query("", alias="admin_key"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -607,69 +721,89 @@ async def delete_invitation_with_data(
     """
     from core.config import settings
     import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    
-    # Find invitation
-    result = await db.execute(
-        select(InvitationCode).where(InvitationCode.code == code)
-    )
-    invitation = result.scalar_one_or_none()
-    
-    if not invitation:
-        raise HTTPException(status_code=404, detail="Invitation code not found")
-    
-    deleted_data = {
-        "invitation_deleted": True,
-        "user_deleted": False,
-        "assessments_deleted": 0,
-        "responses_deleted": 0
-    }
-    
-    # If invitation was used, cascade delete user and assessment data
-    if invitation.used_by_user_id:
-        user_id = invitation.used_by_user_id
+
+    # #region agent log
+    try:
+        _admin_debug_log("delete_invitation request", {"code_len": len(code), "admin_key_present": bool(admin_key)}, "H2")
+    except Exception:
+        pass
+    # #endregion
+
+    try:
+        # Verify admin key
+        expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+        if not expected_key or not secrets.compare_digest(admin_key, expected_key):
+            raise HTTPException(status_code=403, detail="Unauthorized")
         
-        # Get all assessments for the user
-        assessments_result = await db.execute(
-            select(Assessment).where(Assessment.user_id == user_id)
+        # Find invitation
+        result = await db.execute(
+            select(InvitationCode).where(InvitationCode.code == code)
         )
-        assessments = assessments_result.scalars().all()
+        invitation = result.scalar_one_or_none()
         
-        # Delete all assessment responses first (due to foreign key constraints)
-        for assessment in assessments:
-            responses_result = await db.execute(
-                select(AssessmentResponse).where(AssessmentResponse.assessment_id == assessment.id)
-            )
-            responses = responses_result.scalars().all()
-            for response in responses:
-                await db.delete(response)
-                deleted_data["responses_deleted"] += 1
+        if not invitation:
+            raise HTTPException(status_code=404, detail="Invitation code not found")
+        
+        deleted_data = {
+            "invitation_deleted": True,
+            "user_deleted": False,
+            "assessments_deleted": 0,
+            "responses_deleted": 0
+        }
+        
+        # If invitation was used, cascade delete user and assessment data
+        if invitation.used_by_user_id:
+            user_id = invitation.used_by_user_id
             
-            await db.delete(assessment)
-            deleted_data["assessments_deleted"] += 1
+            # Get all assessments for the user
+            assessments_result = await db.execute(
+                select(Assessment).where(Assessment.user_id == user_id)
+            )
+            assessments = assessments_result.scalars().all()
+            
+            # Delete all assessment responses first (due to foreign key constraints)
+            for assessment in assessments:
+                responses_result = await db.execute(
+                    select(AssessmentResponse).where(AssessmentResponse.assessment_id == assessment.id)
+                )
+                responses = responses_result.scalars().all()
+                for response in responses:
+                    await db.delete(response)
+                    deleted_data["responses_deleted"] += 1
+                
+                await db.delete(assessment)
+                deleted_data["assessments_deleted"] += 1
+            
+            # Delete the user
+            user_result = await db.execute(
+                select(User).where(User.id == user_id)
+            )
+            user = user_result.scalar_one_or_none()
+            if user:
+                await db.delete(user)
+                deleted_data["user_deleted"] = True
         
-        # Delete the user
-        user_result = await db.execute(
-            select(User).where(User.id == user_id)
-        )
-        user = user_result.scalar_one_or_none()
-        if user:
-            await db.delete(user)
-            deleted_data["user_deleted"] = True
-    
-    # Delete the invitation
-    await db.delete(invitation)
-    await db.commit()
-    
-    return {
-        "message": "Invitation and associated data deleted successfully",
-        "code": code,
-        "deleted_data": deleted_data
-    }
+        # Delete the invitation
+        await db.delete(invitation)
+        await db.commit()
+        
+        return {
+            "message": "Invitation and associated data deleted successfully",
+            "code": code,
+            "deleted_data": deleted_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # #region agent log
+        try:
+            _admin_debug_log("delete_invitation exception", {"type": type(e).__name__, "message": str(e)}, "H1")
+        except Exception:
+            pass
+        # #endregion
+        logger.exception("delete_invitation_with_data failed")
+        raise HTTPException(status_code=500, detail="Failed to delete invitation")
 
 
 @router.get("/invitation/{code}/validate")
@@ -1161,6 +1295,58 @@ async def get_assessment_detail(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching assessment details: {str(e)}")
+
+
+@router.get("/users")
+async def list_users(
+    search: Optional[str] = None,
+    division: Optional[str] = None,
+    department: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
+):
+    """
+    List all non-admin users with optional search and filter.
+    Returns JSON for the admin users page.
+    """
+    query = select(User).where(User.is_admin == False)
+    
+    if division:
+        try:
+            op_enum = DivisionType(division.lower())
+            query = query.where(User.division == op_enum)
+        except ValueError:
+            pass
+    
+    if department:
+        query = query.where(User.department == department)
+    
+    query = query.order_by(User.created_at.desc())
+    result = await db.execute(query)
+    users = result.scalars().all()
+    
+    users_list = []
+    for user in users:
+        if search:
+            search_lower = search.lower()
+            full_name = f"{user.first_name} {user.last_name}".lower()
+            email_lower = user.email.lower()
+            if search_lower not in full_name and search_lower not in email_lower:
+                continue
+        
+        users_list.append({
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "nationality": user.nationality or "",
+            "operation": user.division.value if user.division else "",
+            "department": user.department or "",
+            "is_active": user.is_active,
+            "created_at": user.created_at.isoformat() if user.created_at else None
+        })
+    
+    return {"total": len(users_list), "users": users_list}
 
 
 @router.get("/users/export")

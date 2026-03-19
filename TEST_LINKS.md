@@ -201,7 +201,9 @@ src/test/
 6. **查看结果**
    - 页面: `http://127.0.0.1:8000/results`
 
-### 题库加载流程
+### 题库加载流程（创建带 department 的邀请码前必须执行）
+
+**重要**: 每次创建带 department（如 Laundry、Housekeeping）的 invitation link 前，必须先加载完整题库，否则 assessment 无法给出对应部门的题目。
 
 1. **加载完整题库**
    - API: `POST http://127.0.0.1:8000/api/v1/admin/load-full-question-bank?admin_key=dev-admin-key-123`
@@ -210,6 +212,12 @@ src/test/
 2. **验证加载**
    - 健康检查: `http://127.0.0.1:8000/health`
    - 应显示: `{"status": "healthy", "questions_loaded": 1600}`
+
+3. **数据流**
+   - Admin 创建 invitation 时选择 department → 存入 InvitationCode
+   - 用户用 invitation 注册 → User.department、Assessment.department 从 invitation 继承
+   - start_assessment 时按 department 筛选题目 → question_order 存 21 题 ID
+   - question_page 从 question_order 加载题目 → 显示对应部门题目
 
 ---
 
