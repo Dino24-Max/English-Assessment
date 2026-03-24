@@ -128,6 +128,11 @@ class Settings(BaseSettings):
     TOTAL_QUESTIONS_PER_MODULE: int = 40
     QUESTIONS_PER_DIVISION: int = 3  # Hotel, Marine, Casino
     TOTAL_SPEAKING_SCENARIOS: int = 10
+    # When True and a department is selected, use only that department's questions (no generic NULL,
+    # division-wide, or auto-generated sample fillers). Requires a complete per-department bank.
+    STRICT_DEPARTMENT_QUESTION_BANK: bool = (
+        os.getenv("STRICT_DEPARTMENT_QUESTION_BANK", "false").lower() == "true"
+    )
 
     # Scoring
     PASS_THRESHOLD_TOTAL: int = 70

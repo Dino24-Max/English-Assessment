@@ -241,44 +241,46 @@ class AssessmentEngine:
             available_questions = list(questions_by_module.get(module_type, []))
 
             if department:
-                # Department set: prefer department-specific, then generic (department NULL), then any
-                # division question, then sample creation — same counts as non-department assessments.
+                # Department set: by default prefer department-specific, then generic (department NULL),
+                # then any division question, then sample creation.
+                # STRICT_DEPARTMENT_QUESTION_BANK: only questions for this department (no fillers).
                 available_questions = _dedupe_and_filter(available_questions)
-                if len(available_questions) < count:
-                    fallback_result = await self.db.execute(
-                        select(_ma.Question).where(
-                            and_(
-                                _ma.Question.module_type == module_type,
-                                _ma.Question.division == division,
-                                _ma.Question.department.is_(None),
+                if not settings.STRICT_DEPARTMENT_QUESTION_BANK:
+                    if len(available_questions) < count:
+                        fallback_result = await self.db.execute(
+                            select(_ma.Question).where(
+                                and_(
+                                    _ma.Question.module_type == module_type,
+                                    _ma.Question.division == division,
+                                    _ma.Question.department.is_(None),
+                                )
                             )
                         )
-                    )
-                    generic = fallback_result.scalars().all()
-                    available_questions = _dedupe_and_filter(available_questions + list(generic))
+                        generic = fallback_result.scalars().all()
+                        available_questions = _dedupe_and_filter(available_questions + list(generic))
 
-                if len(available_questions) < count:
-                    result = await self.db.execute(
-                        select(_ma.Question).where(
-                            and_(
-                                _ma.Question.module_type == module_type,
-                                _ma.Question.division == division,
+                    if len(available_questions) < count:
+                        result = await self.db.execute(
+                            select(_ma.Question).where(
+                                and_(
+                                    _ma.Question.module_type == module_type,
+                                    _ma.Question.division == division,
+                                )
                             )
                         )
-                    )
-                    available_questions = _dedupe_and_filter(list(result.scalars().all()))
+                        available_questions = _dedupe_and_filter(list(result.scalars().all()))
 
-                if len(available_questions) < count:
-                    await self._create_sample_questions(module_type, division)
-                    result = await self.db.execute(
-                        select(_ma.Question).where(
-                            and_(
-                                _ma.Question.module_type == module_type,
-                                _ma.Question.division == division,
+                    if len(available_questions) < count:
+                        await self._create_sample_questions(module_type, division)
+                        result = await self.db.execute(
+                            select(_ma.Question).where(
+                                and_(
+                                    _ma.Question.module_type == module_type,
+                                    _ma.Question.division == division,
+                                )
                             )
                         )
-                    )
-                    available_questions = _dedupe_and_filter(list(result.scalars().all()))
+                        available_questions = _dedupe_and_filter(list(result.scalars().all()))
 
                 if module_type == _ma.ModuleType.SPEAKING and available_questions:
                     selected_questions = self._select_speaking_questions(available_questions, count)
@@ -1009,7 +1011,7 @@ class AssessmentEngine:
             samples = [
                 {"question_text": "Listen to the audio and repeat exactly what you hear.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 7, "question_metadata": {"speaking_type": "repeat", "audio_text": "Good morning! Welcome aboard. My name is Maria and I will be your cabin steward during this voyage.", "min_duration": 3, "expected_keywords": ["welcome", "aboard", "cabin", "steward", "voyage"]}},
                 {"question_text": "Listen to the audio and repeat exactly what you hear.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 7, "question_metadata": {"speaking_type": "repeat", "audio_text": "The pool deck is located on deck twelve. Please remember to bring your cruise card for towel service.", "min_duration": 3, "expected_keywords": ["pool", "deck", "twelve", "cruise", "card", "towel"]}},
-                {"question_text": "A guest is lost and asks: 'How do I get to the spa?' Give clear directions.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 6, "question_metadata": {"speaking_type": "scenario", "min_duration": 5, "expected_keywords": ["elevator", "deck", "directions", "follow", "signs", "spa"]}},
+                {"question_text": "Listen to the audio and repeat exactly what you hear.", "question_type": _ma.QuestionType.SPEAKING_RESPONSE, "options": None, "correct_answer": "", "points": 6, "question_metadata": {"speaking_type": "repeat", "audio_text": "The spa is on deck twelve, forward. Take the midship elevators up two levels, then follow the signs to the wellness center.", "min_duration": 3, "expected_keywords": ["spa", "deck", "twelve", "forward", "elevators", "signs", "wellness"]}},
             ]
         else:
             return []

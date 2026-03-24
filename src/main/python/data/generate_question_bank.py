@@ -9,6 +9,7 @@ Generates 3,000 questions across 30 departments:
 
 import json
 import random
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -21,6 +22,34 @@ from config.departments import (
     MARINE_OPERATION,
 )
 from data.cefr_spec import MODULE_CEFR_DISTRIBUTION, CEFR_LEVELS
+
+# Align with assessment_engine stopword filtering for keyword extraction from repeat audio
+_SPEAKING_KEYWORD_STOPWORDS = frozenset(
+    {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can", "her", "was", "one", "our",
+        "out", "day", "get", "has", "him", "his", "how", "its", "let", "may", "new", "now", "old",
+        "see", "two", "way", "who", "did", "she", "too", "use", "from", "that", "this", "with",
+        "have", "will", "your", "been", "said", "each", "which", "their", "time", "would", "there",
+        "could", "other", "about", "into", "more", "than", "then", "them", "these", "please", "remember",
+        "bring", "during", "name", "good", "morning", "what", "when", "where", "very",
+    }
+)
+
+
+def _keywords_from_repeat_audio(text: str, max_kw: int = 12) -> List[str]:
+    """Derive scoring keywords from the phrase the user must repeat (same idea as engine)."""
+    words = re.findall(r"[A-Za-z]{3,}", (text or "").lower())
+    out: List[str] = []
+    seen = set()
+    for w in words:
+        if w in _SPEAKING_KEYWORD_STOPWORDS or w in seen:
+            continue
+        seen.add(w)
+        out.append(w)
+        if len(out) >= max_kw:
+            break
+    return out if out else ["repeat", "clearly", "phrase"]
+
 
 # Loader-friendly module keys
 MODULE_TO_LOADER = {
@@ -987,13 +1016,28 @@ class QuestionBankGenerator:
     def _generate_speaking_question(self, division: str, dept_name: str,
                                    dept_code: str, scenario_key: str, scenario_id: int,
                                    cefr_level: str, q_num: int) -> Dict[str, Any]:
-        """Generate speaking question"""
+        """Generate listen-and-repeat speaking item: same audio line as listening pool; keyword scoring."""
 
         question_id = f"{division}_{dept_code}_S_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        speaking_scenarios = self._get_speaking_scenarios(scenario_key, cefr_level)
-        scenario = self._pick_scenario(speaking_scenarios, f"{scenario_key}|speaking|{cefr_level}")
+        listening_scenarios = self._get_listening_scenarios(scenario_key, cefr_level)
+        scenario = self._pick_scenario(
+            listening_scenarios, f"{scenario_key}|speaking_repeat|{cefr_level}"
+        )
+        audio_text = (scenario.get("audio") or "").strip()
+        if not audio_text:
+            raise ValueError(f"Listening scenario for {scenario_key} missing audio for speaking repeat")
+
+        expected_keywords = _keywords_from_repeat_audio(audio_text)
+        # Match assessment: 3 speaking items → 7 + 7 + 6 = 20 points
+        points_cycle = [7, 7, 6]
+        points = points_cycle[(q_num - 1) % 3]
+
+        instruction = (
+            "Listen to the audio and repeat exactly what you hear. "
+            "Your score is based on how many key words you say clearly."
+        )
 
         return {
             "question_id": question_id,
@@ -1003,14 +1047,16 @@ class QuestionBankGenerator:
             "cefr_level": cefr_level,
             "scenario_id": scenario_id,
             "module": "Speaking",
-            "difficulty": "hard",
-            "points": 10,
+            "difficulty": "medium",
+            "points": points,
             "question_type": "speaking_response",
-            "question_text": scenario["prompt"],
-            "scenario_context": scenario["context"],
-            "expected_keywords": scenario["keywords"],
-            "rubric": scenario["rubric"],
-            "explanation": scenario["explanation"]
+            "speaking_type": "repeat",
+            "question_text": instruction,
+            "audio_text": audio_text,
+            "expected_keywords": expected_keywords,
+            "min_duration": 3,
+            "scenario_description": f"Listen-repeat phrase aligned with {scenario_key} listening content.",
+            "explanation": "Repeat the played audio accurately; keywords in your response contribute to your score.",
         }
 
     # Scenario generators for each module type
