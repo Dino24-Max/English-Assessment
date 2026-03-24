@@ -478,18 +478,18 @@ class AIService:
         return {
             "transcript": "Analysis unavailable",
             "error": error_type,
-            "total_points": 10,  # Minimum points for attempt (50% of 20 points)
-            "overall_score": 0.5,
-            "audio_quality": {"clarity": 0.5, "fluency": 0.5, "pronunciation": 0.5},
-            "content_analysis": {"accuracy": 0.5, "completeness": 0.5, "appropriateness": 0.5},
+            "total_points": 0,
+            "overall_score": 0.0,
+            "audio_quality": {"clarity": 0.0, "fluency": 0.0, "pronunciation": 0.0},
+            "content_analysis": {"accuracy": 0.0, "completeness": 0.0, "appropriateness": 0.0},
             "scores": {
-                "clarity": 2,
-                "fluency": 2,
-                "pronunciation": 2,
-                "accuracy": 2,
-                "appropriateness": 2,
-                "total_score": 10,
-                "overall_score": 0.5
+                "clarity": 0,
+                "fluency": 0,
+                "pronunciation": 0,
+                "accuracy": 0,
+                "appropriateness": 0,
+                "total_score": 0,
+                "overall_score": 0.0,
             },
             "feedback": fallback_messages.get(error_type, fallback_messages["error"])
         }

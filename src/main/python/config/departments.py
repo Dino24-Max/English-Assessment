@@ -117,6 +117,12 @@ LEGACY_TO_CANONICAL: Dict[str, str] = {
     "Casino Services": "CASINO",
     "Human Resource": "HUMAN RESOURCES",
     "Human Resources": "HUMAN RESOURCES",
+    "Information Technology": "INFO TECHNOLOGY",
+    "Information technology": "INFO TECHNOLOGY",
+    "IT": "INFO TECHNOLOGY",
+    "Info Tech": "INFO TECHNOLOGY",
+    "Info Techology": "INFO TECHNOLOGY",
+    "Guest Technology": "GUEST TECHNOLOGY",
 }
 
 

@@ -10,13 +10,27 @@ from sqlalchemy import select, and_, or_
 import random
 import json
 import uuid
+import re
 
 import models.assessment as _ma  # Use module ref to avoid UnboundLocalError
 from config.departments import normalize_department
 from core.config import settings
 from services.ai_service import AIService
+from services.speaking_scorer import score_speaking_response
 from utils.scoring import ScoringEngine
 from utils.cache import cache_result, CacheKeys, CacheTTL
+
+# Stopwords for deriving keywords from reference/audio text when expected_keywords is missing
+_SPEAKING_STOPWORDS = frozenset(
+    {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can", "her", "was", "one", "our",
+        "out", "day", "get", "has", "him", "his", "how", "its", "let", "may", "new", "now", "old",
+        "see", "two", "way", "who", "did", "she", "too", "use", "from", "that", "this", "with",
+        "have", "will", "your", "been", "said", "each", "which", "their", "time", "would", "there",
+        "could", "other", "about", "into", "more", "than", "then", "them", "these", "please", "remember",
+        "bring", "during", "name", "good", "morning", "what", "when", "where", "very",
+    }
+)
 
 
 class AssessmentEngine:
@@ -387,23 +401,48 @@ class AssessmentEngine:
             points = question.points if is_correct else 0
 
         elif question.question_type == _ma.QuestionType.SPEAKING_RESPONSE:
-            # AI-powered scoring for speaking
-            # Unified question page submits "recorded_XXs|transcript" when transcription is used
-            if user_answer and "|" in user_answer and user_answer.strip().startswith("recorded_"):
-                parts = user_answer.split("|", 1)
-                transcript = parts[1].strip() if len(parts) > 1 else ""
-                analysis = await self.ai_service.analyze_speech_from_transcript(
-                    transcript, question.correct_answer or "", question.question_text or ""
+            # Default: deterministic keyword + fluency scoring (listen-repeat and scenario with expected_keywords).
+            # Opt-in LLM: set question_metadata.use_llm_scoring to true.
+            transcript, recording_duration = self._parse_speaking_user_answer(user_answer)
+            if self._transcript_is_invalid_speaking(transcript):
+                return False, 0.0
+
+            meta = question.question_metadata or {}
+            if self._speaking_use_deterministic(question):
+                keywords = self._speaking_expected_keywords(question)
+                if not keywords:
+                    keywords = self._keywords_from_reference_text(question.question_text or "")
+                if not keywords:
+                    return False, 0.0
+                sr = score_speaking_response(
+                    transcript=transcript,
+                    expected_keywords=keywords,
+                    question_context=question.question_text or "",
+                    recording_duration=recording_duration,
+                    base_points=float(question.points),
                 )
+                points = round(min(float(question.points), max(0.0, sr.total_points)), 2)
+                is_correct = sr.percentage >= 60.0
             else:
-                analysis = await self.ai_service.analyze_speech_response(
-                    user_answer, question.correct_answer or "", question.question_text or ""
-                )
-            is_correct = analysis["overall_score"] >= 0.6  # 60% threshold
-            # AI returns total_points on 0–20 scale; scale to this question's points so DB constraint holds
-            raw_points = float(analysis.get("total_points", 0))
-            points = round((raw_points / 20.0) * question.points, 2)
-            points = min(question.points, max(0, points))
+                # Legacy LLM path (explicit opt-in only)
+                if user_answer and "|" in user_answer and user_answer.strip().startswith("recorded_"):
+                    parts = user_answer.split("|", 1)
+                    tr = parts[1].strip() if len(parts) > 1 else ""
+                    analysis = await self.ai_service.analyze_speech_from_transcript(
+                        tr, question.correct_answer or "", question.question_text or ""
+                    )
+                elif self._looks_like_audio_file_path(user_answer):
+                    analysis = await self.ai_service.analyze_speech_response(
+                        user_answer, question.correct_answer or "", question.question_text or ""
+                    )
+                else:
+                    analysis = await self.ai_service.analyze_speech_from_transcript(
+                        transcript, question.correct_answer or "", question.question_text or ""
+                    )
+                is_correct = analysis["overall_score"] >= 0.6
+                raw_points = float(analysis.get("total_points", 0))
+                points = round((raw_points / 20.0) * question.points, 2)
+                points = min(question.points, max(0, points))
 
         else:
             # Default exact match for any other type
@@ -411,6 +450,95 @@ class AssessmentEngine:
             points = question.points if is_correct else 0
 
         return is_correct, points
+
+    @staticmethod
+    def _parse_speaking_user_answer(user_answer: str) -> Tuple[str, float]:
+        """Parse unified `recorded_XXs|transcript` or plain transcript; return (transcript, duration_sec)."""
+        s = (user_answer or "").strip()
+        if not s:
+            return "", 0.0
+        if s.startswith("recorded_") and "|" in s:
+            head, rest = s.split("|", 1)
+            m = re.match(r"recorded_(\d+(?:\.\d+)?)s?", head.strip(), re.I)
+            duration = float(m.group(1)) if m else 0.0
+            return rest.strip(), duration
+        return s, 0.0
+
+    @staticmethod
+    def _looks_like_audio_file_path(user_answer: str) -> bool:
+        s = (user_answer or "").strip()
+        if not s or "|" in s:
+            return False
+        low = s.lower()
+        return low.endswith((".wav", ".webm", ".mp3", ".m4a", ".ogg", ".flac"))
+
+    @staticmethod
+    def _transcript_is_invalid_speaking(transcript: str) -> bool:
+        t = (transcript or "").strip().lower()
+        if not t:
+            return True
+        if t.startswith("[no transcription") or t.startswith("[no speech"):
+            return True
+        if t == "analysis unavailable":
+            return True
+        return False
+
+    @staticmethod
+    def _speaking_use_deterministic(question: _ma.Question) -> bool:
+        meta = question.question_metadata or {}
+        return not bool(meta.get("use_llm_scoring"))
+
+    @staticmethod
+    def _keywords_from_reference_text(text: str) -> List[str]:
+        words = re.findall(r"[A-Za-z]{3,}", (text or "").lower())
+        out: List[str] = []
+        seen = set()
+        for w in words:
+            if w in _SPEAKING_STOPWORDS or w in seen:
+                continue
+            seen.add(w)
+            out.append(w)
+        return out[:15]
+
+    @staticmethod
+    def _speaking_expected_keywords(question: _ma.Question) -> List[str]:
+        """Resolve expected keywords from metadata, audio_text, reference_text, or correct_answer."""
+        meta = question.question_metadata or {}
+        raw = meta.get("expected_keywords")
+        keywords: List[str] = []
+
+        if isinstance(raw, list):
+            keywords = [str(k).strip() for k in raw if str(k).strip()]
+        elif isinstance(raw, str):
+            rs = raw.strip()
+            if rs.startswith("["):
+                try:
+                    parsed = json.loads(rs)
+                    if isinstance(parsed, list):
+                        keywords = [str(k).strip() for k in parsed if str(k).strip()]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            if not keywords:
+                keywords = [k.strip() for k in rs.split(",") if k.strip()]
+
+        if not keywords and meta.get("audio_text"):
+            keywords = AssessmentEngine._keywords_from_reference_text(str(meta["audio_text"]))
+        if not keywords and meta.get("reference_text"):
+            keywords = AssessmentEngine._keywords_from_reference_text(str(meta["reference_text"]))
+
+        if not keywords and (question.correct_answer or "").strip():
+            ca = question.correct_answer.strip()
+            if ca.startswith("["):
+                try:
+                    parsed = json.loads(ca)
+                    if isinstance(parsed, list):
+                        keywords = [str(k).strip() for k in parsed if str(k).strip()]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            if not keywords:
+                keywords = [k.strip() for k in ca.split(",") if k.strip()]
+
+        return keywords[:20]
 
     def _question_content_key(self, q) -> str:
         """

@@ -507,3 +507,44 @@ class TestSpeakingModuleIntegration:
         
         # Should have improvement tips
         assert len(result.improvement_tips) > 0
+
+
+# ============================================
+# Assessment engine speaking (deterministic path)
+# ============================================
+
+
+@pytest.mark.asyncio
+async def test_assessment_engine_speaking_deterministic_keywords():
+    """DB-driven speaking uses keyword scorer by default (no LLM points)."""
+    from unittest.mock import MagicMock
+    from types import SimpleNamespace
+    from core.assessment_engine import AssessmentEngine
+    from models.assessment import QuestionType, ModuleType
+
+    engine = AssessmentEngine(MagicMock())
+    q = SimpleNamespace(
+        question_type=QuestionType.SPEAKING_RESPONSE,
+        module_type=ModuleType.SPEAKING,
+        points=7.0,
+        question_text="Listen and repeat",
+        correct_answer="",
+        question_metadata={
+            "speaking_type": "repeat",
+            "expected_keywords": ["welcome", "aboard", "cabin", "steward"],
+            "audio_text": "Good morning welcome aboard cabin steward",
+        },
+    )
+
+    is_ok, pts = await engine._score_response(
+        q,
+        "recorded_10s|welcome aboard this is my cabin steward on the voyage",
+    )
+    assert pts > 0
+    assert is_ok is True
+
+    _is_no, pts2 = await engine._score_response(q, "recorded_3s|hi")
+    assert pts2 == 0.0
+
+    _is_empty, pts3 = await engine._score_response(q, "recorded_1s|")
+    assert pts3 == 0.0

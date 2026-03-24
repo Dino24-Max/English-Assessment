@@ -229,18 +229,26 @@ async def submit_speaking_response(
         if not question:
             raise HTTPException(status_code=404, detail="Question not found")
 
-        # Analyze speech
+        # Transcribe/analyze audio (transcript + optional LLM metadata for storage only)
         analysis = await ai_service.analyze_speech_response(
             file_path, question.correct_answer, question.question_text
         )
 
-        # Submit response through engine
+        transcript = (analysis.get("transcript") or "").strip()
+        dur_raw = analysis.get("duration_seconds") or analysis.get("recording_duration") or 0
+        try:
+            duration_sec = float(dur_raw)
+        except (TypeError, ValueError):
+            duration_sec = 0.0
+        # Same format as unified question submit so engine uses keyword-based scoring
+        unified_answer = f"recorded_{duration_sec}s|{transcript}"
+
         engine = AssessmentEngine(db)
         result = await engine.submit_response(
             assessment_id=assessment_id,
             question_id=question_id,
-            user_answer=analysis.get("transcript", ""),
-            time_spent=None
+            user_answer=unified_answer,
+            time_spent=None,
         )
 
         # Update response with speech analysis
@@ -257,14 +265,14 @@ async def submit_speaking_response(
         if response:
             response.audio_file_path = file_path
             response.speech_analysis = analysis
-            response.points_earned = analysis.get("total_points", 0)
+            response.points_earned = result["points_earned"]
             await db.commit()
 
         return {
             "status": "speaking_response_processed",
             "transcript": analysis.get("transcript"),
-            "points_earned": analysis.get("total_points"),
-            "feedback": analysis.get("feedback")
+            "points_earned": result["points_earned"],
+            "feedback": analysis.get("feedback"),
         }
 
     except HTTPException:
