@@ -307,7 +307,8 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
         question_data = questions[question_key]
         module = question_data.get("module", "unknown")
         points = question_data.get("points", 4)
-        
+        points_earned = 0
+
         logger.debug(f"Scoring Q{question_num}: module={module}, user_answer_length={len(user_answer)}")
         
         # Handle different question formats
@@ -646,14 +647,24 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
             correct_answer_display = "N/A"
         
         # Calculate points (only if not already set by type-specific logic)
-        # Speaking and vocabulary modules already set points_earned, don't override!
-        if "expected_keywords" not in question_data and "correct_matches" not in question_data:
+        # Speaking repeat (word-match), vocabulary, and keyword speaking already set points_earned — do not overwrite.
+        is_speaking_repeat_config = (
+            question_data.get("speaking_type") == "repeat" and "audio_text" in question_data
+        )
+        if (
+            "expected_keywords" not in question_data
+            and "correct_matches" not in question_data
+            and not is_speaking_repeat_config
+        ):
             points_earned = points if is_correct else 0
         
         # Generate feedback
         if is_correct:
             feedback = "✅ Correct! Well done."
-        elif ("expected_keywords" in question_data or "correct_matches" in question_data) and points_earned > 0:
+        elif (
+            ("expected_keywords" in question_data or "correct_matches" in question_data or is_speaking_repeat_config)
+            and points_earned > 0
+        ):
             # Partial credit for speaking or vocabulary
             feedback = f"✅ Partial credit! You earned {points_earned}/{points} points."
         else:

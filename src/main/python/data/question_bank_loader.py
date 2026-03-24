@@ -4,6 +4,7 @@ Loads comprehensive question banks for all divisions and modules
 Supports both legacy format and new 1600-question full bank
 """
 
+import hashlib
 import json
 import re
 from typing import Dict, List, Any
@@ -24,6 +25,88 @@ def _time_numbers_audio_sentence(question_text: str, context: str = None, correc
     sentence = sentence.replace("$$", "$")
     sentence = re.sub(r"\b(AM|PM)\s+\1\b", r"\1", sentence, flags=re.IGNORECASE)
     return " ".join(sentence.split())
+
+
+# Listen-and-repeat phrases (2–3 sentences). Used when bank rows are legacy "scenario" items.
+_SPEAKING_LISTEN_REPEAT_PHRASES = [
+    "Good morning! Welcome aboard. My name is Maria and I will be your cabin steward during this voyage.",
+    "The pool deck is located on deck twelve. Please remember to bring your cruise card for towel service.",
+    "The spa is on deck twelve, forward. Take the midship elevators up two levels, then follow the signs to the wellness center.",
+    "Tonight we have a comedy show in the main theater at eight PM. The musical revue starts at nine thirty in the lounge.",
+    "Your muster station is on deck four, starboard side. Please follow the signs and wear your life jacket only if instructed.",
+    "The buffet is open until eleven PM. For specialty dining, please confirm your reservation at the guest services desk.",
+]
+
+_SPEAKING_KW_STOPWORDS = frozenset(
+    {
+        "the", "and", "for", "you", "your", "are", "can", "our", "has", "was", "not", "but", "with",
+        "this", "that", "from", "have", "please", "then", "two", "any", "all", "will", "may", "get",
+        "way", "how", "who", "its", "did", "say", "let", "put", "too", "out", "off", "now", "one",
+        "her", "him", "his", "she", "ask", "use", "here", "only", "just", "also", "what", "when",
+        "where", "which", "about", "into", "than", "them", "very", "well", "each", "some", "such",
+        "make", "like", "been", "more", "most", "take", "come", "back", "over", "after", "before",
+        "under", "above", "between", "through", "during", "upon", "until", "while", "being", "both",
+        "either", "neither", "whether", "because", "since", "though", "although", "unless", "however",
+        "therefore", "within", "without", "against", "among", "around", "toward", "towards", "across",
+        "behind", "beyond", "beside", "besides", "except", "including", "regarding", "concerning",
+        "according", "another", "other", "own", "same", "these", "those", "every", "little", "much",
+        "many", "few", "several", "enough", "quite", "rather", "really", "even", "ever", "never",
+        "always", "often", "sometimes", "usually", "perhaps", "maybe", "might", "could", "would",
+        "should", "must", "shall", "need", "ought",
+    }
+)
+
+
+def _stable_speaking_phrase_index(question_id: str) -> int:
+    key = (question_id or "default").encode("utf-8")
+    return int(hashlib.md5(key).hexdigest(), 16) % len(_SPEAKING_LISTEN_REPEAT_PHRASES)
+
+
+def _speaking_keywords_from_audio(text: str, max_kw: int = 14) -> List[str]:
+    words = re.findall(r"[A-Za-z]{3,}", (text or "").lower())
+    out: List[str] = []
+    seen = set()
+    for w in words:
+        if w in _SPEAKING_KW_STOPWORDS or w in seen:
+            continue
+        seen.add(w)
+        out.append(w)
+        if len(out) >= max_kw:
+            break
+    return out
+
+
+def _normalize_speaking_listen_repeat(q_data: dict, metadata: dict) -> dict:
+    """
+    Ensure speaking rows are listen-and-repeat: metadata has speaking_type repeat, audio_text, expected_keywords.
+    Legacy scenario-only rows get a stable phrase from the pool so UI and scoring match product requirements.
+    """
+    meta = dict(metadata or {})
+    st = (meta.get("speaking_type") or "").lower()
+    audio = (meta.get("audio_text") or "").strip()
+    has_file = bool(q_data.get("audio_file_path") or meta.get("audio_file_path"))
+
+    has_repeat_content = (st == "repeat") and (bool(audio) or has_file)
+    if not has_repeat_content:
+        qid = str(q_data.get("question_id") or q_data.get("id") or "")
+        idx = _stable_speaking_phrase_index(qid)
+        phrase = _SPEAKING_LISTEN_REPEAT_PHRASES[idx]
+        meta["speaking_type"] = "repeat"
+        meta["audio_text"] = phrase
+        meta["expected_keywords"] = _speaking_keywords_from_audio(phrase)
+        meta.setdefault("min_duration", 3)
+        q_data["question_text"] = (
+            "Listen to the audio and repeat exactly what you hear. "
+            "Your score is based on how many key words you say clearly."
+        )
+    else:
+        meta["speaking_type"] = "repeat"
+        meta.setdefault("min_duration", 3)
+
+    if (meta.get("speaking_type") or "").lower() == "repeat" and (meta.get("audio_text") or "").strip():
+        if not meta.get("expected_keywords"):
+            meta["expected_keywords"] = _speaking_keywords_from_audio(str(meta["audio_text"]))
+    return meta
 
 
 class QuestionBankLoader:
@@ -131,28 +214,34 @@ class QuestionBankLoader:
                 "speaking_response": QuestionType.SPEAKING_RESPONSE
             }
             
-            # Build question_metadata from top-level fields when not explicitly provided
+            # Build question_metadata: merge explicit JSON metadata with top-level fields (same keys as generator output)
             metadata = q_data.get("question_metadata")
-            if metadata is None:
+            if not isinstance(metadata, dict):
                 metadata = {}
-                for key in ("audio_text", "passage", "terms", "definitions", "correct_matches",
-                            "speaking_type", "min_duration", "expected_keywords"):
-                    if key in q_data and q_data[key] is not None:
-                        metadata[key] = q_data[key]
-                # Generator outputs "audio" for listening dialogue; map to audio_text for TTS
-                if q_data.get("audio") and not metadata.get("audio_text"):
-                    metadata["audio_text"] = q_data["audio"]
-                if q_data.get("audio_context") and not metadata.get("audio_text"):
-                    metadata["audio_text"] = q_data["audio_context"]
-                # Time & Numbers: audio must speak the answer-bearing sentence, not the prompt. Use context/correct_answer to fill the blank.
-                mod = (q_data.get("module_type") or q_data.get("module") or "").lower()
-                if (mod in ("time_numbers", "timenumbers")) and not metadata.get("audio_text"):
-                    metadata["audio_text"] = _time_numbers_audio_sentence(
-                        q_data.get("question_text", ""),
-                        q_data.get("context"),
-                        q_data.get("correct_answer"),
-                    )
-                metadata = metadata if metadata else None
+            else:
+                metadata = dict(metadata)
+            for key in ("audio_text", "passage", "terms", "definitions", "correct_matches",
+                        "speaking_type", "min_duration", "expected_keywords"):
+                if key in q_data and q_data[key] is not None:
+                    metadata.setdefault(key, q_data[key])
+            if q_data.get("audio") and not metadata.get("audio_text"):
+                metadata["audio_text"] = q_data["audio"]
+            if q_data.get("audio_context") and not metadata.get("audio_text"):
+                metadata["audio_text"] = q_data["audio_context"]
+
+            mod = (q_data.get("module_type") or q_data.get("module") or "").lower()
+            # Time & Numbers: audio must speak the answer-bearing sentence, not the prompt.
+            if (mod in ("time_numbers", "timenumbers")) and not metadata.get("audio_text"):
+                metadata["audio_text"] = _time_numbers_audio_sentence(
+                    q_data.get("question_text", ""),
+                    q_data.get("context"),
+                    q_data.get("correct_answer"),
+                )
+
+            if mod == "speaking":
+                metadata = _normalize_speaking_listen_repeat(q_data, metadata)
+
+            metadata = metadata if metadata else None
 
             # Normalize department to canonical name (e.g. "Housekeeping" -> "HOUSEKEEPING")
             # so it matches invitation/assessment department and engine can filter by department
