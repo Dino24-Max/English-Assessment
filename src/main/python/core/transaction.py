@@ -291,13 +291,25 @@ async def create_user_and_assessment(
     Raises:
         TransactionError: If creation fails
     """
-    from models.assessment import User, Assessment, AssessmentStatus
+    from models.assessment import User
     from core.assessment_engine import AssessmentEngine
+    from config.departments import normalize_department
     from datetime import datetime
     
     async with atomic_transaction(db):
-        # Create user
-        user = User(**user_data)
+        # Department for question pool: invitation first, then explicit user_data (plan §7)
+        dept_raw = None
+        if invitation and getattr(invitation, "department", None):
+            dept_raw = invitation.department
+        elif user_data.get("department"):
+            dept_raw = user_data["department"]
+        department = normalize_department(dept_raw) if dept_raw else None
+
+        # Create user (ensure profile carries department when sourced from invitation only)
+        ud = dict(user_data)
+        if department and not ud.get("department"):
+            ud["department"] = department
+        user = User(**ud)
         db.add(user)
         await db.flush()  # Get user ID
         
@@ -307,11 +319,13 @@ async def create_user_and_assessment(
             invitation.used_at = datetime.now()
             invitation.used_by_user_id = user.id
         
-        # Create assessment
+        # Create assessment (single commit via atomic_transaction — no inner commit)
         engine = AssessmentEngine(db)
         assessment = await engine.create_assessment(
             user_id=user.id,
-            division=division
+            division=division,
+            department=department,
+            auto_commit=False,
         )
         
         logger.info(f"Created user {user.id} and assessment {assessment.id} atomically")
