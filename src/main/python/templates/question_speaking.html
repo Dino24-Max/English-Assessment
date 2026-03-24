@@ -39,9 +39,11 @@
     <div class="recording-visual" id="visualizer"></div>
     <audio id="audioPlayback" controls style="display:none; margin-top: 20px; width: 100%;"></audio>
 
+    {% if debug_mode %}
     <button type="button" id="testBypassBtn" onclick="bypassSpeakingForTest()"
             style="margin-top: 20px; padding: 15px 30px; background: #ff9500; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
         🧪 Test Mode: Skip Recording
     </button>
+    {% endif %}
 </div>
 {% endblock %}

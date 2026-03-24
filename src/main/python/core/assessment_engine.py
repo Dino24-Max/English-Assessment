@@ -241,10 +241,52 @@ class AssessmentEngine:
             available_questions = list(questions_by_module.get(module_type, []))
 
             if department:
-                # Department set: use only this department's questions; no generic/division/sample
+                # Department set: prefer department-specific, then generic (department NULL), then any
+                # division question, then sample creation — same counts as non-department assessments.
                 available_questions = _dedupe_and_filter(available_questions)
-                n_select = min(count, len(available_questions))
-                selected_questions = random.sample(available_questions, n_select) if n_select else []
+                if len(available_questions) < count:
+                    fallback_result = await self.db.execute(
+                        select(_ma.Question).where(
+                            and_(
+                                _ma.Question.module_type == module_type,
+                                _ma.Question.division == division,
+                                _ma.Question.department.is_(None),
+                            )
+                        )
+                    )
+                    generic = fallback_result.scalars().all()
+                    available_questions = _dedupe_and_filter(available_questions + list(generic))
+
+                if len(available_questions) < count:
+                    result = await self.db.execute(
+                        select(_ma.Question).where(
+                            and_(
+                                _ma.Question.module_type == module_type,
+                                _ma.Question.division == division,
+                            )
+                        )
+                    )
+                    available_questions = _dedupe_and_filter(list(result.scalars().all()))
+
+                if len(available_questions) < count:
+                    await self._create_sample_questions(module_type, division)
+                    result = await self.db.execute(
+                        select(_ma.Question).where(
+                            and_(
+                                _ma.Question.module_type == module_type,
+                                _ma.Question.division == division,
+                            )
+                        )
+                    )
+                    available_questions = _dedupe_and_filter(list(result.scalars().all()))
+
+                if module_type == _ma.ModuleType.SPEAKING and available_questions:
+                    selected_questions = self._select_speaking_questions(available_questions, count)
+                else:
+                    n_select = min(count, len(available_questions))
+                    selected_questions = (
+                        random.sample(available_questions, n_select) if n_select else []
+                    )
             else:
                 # No department: allow generic, division fallback, sample creation
                 available_questions = _dedupe_and_filter(available_questions)
@@ -284,8 +326,13 @@ class AssessmentEngine:
                     )
                     available_questions = _dedupe_and_filter(list(result.scalars().all()))
 
-                n_select = min(count, len(available_questions))
-                selected_questions = random.sample(available_questions, n_select) if n_select else []
+                if module_type == _ma.ModuleType.SPEAKING and available_questions:
+                    selected_questions = self._select_speaking_questions(available_questions, count)
+                else:
+                    n_select = min(count, len(available_questions))
+                    selected_questions = (
+                        random.sample(available_questions, n_select) if n_select else []
+                    )
 
             # Mark selected content keys as used so they are not repeated in later modules
             for q in selected_questions:
@@ -481,6 +528,11 @@ class AssessmentEngine:
             return True
         if t == "analysis unavailable":
             return True
+        # UI test bypass used to send a long placeholder transcript that scored as real speech
+        if "automated testing bypass" in t or "recording bypassed" in t:
+            return True
+        if "test mode" in t and "bypass" in t:
+            return True
         return False
 
     @staticmethod
@@ -540,20 +592,63 @@ class AssessmentEngine:
 
         return keywords[:20]
 
+    @staticmethod
+    def _normalized_question_stem(text: str) -> str:
+        """Lowercase + collapse whitespace so the same stem is not reused across modules (e.g. Grammar vs Listening)."""
+        return " ".join((text or "").strip().lower().split())
+
+    @staticmethod
+    def _select_speaking_questions(available: List[Any], count: int) -> List[Any]:
+        """Prefer listen-and-repeat items with audio, then repeat without audio, then scenario."""
+        tier0, tier1, tier2 = [], [], []
+        for q in available:
+            meta = getattr(q, "question_metadata", None) or {}
+            st = str(meta.get("speaking_type") or "").lower()
+            has_audio = bool(
+                meta.get("audio_text")
+                or meta.get("audio")
+                or getattr(q, "audio_file_path", None)
+                or meta.get("audio_file_path")
+            )
+            if st == "repeat" and has_audio:
+                tier0.append(q)
+            elif st == "repeat":
+                tier1.append(q)
+            else:
+                tier2.append(q)
+        selected: List[Any] = []
+        for pool in (tier0, tier1, tier2):
+            random.shuffle(pool)
+            for item in pool:
+                if len(selected) >= count:
+                    break
+                selected.append(item)
+            if len(selected) >= count:
+                break
+        if len(selected) < count:
+            remainder = [q for q in available if q not in selected]
+            random.shuffle(remainder)
+            for item in remainder:
+                if len(selected) >= count:
+                    break
+                selected.append(item)
+        return selected[:count]
+
     def _question_content_key(self, q) -> str:
         """
         Unique key for deduplication: same prompt + same content (terms/passage) = same question.
-        Vocabulary: question_text + sorted terms; Reading: question_text + passage; others: question_text.
+        Vocabulary: question_text + sorted terms; Reading: question_text + passage;
+        others: normalized question stem (case/spacing insensitive).
         """
         text = (q.question_text or "").strip()
         meta = getattr(q, "question_metadata", None) or {}
         if q.module_type == _ma.ModuleType.VOCABULARY:
             terms = meta.get("terms") or []
-            return text + "|" + "|".join(sorted(str(t) for t in terms))
+            return self._normalized_question_stem(text) + "|" + "|".join(sorted(str(t) for t in terms))
         if q.module_type == _ma.ModuleType.READING:
             passage = (meta.get("passage") or "").strip()
-            return text + "|" + passage
-        return text
+            return self._normalized_question_stem(text) + "|" + passage
+        return self._normalized_question_stem(text)
 
     def _score_category_match(self, user_answer: str, correct_answer: str) -> bool:
         """

@@ -881,13 +881,13 @@
             }
         }
 
-        // Test bypass for speaking questions when microphone is not available
+        // Test bypass: submit no transcript so backend scores 0 (never use a fake transcript — it matched keywords).
         function bypassSpeakingForTest() {
-            // Simulate a completed recording with test response
-            selectedAnswer = "recorded_10s|Test mode response - automated testing bypass";
+            selectedAnswer = "recorded_0s|";
             document.getElementById('submitBtn').disabled = false;
-            document.getElementById('status').textContent = '🧪 TEST MODE: Recording bypassed for automated testing';
-            document.getElementById('testBypassBtn').style.display = 'none';
+            document.getElementById('status').textContent = '🧪 TEST MODE: Skipped recording — speaking scored as no response';
+            var tb = document.getElementById('testBypassBtn');
+            if (tb) tb.style.display = 'none';
         }
 
         function checkInput() {

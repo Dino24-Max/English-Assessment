@@ -159,6 +159,15 @@ def _map_db_question_to_template_data(q) -> Dict[str, Any]:
             q.correct_answer,
             meta.get("context"),
         )
+    elif module_val == "speaking":
+        st = (meta.get("speaking_type") or "").lower()
+        if st == "repeat" and not audio_text and not audio_file_path:
+            ref = (meta.get("reference_text") or meta.get("repeat_phrase") or "").strip()
+            ca = (q.correct_answer or "").strip()
+            if ref:
+                audio_text = ref
+            elif ca and not ca.startswith("["):
+                audio_text = ca
     return {
         "module": q.module_type.value,
         "question": q.question_text,
