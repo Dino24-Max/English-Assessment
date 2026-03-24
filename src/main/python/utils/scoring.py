@@ -10,6 +10,22 @@ from models.assessment import AssessmentResponse, Question, ModuleType
 from core.config import settings
 
 
+def compute_overall_pass(
+    total_score: float,
+    speaking_score: float,
+    safety_pass_rate: float,
+) -> tuple:
+    """
+    Single source of truth for pass/fail: total, safety rate, and speaking must all meet thresholds.
+    Returns (total_ok, safety_ok, speaking_ok, final_pass).
+    """
+    total_ok = total_score >= settings.PASS_THRESHOLD_TOTAL
+    safety_ok = safety_pass_rate >= settings.PASS_THRESHOLD_SAFETY
+    speaking_ok = speaking_score >= settings.PASS_THRESHOLD_SPEAKING
+    final_pass = total_ok and safety_ok and speaking_ok
+    return total_ok, safety_ok, speaking_ok, final_pass
+
+
 class ScoringEngine:
     """Handles assessment scoring logic"""
 

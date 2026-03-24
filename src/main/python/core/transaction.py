@@ -387,8 +387,17 @@ async def complete_assessment_atomically(
             assessment.speaking_score or 0,
         ])
         
-        # Determine pass/fail
-        assessment.passed = assessment.total_score >= settings.PASS_THRESHOLD_TOTAL
+        # Determine pass/fail (same rules as AssessmentEngine / compute_overall_pass)
+        from utils.scoring import compute_overall_pass
+
+        _, safety_ok, speaking_ok, final_pass = compute_overall_pass(
+            float(assessment.total_score),
+            float(scores.get("speaking", 0)),
+            float(scores.get("safety_pass_rate", 1.0)),
+        )
+        assessment.passed = final_pass
+        assessment.safety_questions_passed = safety_ok
+        assessment.speaking_threshold_passed = speaking_ok
         
         logger.info(f"Assessment {assessment_id} completed atomically with score {assessment.total_score}")
         

@@ -17,7 +17,7 @@ from config.departments import normalize_department
 from core.config import settings
 from services.ai_service import AIService
 from services.speaking_scorer import score_speaking_response
-from utils.scoring import ScoringEngine
+from utils.scoring import ScoringEngine, compute_overall_pass
 from utils.cache import cache_result, CacheKeys, CacheTTL
 
 # Stopwords for deriving keywords from reference/audio text when expected_keywords is missing
@@ -768,17 +768,15 @@ class AssessmentEngine:
         assessment.reading_score = scores.get("reading", 0)
         assessment.speaking_score = scores.get("speaking", 0)
 
-        # Pass/fail determination
-        assessment.passed = scores["total_score"] >= settings.PASS_THRESHOLD_TOTAL
-        assessment.safety_questions_passed = scores["safety_pass_rate"] >= settings.PASS_THRESHOLD_SAFETY
-        assessment.speaking_threshold_passed = scores.get("speaking", 0) >= settings.PASS_THRESHOLD_SPEAKING
-
-        # Final pass requires all conditions
-        final_pass = (
-            assessment.passed and
-            assessment.safety_questions_passed and
-            assessment.speaking_threshold_passed
+        # Pass/fail — persisted `passed` must match API `passed` (total + safety + speaking)
+        _, safety_ok, speaking_ok, final_pass = compute_overall_pass(
+            float(scores["total_score"]),
+            float(scores.get("speaking", 0)),
+            float(scores["safety_pass_rate"]),
         )
+        assessment.passed = final_pass
+        assessment.safety_questions_passed = safety_ok
+        assessment.speaking_threshold_passed = speaking_ok
 
         # Generate feedback
         feedback = await self._generate_assessment_feedback(scores, final_pass)
