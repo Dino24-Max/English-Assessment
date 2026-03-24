@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/carnival-theme.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding: 100px 80px;
+            font-size: 32px;
+        }
+
+        .container {
+            max-width: 5200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 80px 100px;
+            border-radius: 24px;
+            margin-bottom: 60px;
+            box-shadow: 0 4px 16px rgba(182, 27, 56, 0.12);
+            border: 3px solid rgba(182, 27, 56, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            font-size: 5.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+
+        .header-left p {
+            color: #666;
+            font-size: 2.4rem;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 28px 64px;
+            border-radius: 16px;
+            font-size: 2.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-back {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-back:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-export {
+            background: #B61B38;
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: #9a1630;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 80px;
+            margin-bottom: 60px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+
+        .filters-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 50px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .filter-label {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-input {
+            padding: 24px 32px;
+            border: 3px solid #e0e0e0;
+            border-radius: 14px;
+            font-size: 2rem;
+            background: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #B61B38;
+            box-shadow: 0 0 0 5px rgba(182, 27, 56, 0.12);
+        }
+
+        .filter-select {
+            padding: 24px 32px;
+            border: 3px solid #e0e0e0;
+            border-radius: 14px;
+            font-size: 2rem;
+            background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .filter-select:hover {
+            border-color: #B61B38;
+            background-color: #fff5f6;
+            box-shadow: 0 6px 16px rgba(182, 27, 56, 0.12);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #B61B38;
+            box-shadow: 0 0 0 5px rgba(182, 27, 56, 0.12), 0 6px 16px rgba(182, 27, 56, 0.1);
+        }
+
+        .admin-key-section {
+            display: flex;
+            gap: 30px;
+            align-items: flex-end;
+        }
+
+        .admin-key-section .filter-group {
+            flex: 1;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table thead {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .results-table th {
+            padding: 32px 24px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.9rem;
+            border-bottom: 4px solid #e0e0e0;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .results-table th:hover {
+            background: #e9ecef;
+        }
+
+        .results-table th.sortable::after {
+            content: ' ⇅';
+            color: #999;
+        }
+
+        .results-table td {
+            padding: 32px 24px;
+            border-bottom: 2px solid #f0f0f0;
+            font-size: 2rem;
+            color: #555;
+        }
+
+        .results-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-active {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .status-inactive {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 50px;
+            border-top: 4px solid #f0f0f0;
+        }
+
+        .pagination-info {
+            font-size: 2rem;
+            color: #666;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        .pagination-btn {
+            padding: 20px 40px;
+            border: 4px solid #e0e0e0;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 2rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 120px;
+            font-size: 2.4rem;
+            color: #999;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 32px 40px;
+            border-radius: 16px;
+            margin-top: 40px;
+            font-size: 2rem;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 120px;
+            color: #999;
+            font-size: 2.4rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <h1>User Management</h1>
+                <p>View and manage registered users</p>
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                    <span style="font-size: 1.2rem; color: #666;">Admin API Key: </span>
+                    <code style="font-size: 1.3rem; background: #fff; padding: 8px 15px; border-radius: 4px; border: 1px solid #ddd; margin-left: 10px;">{{ admin_key }}</code>
+                    <button onclick="navigator.clipboard.writeText('{{ admin_key }}'); alert('Admin key copied!');" style="margin-left: 10px; padding: 8px 15px; background: #014E8F; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">Copy</button>
+                </div>
+            </div>
+            <div class="header-right">
+                <a href="/admin" class="btn btn-back">← Back to Dashboard</a>
+                <button class="btn btn-export" onclick="exportExcel()">📥 Export Excel</button>
+            </div>
+        </div>
+
+        <!-- Filters Card -->
+        <div class="card">
+            <div class="filters-section">
+                <div class="filter-group">
+                    <label class="filter-label">Search Name or Email</label>
+                    <input type="text" id="searchInput" class="filter-input" placeholder="Search..." onkeyup="loadData()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Division</label>
+                    <select id="filterDivision" class="filter-select" onchange="loadData()">
+                        <option value="">All Divisions</option>
+                        <option value="hotel">Hotel</option>
+                        <option value="marine">Marine</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Department</label>
+                    <select id="filterDepartment" class="filter-select" onchange="loadData()">
+                        <option value="">All Departments</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="admin-key-section">
+                <div class="filter-group">
+                    <label class="filter-label">Admin Key (Required)</label>
+                    <input type="password" id="adminKey" class="filter-input" placeholder="Enter admin key" value="{{ admin_key }}">
+                </div>
+                <button class="btn btn-export" onclick="loadData()">🔍 Load Users</button>
+            </div>
+        </div>
+
+        <!-- Results Table Card -->
+        <div class="card">
+            <div id="tableContainer">
+                <div class="loading">Enter admin key and click "Load Users" to view results</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const departmentMapping = {
+            'hotel': [
+                'AUDIO/VISUAL MEDIA', 'AUX SERV', 'BEVERAGE GUEST SERV', 'CASINO',
+                'CULINARY ARTS', 'ENT - TECHNICAL', 'ENTERTAINMENT', 'F&B MGMT',
+                'FLEET FINANCE', 'GUEST SERVICES', 'GUEST TECHNOLOGY', 'HOTEL',
+                'HOUSEKEEPING', 'HUMAN RESOURCES', 'INFO TECHNOLOGY', 'INFOTAINMENT',
+                'LAUNDRY', 'MUSICIANS', 'ONBOARD MEDIA', 'PHOTO', 'PRODUCTION STAFF',
+                'PROVISIONS', 'REST. SERVICE', 'SHORE EXCURS', 'SPA', 'YOUTH PROGRAMS'
+            ],
+            'marine': ['DECK', 'ENGINE', 'MEDICAL', 'SECURITY SERVICES']
+        };
+
+        document.getElementById('filterDivision').addEventListener('change', function() {
+            const deptSelect = document.getElementById('filterDepartment');
+            const division = this.value;
+            deptSelect.innerHTML = '<option value="">All Departments</option>';
+            if (division && departmentMapping[division]) {
+                departmentMapping[division].forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    deptSelect.appendChild(opt);
+                });
+            } else if (!division) {
+                Object.values(departmentMapping).flat().filter((v, i, a) => a.indexOf(v) === i).forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    deptSelect.appendChild(opt);
+                });
+            }
+            loadData();
+        });
+
+        let currentData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const pageSize = 20;
+        let sortColumn = 'created_at';
+        let sortOrder = 'desc';
+
+        async function loadData() {
+            const adminKey = document.getElementById('adminKey').value;
+            if (!adminKey) {
+                alert('Please enter admin key');
+                return;
+            }
+
+            const search = document.getElementById('searchInput').value.trim();
+            const division = document.getElementById('filterDivision').value;
+            const department = document.getElementById('filterDepartment').value;
+
+            const tableContainer = document.getElementById('tableContainer');
+            tableContainer.innerHTML = '<div class="loading">Loading users...</div>';
+
+            try {
+                let url = `/api/v1/admin/users?admin_key=${encodeURIComponent(adminKey)}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                if (division) url += `&division=${encodeURIComponent(division)}`;
+                if (department) url += `&department=${encodeURIComponent(department)}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load users');
+                }
+
+                currentData = data.users || [];
+                filteredData = [...currentData];
+                currentPage = 1;
+                renderTable();
+            } catch (error) {
+                tableContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+
+        function sortTable(column) {
+            if (sortColumn === column) {
+                sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortOrder = 'asc';
+            }
+            filteredData.sort((a, b) => {
+                let aVal = a[column] ?? '';
+                let bVal = b[column] ?? '';
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = String(bVal).toLowerCase();
+                }
+                if (column === 'created_at' && aVal && bVal) {
+                    aVal = new Date(aVal).getTime();
+                    bVal = new Date(bVal).getTime();
+                }
+                const cmp = aVal > bVal ? 1 : (aVal < bVal ? -1 : 0);
+                return sortOrder === 'asc' ? cmp : -cmp;
+            });
+            renderTable();
+        }
+
+        function renderTable() {
+            const tableContainer = document.getElementById('tableContainer');
+            if (filteredData.length === 0) {
+                tableContainer.innerHTML = '<div class="no-data">No users found</div>';
+                return;
+            }
+
+            const totalPages = Math.ceil(filteredData.length / pageSize);
+            const startIdx = (currentPage - 1) * pageSize;
+            const endIdx = startIdx + pageSize;
+            const pageData = filteredData.slice(startIdx, endIdx);
+
+            const fullName = (u) => `${u.first_name || ''} ${u.last_name || ''}`.trim() || '-';
+
+            const tableHTML = `
+                <div class="table-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortTable('id')">ID</th>
+                                <th class="sortable" onclick="sortTable('first_name')">Name</th>
+                                <th class="sortable" onclick="sortTable('email')">Email</th>
+                                <th class="sortable" onclick="sortTable('nationality')">Nationality</th>
+                                <th class="sortable" onclick="sortTable('operation')">Division</th>
+                                <th class="sortable" onclick="sortTable('department')">Department</th>
+                                <th class="sortable" onclick="sortTable('is_active')">Status</th>
+                                <th class="sortable" onclick="sortTable('created_at')">Registered</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pageData.map(u => `
+                                <tr>
+                                    <td>${u.id}</td>
+                                    <td><strong>${fullName(u)}</strong></td>
+                                    <td>${u.email || '-'}</td>
+                                    <td>${u.nationality || '-'}</td>
+                                    <td>${u.operation ? u.operation.toUpperCase() : '-'}</td>
+                                    <td>${u.department || '-'}</td>
+                                    <td class="${u.is_active ? 'status-active' : 'status-inactive'}">${u.is_active ? 'Active' : 'Inactive'}</td>
+                                    <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <div class="pagination-info">
+                        Showing ${startIdx + 1}-${Math.min(endIdx, filteredData.length)} of ${filteredData.length} users
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''}>← Previous</button>
+                        <span style="padding: 0 15px; font-weight: 600;">Page ${currentPage} of ${totalPages}</span>
+                        <button class="pagination-btn" onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>
+                    </div>
+                </div>
+            `;
+            tableContainer.innerHTML = tableHTML;
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            renderTable();
+        }
+
+        function exportExcel() {
+            const adminKey = document.getElementById('adminKey').value;
+            if (!adminKey) {
+                alert('Please enter admin key');
+                return;
+            }
+            window.location.href = `/api/v1/admin/users/export?admin_key=${encodeURIComponent(adminKey)}`;
+        }
+    </script>
+</body>
+</html>
