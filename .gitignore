@@ -43,6 +43,7 @@ logs/
 *.csv
 *.json
 *.xlsx
+!src/main/python/data/question_bank_import_template.xlsx
 output/
 
 # AI/ML specific
