@@ -775,5 +775,5 @@ class AIService:
             return audio_path
 
         except Exception as e:
-            print(f"TTS generation failed: {e}")
+            logger.error("TTS generation failed: %s", e)
             return None

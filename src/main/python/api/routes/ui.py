@@ -25,6 +25,7 @@ from utils.cefr import get_cefr_display
 from utils.scoring import compute_overall_pass
 from models.assessment import AssessmentStatus, Question, User, DivisionType
 import models.assessment as _models_assessment
+from core.assessment_engine import TOTAL_QUESTIONS
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -265,7 +266,7 @@ async def get_module_for_question_from_assessment(db: AsyncSession, assessment, 
 
 def should_show_transition(current_question: int, next_question: int) -> bool:
     """Determine if a module transition screen should be shown (uses static config only)."""
-    if next_question > 21:
+    if next_question > TOTAL_QUESTIONS:
         return False
     current_module = get_module_for_question(current_question)
     next_module = get_module_for_question(next_question)
@@ -284,7 +285,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
     4. SPEAKING (expected_keywords): Give credit for any recording attempt
     
     Args:
-        question_num: Question number (1-21)
+        question_num: Question number (1..TOTAL_QUESTIONS)
         user_answer: User's answer
         
     Returns:
@@ -416,7 +417,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                 
                 # Award points based on match percentage
                 points_earned = int(round(points * match_ratio))
-                is_correct = match_ratio >= 0.7  # 70% accuracy considered correct
+                is_correct = match_ratio >= 0.6  # 60% threshold (consistent with assessment_engine)
                 
                 logger.debug(
                     f"Speaking Repeat Q{question_num}: Word matching - "
@@ -502,7 +503,7 @@ def score_answer_from_config(question_num: int, user_answer: str) -> Dict[str, A
                     )
                     
                     points_earned = min(points, int(round(score_result.total_points)))
-                    is_correct = score_result.percentage >= 50
+                    is_correct = score_result.percentage >= 60
                     
                     logger.debug(
                         f"Speaking Q{question_num}: Enhanced scoring - "
@@ -752,16 +753,6 @@ async def start_assessment(
         }
         target_division = division_map[operation]
 
-        # #region agent log
-        try:
-            _lp = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-            _d = {"raw_department": department, "operation": operation}
-            with open(_lp, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId":"ccd1fc","location":"ui.py:start_assessment","message":"query params","data":_d,"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
-
         # When user came from an invitation, always use the invitation's department (set at registration).
         # Otherwise: prefer department from query param (pre-test dropdown), then session, then user profile.
         department_for_questions = None
@@ -785,16 +776,6 @@ async def start_assessment(
             department_for_questions = str(department_for_questions).strip() or None
         request.session["department"] = department_for_questions
 
-        # #region agent log
-        try:
-            _lp = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-            _d = {"department_for_questions": department_for_questions, "session_dept": request.session.get("department")}
-            with open(_lp, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId":"ccd1fc","location":"ui.py:start_assessment","message":"department resolved","data":_d,"hypothesisId":"H2","timestamp":int(__import__("time").time()*1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
-
         # Check if assessment already exists in session (created during registration)
         existing_assessment_id = request.session.get("assessment_id")
         if existing_assessment_id:
@@ -810,16 +791,6 @@ async def start_assessment(
                     and existing_assessment.status == _models_assessment.AssessmentStatus.NOT_STARTED
                     and getattr(existing_assessment, "division", None) == target_division
                     and existing_dept == req_dept)
-            # #region agent log
-            try:
-                _lp = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-                _st = getattr(existing_assessment, "status", None) if existing_assessment else None
-                _d = {"existing_assessment_id": existing_assessment_id, "existing_dept": existing_dept, "req_dept": req_dept, "reuse": _reuse, "existing_status": _st.value if _st else None}
-                with open(_lp, "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"ui.py:start_assessment","message":"reuse decision","data":_d,"hypothesisId":"H3","timestamp":int(__import__("time").time()*1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
             if _reuse:
                 await engine.start_assessment(existing_assessment_id)
                 assessment = existing_assessment
@@ -876,7 +847,7 @@ async def question_page(request: Request, question_num: int, operation: Optional
     Question page - Display specific question filtered by operation
 
     Args:
-        question_num: Question number (1-21)
+        question_num: Question number (1..TOTAL_QUESTIONS)
         operation: Operation type (HOTEL, MARINE, or CASINO) - optional for backward compatibility
     """
     logger.debug(f"GET /question/{question_num} - operation={operation}")
@@ -895,7 +866,7 @@ async def question_page(request: Request, question_num: int, operation: Optional
                     await engine.start_assessment(assessment_id)
                     session["answers"] = {}
                     logger.info(f"Started assessment {assessment_id} on first question load")
-                elif a.status == _models_assessment.AssessmentStatus.IN_PROGRESS and (not a.question_order or len(a.question_order or []) < 21):
+                elif a.status == _models_assessment.AssessmentStatus.IN_PROGRESS and (not a.question_order or len(a.question_order or []) < TOTAL_QUESTIONS):
                     # Corrupted: started but question_order empty (e.g. DB column was missing). Create fresh assessment.
                     user_id = int(session.get("user_id", 0))
                     user_result = await db.execute(sqlalchemy.select(_models_assessment.User).where(_models_assessment.User.id == user_id))
@@ -910,8 +881,8 @@ async def question_page(request: Request, question_num: int, operation: Optional
                     logger.info(f"Recreated assessment {new_assessment.id} (replacing corrupted {assessment_id}), department={department}")
 
         # Validate question number
-        if question_num < 1 or question_num > 21:
-            raise HTTPException(status_code=404, detail="Question not found. Valid range: 1-21")
+        if question_num < 1 or question_num > TOTAL_QUESTIONS:
+            raise HTTPException(status_code=404, detail=f"Question not found. Valid range: 1-{TOTAL_QUESTIONS}")
 
         # Enforce question sequence - must answer previous questions first
         session = request.session
@@ -948,16 +919,6 @@ async def question_page(request: Request, question_num: int, operation: Optional
                 q = q_result.scalar_one_or_none()
                 if q:
                     question_data = _map_db_question_to_template_data(q)
-                    # #region agent log
-                    if question_num == 1:
-                        try:
-                            _p = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-                            _d = {"assessment_id": assessment_id, "question_id": question_id, "assessment_dept": getattr(assessment, "department", None), "first_3_ids": (assessment.question_order or [])[:3], "source": "db", "question_text": (q.question_text or "")[:120]}
-                            with open(_p, "a", encoding="utf-8") as _f:
-                                _f.write(json.dumps({"sessionId":"ccd1fc","location":"ui.py:question_page","message":"Q1 loaded from assessment","data":_d,"hypothesisId":"H5","timestamp":int(__import__("time").time()*1000)}) + "\n")
-                        except Exception:
-                            pass
-                    # #endregion
         if question_data is None:
             # When assessment is department-based, never show generic (config) questions
             if assessment and getattr(assessment, "department", None):
@@ -972,17 +933,6 @@ async def question_page(request: Request, question_num: int, operation: Optional
                     "</body></html>"
                 )
                 return HTMLResponse(content=html, status_code=503)
-            # #region agent log
-            if question_num == 1:
-                try:
-                    import json
-                    _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-                    _d = {"assessment_id": assessment_id, "source": "config_fallback", "reason": "no DB question"}
-                    with open(_p, "a", encoding="utf-8") as _f:
-                        _f.write(json.dumps({"sessionId":"ccd1fc","location":"ui.py:793","message":"Q1 using config fallback","data":_d,"hypothesisId":"H3","timestamp":int(__import__("time").time()*1000)}) + "\n")
-                except Exception:
-                    pass
-            # #endregion
             questions = get_questions()
             question_key = str(question_num)
             if question_key not in questions:
@@ -999,8 +949,8 @@ async def question_page(request: Request, question_num: int, operation: Optional
                     detail=f"Invalid operation. Must be one of: {', '.join(valid_operations)}"
                 )
 
-        # Total questions: use assessment length when department-based, else 21
-        total_questions = len(assessment.question_order) if (assessment and getattr(assessment, "question_order", None)) else 21
+        # Total questions: use assessment length when department-based, else TOTAL_QUESTIONS
+        total_questions = len(assessment.question_order) if (assessment and getattr(assessment, "question_order", None)) else TOTAL_QUESTIONS
         # Calculate progress
         progress_percent = round((int(question_num) / total_questions) * 100, 1)
 
@@ -1050,16 +1000,6 @@ async def question_page(request: Request, question_num: int, operation: Optional
         }
         module = question_data.get("module")
         template_name = _MODULE_TEMPLATE_MAP.get(module, "question.html")
-        # #region agent log
-        try:
-            _lp = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-            _opts = question_data.get("options")
-            _d = {"question_num": question_num, "module": module, "template": template_name, "opts_len": len(_opts) if isinstance(_opts, (list, tuple)) else 0, "has_terms": bool(question_data.get("terms")), "has_defs": bool(question_data.get("definitions")), "source": "db" if assessment_id and assessment and assessment.question_order else "config"}
-            with open(_lp, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId":"ccd1fc","location":"ui.py:question_page","message":"render question","data":_d,"hypothesisId":"H4","timestamp":int(__import__("time").time()*1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         return render_template(request, template_name, context)
 
     except HTTPException:
@@ -1102,7 +1042,7 @@ async def submit_answer(
     """
     try:
         # Validate question number
-        if question_num < 1 or question_num > 21:
+        if question_num < 1 or question_num > TOTAL_QUESTIONS:
             raise HTTPException(status_code=400, detail="Invalid question number")
 
         # Load questions
@@ -1122,8 +1062,7 @@ async def submit_answer(
         answers = session.get("answers", {})
         if str(question_num) in answers:
             logger.warning(f"Duplicate submission attempt for question {question_num}")
-            # Redirect to next question or results
-            if question_num == 21:
+            if question_num >= TOTAL_QUESTIONS:
                 return RedirectResponse(url="/results", status_code=303)
             next_q = question_num + 1
             op = operation or session.get("operation", "HOTEL")
@@ -1208,7 +1147,7 @@ async def submit_answer(
                 except ValueError as e:
                     if "already answered" in str(e).lower():
                         logger.warning(f"Duplicate submission for Q{question_num}: {e}")
-                        if question_num == 21:
+                        if question_num >= TOTAL_QUESTIONS:
                             return RedirectResponse(url="/results", status_code=303)
                         next_q = question_num + 1
                         op = operation or session.get("operation", "HOTEL")
@@ -1253,13 +1192,12 @@ async def submit_answer(
         
         logger.debug(f"Stored Q{question_num} answer. Total answers: {len(answers)}")
 
-        # Determine next action: last question is 21 (static) or last position in assessment.question_order (DB)
         is_last_question = (
-            question_num == 21
-            or (assessment_id and assessment and question_order and question_num == len(question_order))
+            question_num >= TOTAL_QUESTIONS
+            or (assessment_id and assessment and question_order and question_num >= len(question_order))
         )
         if is_last_question:
-            logger.info(f"Last question (Q21) reached for assessment {assessment_id}")
+            logger.info(f"Last question (Q{question_num}/{TOTAL_QUESTIONS}) reached for assessment {assessment_id}")
             # Last question - calculate final scores from session
             if assessment_id:
                 try:
@@ -1518,6 +1456,7 @@ async def get_results_scores_api(request: Request, db: AsyncSession = Depends(ge
             assessment.vocabulary_score = module_scores["vocabulary"]
             assessment.reading_score = module_scores["reading"]
             assessment.speaking_score = module_scores["speaking"]
+            # safety_pass_rate=1.0: no dedicated safety question category exists yet; bypasses safety gate
             _, safety_ok, speaking_ok, final_pass = compute_overall_pass(
                 float(total), float(module_scores["speaking"]), 1.0
             )
@@ -1672,6 +1611,7 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                         assessment.vocabulary_score = computed.get("vocabulary", 0)
                         assessment.reading_score = computed.get("reading", 0)
                         assessment.speaking_score = computed.get("speaking", 0)
+                        # safety_pass_rate=1.0: no dedicated safety question category exists yet
                         _, safety_ok, speaking_ok, final_pass = compute_overall_pass(
                             float(total_score),
                             float(computed.get("speaking", 0)),
@@ -1719,6 +1659,7 @@ async def results_page(request: Request, db: AsyncSession = Depends(get_db)):
                             assessment.vocabulary_score = module_scores["vocabulary"]
                             assessment.reading_score = module_scores["reading"]
                             assessment.speaking_score = module_scores["speaking"]
+                            # safety_pass_rate=1.0: no dedicated safety question category exists yet
                             _, safety_ok, speaking_ok, final_pass = compute_overall_pass(
                                 float(total), float(module_scores["speaking"]), 1.0
                             )
@@ -1991,7 +1932,7 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
     try:
         instructions_data = {
             "general": [
-                "This assessment contains 21 questions across 6 modules",
+                f"This assessment contains {TOTAL_QUESTIONS} questions across 6 modules",
                 "Total possible score: 100 points",
                 "You must complete all questions",
                 "Answer honestly and to the best of your ability"
@@ -2018,7 +1959,8 @@ async def instructions_page(request: Request, operation: Optional[str] = None):
             "instructions.html",
             {
                 "instructions": instructions_data,
-                "operation": operation  # Pass operation to template
+                "operation": operation,
+                "total_questions": TOTAL_QUESTIONS,
             }
         )
 
@@ -2600,7 +2542,7 @@ async def debug_test_scoring():
     results = []
     total_score = 0
     
-    # Test answers for all 21 questions (the correct answers)
+    # Test answers for all TOTAL_QUESTIONS questions (the correct answers)
     test_answers = {
         # Listening (1-3) - Multiple choice
         1: "7 PM",

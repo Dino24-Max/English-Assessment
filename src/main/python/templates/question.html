@@ -23,7 +23,7 @@
         <!-- Header content -->
         <div class="header-content" style="flex-grow: 1; display: flex; align-items: center; justify-content: space-between;">
             <div class="question-info">
-                <div class="question-number">Question {{ question_num }} of 21</div>
+                <div class="question-number">Question {{ question_num }} of {{ total_questions }}</div>
                 <div class="module-badge" style="background: linear-gradient(135deg, #B61B38 0%, #014E8F 100%); color: white;">{{ question_data.module|title }}</div>
             </div>
 
@@ -208,7 +208,7 @@
             // If this question has been answered, prevent viewing it again
             if (answeredQuestions.includes(currentQuestion)) {
                 // Redirect to next unanswered question or results
-                const allQuestions = Array.from({length: 21}, (_, i) => i + 1);
+                const allQuestions = Array.from({length: {{ total_questions }}}, (_, i) => i + 1);
                 const unanswered = allQuestions.filter(q => !answeredQuestions.includes(q));
                 
                 if (unanswered.length > 0) {
@@ -372,9 +372,6 @@
         // ======================================
 
         let selectedAnswer = '';
-        // #region agent log
-        (function(){var _m={{ question_data.module|tojson }};var _sb=document.getElementById('submitBtn');var _in=document.getElementById('answerInput');var _op=document.querySelectorAll('.option');var _dz=document.querySelectorAll('.drop-zone');fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:init',message:'page load',data:{module:_m,submitBtnExists:!!_sb,answerInputExists:!!_in,optionCount:_op.length,dropZoneCount:_dz.length},hypothesisId:'H6',timestamp:Date.now()})}).catch(function(){});})();
-        // #endregion
         let audioSynthesis = null;
         let playsRemaining = 2;
         let isPlaying = false;
@@ -624,9 +621,6 @@
             });
 
             if (allMatched) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:checkVocabularyMatches',message:'vocab allMatched',data:{},hypothesisId:'H7c',timestamp:Date.now()})}).catch(function(){});
-                // #endregion
                 selectedAnswer = JSON.stringify(matches);
                 document.getElementById('submitBtn').disabled = false;
             } else {
@@ -869,9 +863,6 @@
 
         // Standard answer selection
         function selectAnswer(answer, element) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:selectAnswer',message:'selectAnswer called',data:{answerLen:(answer&&answer.length)||0,hasElement:!!element},hypothesisId:'H7',timestamp:Date.now()})}).catch(function(){});
-            // #endregion
             selectedAnswer = answer;
             var sb = document.getElementById('submitBtn');
             if (sb) sb.disabled = false;
@@ -892,9 +883,6 @@
 
         function checkInput() {
             const input = document.getElementById('answerInput');
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:checkInput',message:'checkInput called',data:{hasInput:!!input,valueLen:input?input.value.length:0,trimmed:input?input.value.trim().length:0},hypothesisId:'H7b',timestamp:Date.now()})}).catch(function(){});
-            // #endregion
             if (input) {
                 selectedAnswer = input.value;
                 document.getElementById('submitBtn').disabled = input.value.trim() === '';
@@ -902,9 +890,6 @@
         }
 
         function submitAnswer() {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'question.html:submitAnswer',message:'submitAnswer called',data:{answerLen:(selectedAnswer&&String(selectedAnswer).length)||0},hypothesisId:'H8',timestamp:Date.now()})}).catch(function(){});
-            // #endregion
             var answerStr = (selectedAnswer != null && typeof selectedAnswer === 'string') ? selectedAnswer : (selectedAnswer != null ? JSON.stringify(selectedAnswer) : '');
             if (!answerStr || !answerStr.trim()) {
                 alert('Please select an answer before continuing.');

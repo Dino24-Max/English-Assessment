@@ -865,12 +865,6 @@ Best regards,`;
             // Second confirmation - prompt for admin key
             const admin_key = prompt('Enter admin key to confirm deletion:');
             if (!admin_key) return;
-            
-            // #region agent log
-            try {
-                fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'admin_invitation.html:delete',message:'delete_invitation client attempt',data:{code_len:code.length},timestamp:Date.now(),hypothesisId:'H0'})}).catch(()=>{});
-            } catch (_) {}
-            // #endregion
 
             try {
                 const response = await fetch(`/api/v1/admin/invitation/${encodeURIComponent(code)}/delete?admin_key=${encodeURIComponent(admin_key)}`, {
@@ -902,11 +896,6 @@ Best regards,`;
                 loadInvitations();
                 
             } catch (error) {
-                // #region agent log
-                try {
-                    fetch('http://127.0.0.1:7242/ingest/64e722ca-b096-48dc-938a-6cbb89d6709d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ccd1fc'},body:JSON.stringify({sessionId:'ccd1fc',location:'admin_invitation.html:delete catch',message:'delete_invitation client error',data:{err:error.message,name:error.name},timestamp:Date.now(),hypothesisId:'H0'})}).catch(()=>{});
-                } catch (_) {}
-                // #endregion
                 alert(`Error: ${error.message}`);
             }
         }

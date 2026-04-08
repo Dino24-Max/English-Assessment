@@ -154,16 +154,6 @@ async def register(
             # Get operation and department from invitation (normalize for DB/question filter)
             division = invitation.operation
             department = normalize_department(invitation.department) if invitation.department else None
-            # #region agent log
-            try:
-                import json
-                _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-                _d = {"invitation_department_raw": getattr(invitation, "department", None), "division": str(division) if division else None, "department_normalized": department}
-                with open(_p, "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:156","message":"invitation dept->create_assessment","data":_d,"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
         else:
             # No invitation code - require password for traditional registration
             if not request_data.password:
@@ -375,22 +365,6 @@ async def login(
         )
         user = result.scalar_one_or_none()
 
-        # #region agent log
-        try:
-            import json
-            _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-            _d = {"email": login_data.email, "user_found": user is not None}
-            if user:
-                _d["user_id"] = user.id
-                _d["password_hash_prefix"] = (user.password_hash or "")[:25]
-                _d["is_active"] = getattr(user, "is_active", None)
-                _d["is_invitation_only"] = bool(user.password_hash and (user.password_hash.startswith("INVITATION_ONLY:") or user.password_hash.startswith("INVITATION_ONLY_")))
-            with open(_p, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"login user lookup","data":_d,"hypothesisId":"H1,H5","timestamp":int(__import__("time").time()*1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
-
         # Check if user exists
         if not user:
             raise HTTPException(
@@ -402,15 +376,6 @@ async def login(
         # Support both old format (INVITATION_ONLY_) and new secure format (INVITATION_ONLY:)
         if user.password_hash and (user.password_hash.startswith("INVITATION_ONLY:") or 
                                     user.password_hash.startswith("INVITATION_ONLY_")):
-            # #region agent log
-            try:
-                import json
-                _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-                with open(_p, "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"blocked INVITATION_ONLY","data":{"email":login_data.email},"hypothesisId":"H2","timestamp":int(__import__("time").time()*1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
             raise HTTPException(
                 status_code=403,
                 detail="This account was created via invitation link and cannot be accessed with password. Please use your invitation link to access the assessment."
@@ -418,15 +383,6 @@ async def login(
 
         # Verify password is correct
         _verify_ok = verify_password(login_data.password, user.password_hash)
-        # #region agent log
-        try:
-            import json
-            _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-            with open(_p, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"verify_password result","data":{"email":login_data.email,"verify_ok":_verify_ok},"hypothesisId":"H3","timestamp":int(__import__("time").time()*1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         if not _verify_ok:
             raise HTTPException(
                 status_code=401,
@@ -435,15 +391,6 @@ async def login(
 
         # Check if user is active
         if not user.is_active:
-            # #region agent log
-            try:
-                import json
-                _p = __import__("pathlib").Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-                with open(_p, "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({"sessionId":"ccd1fc","location":"auth.py:login","message":"blocked inactive user","data":{"email":login_data.email},"hypothesisId":"H4","timestamp":int(__import__("time").time()*1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
             raise HTTPException(
                 status_code=403,
                 detail="Account is inactive. Please contact support."

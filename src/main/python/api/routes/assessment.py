@@ -3,16 +3,19 @@ Assessment API endpoints
 Handles all assessment-related operations
 """
 
+import logging
+import os
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-import json
-import os
+
+logger = logging.getLogger(__name__)
 
 from core.database import get_db
-from core.assessment_engine import AssessmentEngine
+from core.assessment_engine import AssessmentEngine, TOTAL_QUESTIONS
 from core.config import settings
 from models.assessment import User, Assessment, DivisionType, AssessmentStatus, AssessmentResponse, Question
 from data.question_bank_loader import QuestionBankLoader
@@ -173,24 +176,6 @@ async def submit_answer(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _debug_log(message: str, data: dict, hypothesis_id: str = ""):
-    try:
-        from pathlib import Path
-        log_path = Path(__file__).resolve().parents[5] / "debug-ccd1fc.log"
-        payload = {
-            "sessionId": "ccd1fc",
-            "timestamp": datetime.now().timestamp() * 1000,
-            "location": "assessment.py:submit_speaking_response",
-            "message": message,
-            "data": data,
-            "hypothesisId": hypothesis_id,
-        }
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, default=str) + "\n")
-    except Exception:
-        pass
-
-
 @router.post("/{assessment_id}/speaking")
 async def submit_speaking_response(
     assessment_id: int,
@@ -200,14 +185,10 @@ async def submit_speaking_response(
 ):
     """Submit speaking module audio response"""
 
-    # #region agent log
-    _debug_log("speaking submit entry", {"assessment_id": assessment_id, "question_id": question_id, "content_type": getattr(audio_file, "content_type", None)}, "A")
-    # #endregion
     try:
         # Validate file type (allow None/octet-stream for some browsers)
         ct = getattr(audio_file, "content_type", None) or ""
         if not (ct.startswith("audio/") or ct == "application/octet-stream"):
-            _debug_log("invalid audio type", {"content_type": ct}, "B")
             raise HTTPException(status_code=400, detail="Invalid audio file")
 
         # Save audio file
@@ -278,10 +259,6 @@ async def submit_speaking_response(
     except HTTPException:
         raise
     except Exception as e:
-        # #region agent log
-        import traceback
-        _debug_log("speaking submit exception", {"type": type(e).__name__, "message": str(e), "tb": traceback.format_exc()[:500]}, "C")
-        # #endregion
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -518,7 +495,7 @@ async def get_assessment_status(
             "total_score": assessment.total_score,
             "progress": {
                 "questions_answered": responses_count,
-                "total_questions": 21  # 4 per module × 5 + 1 speaking
+                "total_questions": TOTAL_QUESTIONS
             }
         }
 
@@ -584,7 +561,7 @@ async def track_tab_switch(
         }
 
     except Exception as e:
-        print(f"Error tracking tab switch: {e}")
+        logger.error("Error tracking tab switch: %s", e)
         return {"status": "error", "message": str(e)}
 
 
@@ -617,5 +594,5 @@ async def track_copy_paste(
         }
 
     except Exception as e:
-        print(f"Error tracking copy/paste: {e}")
+        logger.error("Error tracking copy/paste: %s", e)
         return {"status": "error", "message": str(e)}

@@ -15,11 +15,7 @@ logger = logging.getLogger(__name__)
 # Load .env file early so os.getenv can access values from it
 # config.py is at src/main/python/core/config.py, so .env is 5 levels up
 _env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
-print(f"[CONFIG DEBUG] Loading .env from: {_env_path}")
-print(f"[CONFIG DEBUG] .env exists: {_env_path.exists()}")
-load_dotenv(_env_path, override=False)  # Don't override existing env vars
-print(f"[CONFIG DEBUG] ADMIN_API_KEY from env: {os.getenv('ADMIN_API_KEY', 'NOT SET')}")
-print(f"[CONFIG DEBUG] DATABASE_URL from env: {os.getenv('DATABASE_URL', 'NOT SET')}")
+load_dotenv(_env_path, override=False)
 
 
 def _get_secret_key() -> str:

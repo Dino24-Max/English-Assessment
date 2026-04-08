@@ -11,8 +11,11 @@ import random
 import json
 import uuid
 import re
+import logging
 
 import models.assessment as _ma  # Use module ref to avoid UnboundLocalError
+
+logger = logging.getLogger(__name__)
 from config.departments import normalize_department
 from core.config import settings
 from services.ai_service import AIService
@@ -31,6 +34,17 @@ _SPEAKING_STOPWORDS = frozenset(
         "bring", "during", "name", "good", "morning", "what", "when", "where", "very",
     }
 )
+
+
+QUESTIONS_PER_MODULE = {
+    _ma.ModuleType.LISTENING: 3,      # 3 questions: 5+5+6 = 16 points
+    _ma.ModuleType.TIME_NUMBERS: 3,   # 3 questions: 5+5+6 = 16 points
+    _ma.ModuleType.GRAMMAR: 4,        # 4 questions: 4+4+4+4 = 16 points
+    _ma.ModuleType.VOCABULARY: 4,     # 4 questions: 4+4+4+4 = 16 points
+    _ma.ModuleType.READING: 4,        # 4 questions: 4+4+4+4 = 16 points
+    _ma.ModuleType.SPEAKING: 3,       # 3 questions: 7+7+6 = 20 points
+}
+TOTAL_QUESTIONS = sum(QUESTIONS_PER_MODULE.values())  # 21
 
 
 class AssessmentEngine:
@@ -150,18 +164,6 @@ class AssessmentEngine:
                 "Please load the full question bank (30 departments × 100 questions) via Admin and try again."
             )
         assessment.question_order = question_order
-        # #region agent log
-        try:
-            import json
-            _p = __import__("pathlib").Path(__file__).resolve().parents[4] / "debug-ccd1fc.log"
-            _listening = questions.get("listening", [])
-            _first = _listening[0] if _listening else None
-            _d = {"assessment_id": assessment_id, "department": department, "first_3_ids": question_order[:3], "first_listening_id": _first["id"] if _first else None, "first_listening_text": (_first.get("question_text") or "")[:80] if _first else None}
-            with open(_p, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId":"ccd1fc","location":"assessment_engine.py:132","message":"start_assessment question_order built","data":_d,"hypothesisId":"H4","timestamp":int(__import__("time").time()*1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
 
         await self.db.flush()
         await self.db.commit()
@@ -172,7 +174,7 @@ class AssessmentEngine:
             "status": assessment.status,
             "questions": questions,
             "expires_at": assessment.expires_at,
-            "total_questions": len(questions)
+            "total_questions": len(question_order),
         }
 
     async def _generate_question_set(
@@ -193,15 +195,7 @@ class AssessmentEngine:
             "speaking": []
         }
 
-        # Questions per module (21 questions total = 100 points)
-        questions_per_module = {
-            _ma.ModuleType.LISTENING: 3,      # 3 questions: 5+5+6 = 16 points
-            _ma.ModuleType.TIME_NUMBERS: 3,   # 3 questions: 5+5+6 = 16 points
-            _ma.ModuleType.GRAMMAR: 4,        # 4 questions: 4+4+4+4 = 16 points
-            _ma.ModuleType.VOCABULARY: 4,     # 4 questions: 4+4+4+4 = 16 points
-            _ma.ModuleType.READING: 4,        # 4 questions: 4+4+4+4 = 16 points
-            _ma.ModuleType.SPEAKING: 3        # 3 questions: 7+7+6 = 20 points
-        }
+        questions_per_module = dict(QUESTIONS_PER_MODULE)
         
         # Build filter: division always required.
         # When department is set: use ONLY department-specific questions; do not add generic (department IS NULL)
@@ -238,13 +232,15 @@ class AssessmentEngine:
 
         # Now select questions for each module
         for module_type, count in questions_per_module.items():
-            available_questions = list(questions_by_module.get(module_type, []))
+            selected_questions: list = []
+            raw_questions = list(questions_by_module.get(module_type, []))
+            available_questions = list(raw_questions)
+            _raw_count = len(raw_questions)
 
             if department:
-                # Department set: by default prefer department-specific, then generic (department NULL),
-                # then any division question, then sample creation.
-                # STRICT_DEPARTMENT_QUESTION_BANK: only questions for this department (no fillers).
                 available_questions = _dedupe_and_filter(available_questions)
+                _step1_count = len(available_questions)
+                _step2_count = _step3_count = _step4_count = _step1_count
                 if not settings.STRICT_DEPARTMENT_QUESTION_BANK:
                     if len(available_questions) < count:
                         fallback_result = await self.db.execute(
@@ -258,6 +254,7 @@ class AssessmentEngine:
                         )
                         generic = fallback_result.scalars().all()
                         available_questions = _dedupe_and_filter(available_questions + list(generic))
+                        _step2_count = len(available_questions)
 
                     if len(available_questions) < count:
                         result = await self.db.execute(
@@ -269,6 +266,7 @@ class AssessmentEngine:
                             )
                         )
                         available_questions = _dedupe_and_filter(list(result.scalars().all()))
+                        _step3_count = len(available_questions)
 
                     if len(available_questions) < count:
                         await self._create_sample_questions(module_type, division)
@@ -281,6 +279,14 @@ class AssessmentEngine:
                             )
                         )
                         available_questions = _dedupe_and_filter(list(result.scalars().all()))
+                        _step4_count = len(available_questions)
+
+                logger.info(
+                    "DIAG module=%s need=%d raw=%d dept_dedup=%d generic=%d div_all=%d samples=%d used_keys=%d",
+                    module_type.value, count, _raw_count,
+                    _step1_count, _step2_count, _step3_count, _step4_count,
+                    len(used_content_keys),
+                )
 
                 if module_type == _ma.ModuleType.SPEAKING and available_questions:
                     selected_questions = self._select_speaking_questions(available_questions, count)
@@ -290,8 +296,9 @@ class AssessmentEngine:
                         random.sample(available_questions, n_select) if n_select else []
                     )
             else:
-                # No department: allow generic, division fallback, sample creation
                 available_questions = _dedupe_and_filter(available_questions)
+                _step1_count = len(available_questions)
+                _step2_count = _step3_count = _step4_count = _step1_count
                 if len(available_questions) < count:
                     fallback_result = await self.db.execute(
                         select(_ma.Question).where(
@@ -304,6 +311,7 @@ class AssessmentEngine:
                     )
                     generic = fallback_result.scalars().all()
                     available_questions = _dedupe_and_filter(available_questions + list(generic))
+                    _step2_count = len(available_questions)
 
                 if len(available_questions) < count:
                     result = await self.db.execute(
@@ -315,6 +323,7 @@ class AssessmentEngine:
                         )
                     )
                     available_questions = _dedupe_and_filter(list(result.scalars().all()))
+                    _step3_count = len(available_questions)
 
                 if len(available_questions) < count:
                     await self._create_sample_questions(module_type, division)
@@ -327,6 +336,14 @@ class AssessmentEngine:
                         )
                     )
                     available_questions = _dedupe_and_filter(list(result.scalars().all()))
+                    _step4_count = len(available_questions)
+
+                logger.info(
+                    "DIAG module=%s need=%d raw=%d dedup=%d generic=%d div_all=%d samples=%d used_keys=%d",
+                    module_type.value, count, _raw_count,
+                    _step1_count, _step2_count, _step3_count, _step4_count,
+                    len(used_content_keys),
+                )
 
                 if module_type == _ma.ModuleType.SPEAKING and available_questions:
                     selected_questions = self._select_speaking_questions(available_questions, count)
@@ -336,13 +353,32 @@ class AssessmentEngine:
                         random.sample(available_questions, n_select) if n_select else []
                     )
 
-            # Mark selected content keys as used so they are not repeated in later modules
+            if module_type == _ma.ModuleType.SPEAKING:
+                _avail_keys = [self._question_content_key(q)[:80] for q in available_questions]
+                _sel_keys = [self._question_content_key(q)[:80] for q in selected_questions]
+                logger.info(
+                    "DIAG SPEAKING available_keys(%d)=%s selected_keys(%d)=%s",
+                    len(_avail_keys), _avail_keys, len(_sel_keys), _sel_keys,
+                )
+
+            if len(selected_questions) < count:
+                logger.warning(
+                    "Module %s: selected %d questions but %d were requested "
+                    "(available after dedup: %d). Assessment may have fewer than %d total questions.",
+                    module_type.value, len(selected_questions), count,
+                    len(available_questions), TOTAL_QUESTIONS,
+                )
+
             for q in selected_questions:
                 k = self._question_content_key(q)
                 if k:
                     used_content_keys.add(k)
 
-            # Format questions for frontend
+            logger.info(
+                "DIAG module=%s SELECTED=%d of %d needed (available_final=%d)",
+                module_type.value, len(selected_questions), count, len(available_questions),
+            )
+
             module_key = module_type.value
             questions[module_key] = [
                 {
@@ -358,6 +394,12 @@ class AssessmentEngine:
                 for q in selected_questions
             ]
 
+        _total = sum(len(v) for v in questions.values())
+        logger.info(
+            "DIAG FINAL question_set total=%d breakdown=%s",
+            _total,
+            {k: len(v) for k, v in questions.items()},
+        )
         return questions
 
     async def submit_response(self, assessment_id: int, question_id: int,
@@ -638,9 +680,11 @@ class AssessmentEngine:
 
     def _question_content_key(self, q) -> str:
         """
-        Unique key for deduplication: same prompt + same content (terms/passage) = same question.
+        Unique key for deduplication: same prompt + same content = same question.
         Vocabulary: question_text + sorted terms; Reading: question_text + passage;
-        others: normalized question stem (case/spacing insensitive).
+        Speaking: question_text + audio_text + expected_keywords (all speaking share the same
+        prompt but differ by audio content);
+        Others: normalized question stem (case/spacing insensitive).
         """
         text = (q.question_text or "").strip()
         meta = getattr(q, "question_metadata", None) or {}
@@ -650,6 +694,11 @@ class AssessmentEngine:
         if q.module_type == _ma.ModuleType.READING:
             passage = (meta.get("passage") or "").strip()
             return self._normalized_question_stem(text) + "|" + passage
+        if q.module_type == _ma.ModuleType.SPEAKING:
+            audio_text = self._normalized_question_stem(meta.get("audio_text") or "")
+            kw = meta.get("expected_keywords") or []
+            kw_str = ",".join(sorted(str(k).lower().strip() for k in kw)) if isinstance(kw, list) else str(kw)
+            return self._normalized_question_stem(text) + "|" + audio_text + "|" + kw_str
         return self._normalized_question_stem(text)
 
     def _score_category_match(self, user_answer: str, correct_answer: str) -> bool:
@@ -928,7 +977,7 @@ class AssessmentEngine:
                 "Focus on improving listening skills with maritime/hospitality audio materials"
             )
 
-        if scores.get("speaking", 0) < 12:
+        if scores.get("speaking", 0) < settings.PASS_THRESHOLD_SPEAKING:
             feedback["recommendations"].append(
                 "Practice speaking in work-related scenarios with clear pronunciation"
             )
@@ -1019,15 +1068,7 @@ class AssessmentEngine:
 
     async def _create_sample_questions(self, module_type: _ma.ModuleType, division: _ma.DivisionType):
         """Create sample questions when question bank is empty. Ensures enough questions per module per division."""
-        questions_per_module = {
-            _ma.ModuleType.LISTENING: 3,
-            _ma.ModuleType.TIME_NUMBERS: 3,
-            _ma.ModuleType.GRAMMAR: 4,
-            _ma.ModuleType.VOCABULARY: 4,
-            _ma.ModuleType.READING: 4,
-            _ma.ModuleType.SPEAKING: 3,
-        }
-        need_count = questions_per_module.get(module_type, 0)
+        need_count = QUESTIONS_PER_MODULE.get(module_type, 0)
         if need_count <= 0:
             return
         sample_questions = self._get_sample_questions_for_module(module_type, division, need_count)

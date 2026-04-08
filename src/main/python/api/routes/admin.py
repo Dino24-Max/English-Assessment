@@ -2,7 +2,7 @@
 Admin API endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, delete
 from core.database import get_db
@@ -26,16 +26,12 @@ router = APIRouter()
 # ADMIN AUTHENTICATION DEPENDENCY
 # ===========================================
 
-async def verify_admin_key(admin_key: str = Query(..., description="Admin API key for authentication")):
+async def verify_admin_key(x_admin_key: str = Header(..., description="Admin API key passed via X-Admin-Key header")):
     """
     Dependency to verify admin API key for all admin endpoints.
-    
-    Usage:
-        @router.get("/endpoint")
-        async def endpoint(_: bool = Depends(verify_admin_key)):
-            ...
+    The key must be passed in the X-Admin-Key HTTP header.
     """
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+    expected_key = _get_admin_api_key()
     
     if not expected_key:
         logger.error("ADMIN_API_KEY not configured")
@@ -44,8 +40,8 @@ async def verify_admin_key(admin_key: str = Query(..., description="Admin API ke
             detail="Admin authentication not configured. Please set ADMIN_API_KEY environment variable."
         )
     
-    if not secrets.compare_digest(admin_key, expected_key):
-        logger.warning(f"Invalid admin key attempt")
+    if not secrets.compare_digest(x_admin_key, expected_key):
+        logger.warning("Invalid admin key attempt")
         raise HTTPException(
             status_code=403,
             detail="Unauthorized - Invalid admin key"
@@ -54,11 +50,15 @@ async def verify_admin_key(admin_key: str = Query(..., description="Admin API ke
     return True
 
 
+def _get_admin_api_key() -> str | None:
+    return os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
+
+
 @router.post("/load-full-question-bank")
 async def load_full_question_bank(
-    admin_key: str,
     clear_and_load: bool = True,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Load complete question bank into database (department-specific pools).
@@ -66,14 +66,7 @@ async def load_full_question_bank(
     from JSON (question_bank_full.json or question_bank_sample.json), ensuring
     all departments and modules have department-tagged questions. Requires admin authentication.
     """
-    from core.config import settings
     from data.question_bank_loader import QuestionBankLoader
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         loader = QuestionBankLoader(db)
@@ -103,16 +96,13 @@ async def load_full_question_bank(
 
 @router.post("/questions/delete-generic")
 async def delete_generic_questions(
-    admin_key: str = Query(..., description="Admin API key"),
     db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Delete all generic questions (department IS NULL) from the question bank.
     Use after switching to department-specific pools; requires admin authentication.
     """
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     result = await db.execute(delete(Question).where(Question.department.is_(None)))
     await db.commit()
     deleted = result.rowcount or 0
@@ -133,7 +123,6 @@ class InvitationCreateRequest(BaseModel):
     nationality: Optional[str] = None
     operation: str
     department: Optional[str] = None
-    admin_key: str
     expires_in_days: int = 7
 
 
@@ -150,19 +139,12 @@ class InvitationCreateResponse(BaseModel):
 
 @router.get("/stats")
 async def get_admin_stats(
-    admin_key: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Get dashboard statistics
     """
-    from core.config import settings
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         # Count ALL registered users (excluding admins)
@@ -195,22 +177,6 @@ async def get_admin_stats(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stats: {str(e)}")
 
-
-@router.get("/check-config")
-async def check_admin_config():
-    """Debug endpoint to check admin configuration"""
-    from core.config import settings
-    import os
-    
-    env_key = os.getenv("ADMIN_API_KEY")
-    settings_key = settings.ADMIN_API_KEY
-    
-    return {
-        "env_admin_key": env_key if env_key else "NOT SET",
-        "settings_admin_key": settings_key if settings_key else "NOT SET",
-        "final_key": env_key or settings_key,
-        "is_configured": bool(env_key or settings_key)
-    }
 
 
 @router.get("/anti-cheating/assessments", response_model=List[Dict[str, Any]])
@@ -348,23 +314,14 @@ def generate_invitation_code(length: int = 16) -> str:
 async def create_invitation_code(
     request_data: InvitationCreateRequest,
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Create invitation code for user registration
-    
-    Admin generates a unique code and link to send to candidate's email
+    Create invitation code for user registration.
+    Admin generates a unique code and link to send to candidate's email.
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key:
-        raise HTTPException(status_code=500, detail="Admin authentication not configured")
-    
-    if not secrets.compare_digest(request_data.admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized - Invalid admin key")
     
     # Validate operation
     try:
@@ -539,10 +496,12 @@ async def get_all_invitations(
 @router.get("/invitation/{code}/status")
 async def get_invitation_status(
     code: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Get status of a specific invitation code
+    Get status of a specific invitation code.
+    Requires admin authentication via X-Admin-Key header.
     """
     result = await db.execute(
         select(InvitationCode).where(InvitationCode.code == code)
@@ -646,19 +605,13 @@ async def resend_invitation_email(
 @router.delete("/invitation/{code}")
 async def revoke_invitation(
     code: str,
-    admin_key: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Revoke/delete an invitation code (only if not used)
+    Revoke/delete an invitation code (only if not used).
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     # Find invitation
     result = await db.execute(
@@ -685,29 +638,11 @@ async def revoke_invitation(
     }
 
 
-def _admin_debug_log(message: str, data: dict, hypothesis_id: str = ""):
-    import json
-    from pathlib import Path
-    # Prefer workspace root (from __file__) so log is always in project
-    workspace_root = Path(__file__).resolve().parents[5]
-    for base in (workspace_root, Path.cwd()):
-        try:
-            log_path = base / "debug-ccd1fc.log"
-            payload = {"sessionId": "ccd1fc", "location": "admin.py:delete_invitation", "message": message, "data": data, "timestamp": datetime.utcnow().isoformat() + "Z"}
-            if hypothesis_id:
-                payload["hypothesisId"] = hypothesis_id
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(payload, default=str) + "\n")
-            return
-        except Exception:
-            continue
-
-
 @router.delete("/invitation/{code}/delete")
 async def delete_invitation_with_data(
     code: str,
-    admin_key: str = Query("", alias="admin_key"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Delete an invitation code along with associated user and assessment data.
@@ -718,22 +653,9 @@ async def delete_invitation_with_data(
     - The invitation record itself
     
     This operation is irreversible.
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
-
-    # #region agent log
     try:
-        _admin_debug_log("delete_invitation request", {"code_len": len(code), "admin_key_present": bool(admin_key)}, "H2")
-    except Exception:
-        pass
-    # #endregion
-
-    try:
-        # Verify admin key
-        expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-        if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-            raise HTTPException(status_code=403, detail="Unauthorized")
         
         # Find invitation
         result = await db.execute(
@@ -795,13 +717,7 @@ async def delete_invitation_with_data(
 
     except HTTPException:
         raise
-    except Exception as e:
-        # #region agent log
-        try:
-            _admin_debug_log("delete_invitation exception", {"type": type(e).__name__, "message": str(e)}, "H1")
-        except Exception:
-            pass
-        # #endregion
+    except Exception:
         logger.exception("delete_invitation_with_data failed")
         raise HTTPException(status_code=500, detail="Failed to delete invitation")
 
@@ -912,35 +828,17 @@ async def validate_invitation_code(
 
 @router.get("/assessments")
 async def get_all_assessments(
-    admin_key: str,
     operation: Optional[str] = None,
     department: Optional[str] = None,
     passed: Optional[bool] = None,
     search: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Get all user assessments with filtering
-    
-    Args:
-        admin_key: Admin authentication key
-        operation: Filter by operation (hotel/marine/casino)
-        department: Filter by department
-        passed: Filter by pass status (true/false)
-        search: Search in name or email
-        db: Database session
-        
-    Returns:
-        List of assessments with user information
+    Get all user assessments with filtering.
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    
     try:
         # Build query - join User and Assessment tables
         query = select(Assessment, User).join(
@@ -1003,26 +901,13 @@ async def get_all_assessments(
 
 @router.delete("/assessments/cleanup")
 async def cleanup_assessments(
-    admin_key: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Cleanup assessments - keep only first and last two completed assessments
-    
-    Args:
-        admin_key: Admin authentication key
-        db: Database session
-        
-    Returns:
-        Cleanup result with deleted and kept record counts
+    Cleanup assessments - keep only first and last two completed assessments.
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         # Query completed assessments using EXACT same query as get_all_assessments API
@@ -1082,26 +967,20 @@ async def cleanup_assessments(
 
 @router.get("/assessments/export")
 async def export_assessments_csv(
-    admin_key: str,
     operation: Optional[str] = None,
     department: Optional[str] = None,
     passed: Optional[bool] = None,
     search: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Export assessments to CSV file
+    Export assessments to CSV file.
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
     import csv
     from io import StringIO
     from fastapi.responses import StreamingResponse
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         # Get assessments (reuse the logic from get_all_assessments)
@@ -1173,25 +1052,13 @@ async def export_assessments_csv(
 @router.get("/assessment/{assessment_id}")
 async def get_assessment_detail(
     assessment_id: int,
-    admin_key: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
-    Get detailed assessment report for single user
-    
-    Returns complete assessment information including:
-    - User details
-    - Assessment scores (all modules)
-    - Individual question responses
-    - Completion status and dates
+    Get detailed assessment report for single user.
+    Requires admin authentication via X-Admin-Key header.
     """
-    from core.config import settings
-    import os
-    
-    # Verify admin key
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         # Get assessment with user
@@ -1433,22 +1300,14 @@ async def export_users_to_excel(
 
 @router.get("/analytics/overview")
 async def get_analytics_overview(
-    admin_key: str,
     days: int = 30,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Get analytics overview for dashboard.
-    
-    Returns:
-    - Total assessments
-    - Pass/fail rates
-    - Average scores by module
-    - Trends over time
+    Requires admin authentication via X-Admin-Key header.
     """
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         start_date = datetime.now() - timedelta(days=days)
@@ -1568,21 +1427,14 @@ async def get_analytics_overview(
 
 @router.get("/analytics/module-performance")
 async def get_module_performance(
-    admin_key: str,
     operation: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Get detailed module performance analytics.
-    
-    Returns performance metrics for each module including:
-    - Average score
-    - Score distribution
-    - Pass rate per module threshold
+    Requires admin authentication via X-Admin-Key header.
     """
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         # Base query
@@ -1669,17 +1521,13 @@ async def get_module_performance(
 
 @router.get("/analytics/score-distribution")
 async def get_score_distribution(
-    admin_key: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Get total score distribution for chart visualization.
-    
-    Returns score ranges and counts for histogram.
+    Requires admin authentication via X-Admin-Key header.
     """
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
         result = await db.execute(
@@ -1729,29 +1577,18 @@ async def get_score_distribution(
 
 @router.post("/invitations/bulk")
 async def create_bulk_invitations(
-    admin_key: str,
     emails: List[str],
     operation: str,
     department: Optional[str] = None,
     expires_in_days: int = 7,
     request: Request = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin_key)
 ):
     """
     Create multiple invitation codes at once.
-    
-    Args:
-        emails: List of email addresses to invite
-        operation: Division type (hotel/marine/casino)
-        department: Optional department
-        expires_in_days: Days until expiration
-        
-    Returns:
-        List of created invitations with codes and links
+    Requires admin authentication via X-Admin-Key header.
     """
-    expected_key = os.getenv("ADMIN_API_KEY") or settings.ADMIN_API_KEY
-    if not expected_key or not secrets.compare_digest(admin_key, expected_key):
-        raise HTTPException(status_code=403, detail="Unauthorized")
     
     if not emails:
         raise HTTPException(status_code=400, detail="No emails provided")

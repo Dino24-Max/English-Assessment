@@ -97,75 +97,80 @@ async def lifespan(app: FastAPI):
             else:
                 raise
 
-    # Ensure default admin exists (admin@carnival.com / admin123)
+    # Ensure default admin exists
     from sqlalchemy import select
     from core.database import async_session_maker
     from models.assessment import User, DivisionType
     from utils.auth import hash_password
 
-    admin_email = "admin@carnival.com"
-    admin_password = "admin123"
-    # #region agent log
-    try:
-        import json
-        _lp = __import__("pathlib").Path(__file__).resolve().parents[3] / "debug-ccd1fc.log"
-        with open(_lp, "a", encoding="utf-8") as _lf:
-            _lf.write(json.dumps({"sessionId":"ccd1fc","location":"main.py:lifespan","message":"admin ensure start","data":{"email":admin_email},"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
-    except Exception:
-        pass
-    # #endregion
-    async with async_session_maker() as db:
-        result = await db.execute(select(User).where(User.email == admin_email))
-        admin_user = result.scalar_one_or_none()
-        if admin_user:
-            admin_user.is_admin = True
-            admin_user.password_hash = hash_password(admin_password)
-            await db.commit()
-            logger.info(f"Updated existing user {admin_email} to admin")
-            # #region agent log
-            try:
-                import json
-                _lp = __import__("pathlib").Path(__file__).resolve().parents[3] / "debug-ccd1fc.log"
-                with open(_lp, "a", encoding="utf-8") as _lf:
-                    _lf.write(json.dumps({"sessionId":"ccd1fc","location":"main.py:lifespan","message":"admin updated","data":{"email":admin_email,"user_id":admin_user.id},"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
+    admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@carnival.com")
+    admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD")
+    if not admin_password:
+        if os.getenv("DEBUG", "false").lower() == "true":
+            admin_password = "admin123"
+            logger.warning("Using default admin password - set DEFAULT_ADMIN_PASSWORD in production")
         else:
-            admin_user = User(
-                first_name="Admin",
-                last_name="User",
-                email=admin_email,
-                password_hash=hash_password(admin_password),
-                nationality="Admin",
-                division=DivisionType.HOTEL,
-                department="Admin",
-                is_active=True,
-                is_admin=True,
-            )
-            db.add(admin_user)
-            await db.commit()
-            await db.refresh(admin_user)
-            logger.info(f"Created default admin: {admin_email}")
-            # #region agent log
-            try:
-                import json
-                _lp = __import__("pathlib").Path(__file__).resolve().parents[3] / "debug-ccd1fc.log"
-                with open(_lp, "a", encoding="utf-8") as _lf:
-                    _lf.write(json.dumps({"sessionId":"ccd1fc","location":"main.py:lifespan","message":"admin created","data":{"email":admin_email,"user_id":admin_user.id},"hypothesisId":"H1","timestamp":int(__import__("time").time()*1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
+            admin_password = None
+            logger.info("No DEFAULT_ADMIN_PASSWORD set - skipping default admin creation")
 
-    # Auto-load question bank when empty (so invitation links get department-specific questions without manual Admin step)
-    from models.assessment import Question
+    if admin_password:
+        async with async_session_maker() as db:
+            result = await db.execute(select(User).where(User.email == admin_email))
+            admin_user = result.scalar_one_or_none()
+            if admin_user:
+                admin_user.is_admin = True
+                admin_user.password_hash = hash_password(admin_password)
+                await db.commit()
+                logger.info(f"Updated existing user {admin_email} to admin")
+            else:
+                admin_user = User(
+                    first_name="Admin",
+                    last_name="User",
+                    email=admin_email,
+                    password_hash=hash_password(admin_password),
+                    nationality="Admin",
+                    division=DivisionType.HOTEL,
+                    department="Admin",
+                    is_active=True,
+                    is_admin=True,
+                )
+                db.add(admin_user)
+                await db.commit()
+                await db.refresh(admin_user)
+                logger.info(f"Created default admin: {admin_email}")
+
+    # Auto-load question bank when empty or incomplete
+    from models.assessment import Question, ModuleType
     from sqlalchemy import func
     from data.question_bank_loader import QuestionBankLoader
+
+    MINIMUM_EXPECTED_QUESTIONS = 100
 
     async with async_session_maker() as db:
         r = await db.execute(select(func.count()).select_from(Question))
         question_count = r.scalar() or 0
+
+        needs_reload = False
         if question_count == 0:
+            needs_reload = True
+            logger.info("Question bank is empty – will auto-load.")
+        elif question_count < MINIMUM_EXPECTED_QUESTIONS:
+            r_speaking = await db.execute(
+                select(func.count()).select_from(Question).where(
+                    Question.module_type == ModuleType.SPEAKING.value
+                )
+            )
+            speaking_count = r_speaking.scalar() or 0
+            if speaking_count == 0:
+                needs_reload = True
+                logger.warning(
+                    "Question bank incomplete (%d questions, 0 speaking) – will reload.",
+                    question_count,
+                )
+            else:
+                logger.info("Question bank has %d questions (%d speaking) – OK.", question_count, speaking_count)
+
+        if needs_reload:
             data_dir = Path(__file__).parent / "data"
             full_path = data_dir / "question_bank_full.json"
             sample_path = data_dir / "question_bank_sample.json"
@@ -179,6 +184,9 @@ async def lifespan(app: FastAPI):
                     logger.warning(f"Auto-load question bank failed (non-fatal): {e}")
             else:
                 logger.warning("Question bank empty and no question_bank_full.json or question_bank_sample.json found; load via Admin API when ready.")
+        else:
+            if question_count > 0:
+                logger.info("Question bank already loaded: %d questions.", question_count)
 
     # Initialize Redis cache
     await cache_manager.connect()

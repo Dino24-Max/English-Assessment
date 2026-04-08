@@ -360,11 +360,11 @@
                 <h2 class="section-title">General Guidelines</h2>
                 <div class="section-content">
                     <div class="highlight-box">
-                        <strong>Time Limit:</strong> You have <strong>30 minutes</strong> to complete all 21 questions. The timer will start when you begin the assessment and cannot be paused.
+                        <strong>Time Limit:</strong> You have <strong>30 minutes</strong> to complete all {{ total_questions|default(21) }} questions. The timer will start when you begin the assessment and cannot be paused.
                     </div>
 
                     <ul>
-                        <li><strong>Total Questions:</strong> 21 questions across 6 modules</li>
+                        <li><strong>Total Questions:</strong> {{ total_questions|default(21) }} questions across 6 modules</li>
                         <li><strong>Total Points:</strong> 100 points maximum</li>
                         <li><strong>Attempts:</strong> One attempt per assessment session</li>
                         <li><strong>Navigation:</strong> You can move forward through questions but cannot go back once submitted</li>
