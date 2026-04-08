@@ -161,16 +161,6 @@
             color: #333;
         }
 
-        .admin-key-section {
-            display: flex;
-            gap: 30px;
-            align-items: flex-end;
-        }
-
-        .admin-key-section .filter-group {
-            flex: 1;
-        }
-
         .table-container {
             overflow-x: auto;
             border-radius: 16px;
@@ -344,11 +334,7 @@
                 </div>
             </div>
 
-            <div class="admin-key-section">
-                <div class="filter-group">
-                    <label class="filter-label">Admin Key (Required)</label>
-                    <input type="password" id="adminKey" class="filter-input" placeholder="Enter admin key" value="{{ admin_key }}">
-                </div>
+            <div style="margin-top: 30px;">
                 <button class="btn btn-export" onclick="loadData()">🔍 Load Data</button>
             </div>
         </div>
@@ -356,12 +342,25 @@
         <!-- Results Table Card -->
         <div class="card">
             <div id="tableContainer">
-                <div class="loading">Enter admin key and click "Load Data" to view results</div>
+                <div class="loading">Loading data...</div>
             </div>
         </div>
     </div>
 
     <script>
+        const ADMIN_KEY = '{{ admin_key }}';
+
+        function adminHeaders(extra) {
+            return Object.assign({ 'X-Admin-Key': ADMIN_KEY }, extra || {});
+        }
+
+        function parseErrorDetail(detail) {
+            if (Array.isArray(detail)) {
+                return detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            }
+            return detail || 'Unknown error';
+        }
+
         let currentData = [];
         let filteredData = [];
         let currentPage = 1;
@@ -369,7 +368,6 @@
         let sortColumn = 'created_at';
         let sortOrder = 'desc';
 
-        // Department mapping by operation
         const departmentMapping = {
             'hotel': [
                 'AUDIO/VISUAL MEDIA', 'AUX SERV', 'BEVERAGE GUEST SERV', 'CASINO',
@@ -382,12 +380,10 @@
             'marine': ['DECK', 'ENGINE', 'MEDICAL', 'SECURITY SERVICES']
         };
 
-        // Update department dropdown when operation changes
         document.getElementById('filterOperation').addEventListener('change', function() {
             const departmentSelect = document.getElementById('filterDepartment');
             const operation = this.value;
             
-            // Clear existing options
             departmentSelect.innerHTML = '<option value="">All Departments</option>';
             
             if (operation && departmentMapping[operation]) {
@@ -398,7 +394,6 @@
                     departmentSelect.appendChild(option);
                 });
             } else if (!operation) {
-                // Show all departments when no operation selected
                 Object.values(departmentMapping).flat().forEach(dept => {
                     const option = document.createElement('option');
                     option.value = dept;
@@ -410,7 +405,6 @@
             applyFilters();
         });
 
-        // Initialize department dropdown with all departments
         document.addEventListener('DOMContentLoaded', function() {
             const departmentSelect = document.getElementById('filterDepartment');
             Object.values(departmentMapping).flat().forEach(dept => {
@@ -419,31 +413,26 @@
                 option.textContent = dept;
                 departmentSelect.appendChild(option);
             });
+            loadData();
         });
 
-        // Load assessment data
         async function loadData() {
-            const adminKey = document.getElementById('adminKey').value;
-            if (!adminKey) {
-                alert('Please enter admin key');
-                return;
-            }
-
             const tableContainer = document.getElementById('tableContainer');
             tableContainer.innerHTML = '<div class="loading">Loading data...</div>';
 
             try {
-                const response = await fetch(`/api/v1/admin/assessments?admin_key=${adminKey}`);
+                const response = await fetch('/api/v1/admin/assessments', {
+                    headers: adminHeaders()
+                });
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to load data');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to load data');
                 }
 
                 currentData = data.assessments || [];
                 filteredData = [...currentData];
                 currentPage = 1;
-                // Apply any existing filters after loading data
                 applyFilters();
 
             } catch (error) {
@@ -451,23 +440,19 @@
             }
         }
 
-        // Apply filters
         function applyFilters() {
             const search = document.getElementById('searchInput').value.toLowerCase().trim();
             const operation = document.getElementById('filterOperation').value.toLowerCase().trim();
             const department = document.getElementById('filterDepartment').value.trim();
 
             filteredData = currentData.filter(item => {
-                // Search filter
                 const matchSearch = !search || 
                     (item.full_name && item.full_name.toLowerCase().includes(search)) ||
                     (item.email && item.email.toLowerCase().includes(search));
                 
-                // Operation filter (case-insensitive)
                 const itemOperation = (item.operation || '').toLowerCase().trim();
                 const matchOperation = !operation || itemOperation === operation;
                 
-                // Department filter (case-insensitive, handle null/undefined)
                 const itemDepartment = (item.department || '').toUpperCase().trim();
                 const filterDepartmentUpper = department.toUpperCase().trim();
                 const matchDepartment = !department || itemDepartment === filterDepartmentUpper;
@@ -479,7 +464,6 @@
             renderTable();
         }
 
-        // Sort table
         function sortTable(column) {
             if (sortColumn === column) {
                 sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
@@ -489,25 +473,21 @@
             }
 
             filteredData.sort((a, b) => {
-                let aVal = a[column];
-                let bVal = b[column];
+                let aVal = a[column] ?? '';
+                let bVal = b[column] ?? '';
 
                 if (typeof aVal === 'string') {
                     aVal = aVal.toLowerCase();
-                    bVal = bVal.toLowerCase();
+                    bVal = String(bVal).toLowerCase();
                 }
 
-                if (sortOrder === 'asc') {
-                    return aVal > bVal ? 1 : -1;
-                } else {
-                    return aVal < bVal ? 1 : -1;
-                }
+                const cmp = aVal > bVal ? 1 : (aVal < bVal ? -1 : 0);
+                return sortOrder === 'asc' ? cmp : -cmp;
             });
 
             renderTable();
         }
 
-        // Render table
         function renderTable() {
             const tableContainer = document.getElementById('tableContainer');
 
@@ -516,7 +496,6 @@
                 return;
             }
 
-            // Pagination
             const totalPages = Math.ceil(filteredData.length / pageSize);
             const startIdx = (currentPage - 1) * pageSize;
             const endIdx = startIdx + pageSize;
@@ -585,30 +564,46 @@
             tableContainer.innerHTML = tableHTML;
         }
 
-        // Change page
         function changePage(direction) {
             currentPage += direction;
             renderTable();
         }
 
-        // Export to CSV
-        function exportCSV() {
-            const adminKey = document.getElementById('adminKey').value;
-            if (!adminKey) {
-                alert('Please enter admin key');
-                return;
+        async function exportCSV() {
+            try {
+                const operation = document.getElementById('filterOperation').value;
+                const department = document.getElementById('filterDepartment').value;
+                const search = document.getElementById('searchInput').value;
+
+                const params = [];
+                if (operation) params.push(`operation=${encodeURIComponent(operation)}`);
+                if (department) params.push(`department=${encodeURIComponent(department)}`);
+                if (search) params.push(`search=${encodeURIComponent(search)}`);
+
+                let url = '/api/v1/admin/assessments/export';
+                if (params.length) url += '?' + params.join('&');
+
+                const response = await fetch(url, {
+                    headers: adminHeaders()
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(parseErrorDetail(errorData.detail) || 'Failed to export data');
+                }
+
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = 'assessments_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (error) {
+                alert('Export failed: ' + error.message);
             }
-
-            const operation = document.getElementById('filterOperation').value;
-            const department = document.getElementById('filterDepartment').value;
-            const search = document.getElementById('searchInput').value;
-
-            let url = `/api/v1/admin/assessments/export?admin_key=${adminKey}`;
-            if (operation) url += `&operation=${operation}`;
-            if (department) url += `&department=${department}`;
-            if (search) url += `&search=${search}`;
-
-            window.location.href = url;
         }
     </script>
 </body>

@@ -283,13 +283,17 @@
     </div>
 
     <script>
-        // Admin key passed from backend
         const ADMIN_KEY = '{{ admin_key }}';
-        
-        // Load dashboard statistics
+
+        function adminHeaders() {
+            return { 'X-Admin-Key': ADMIN_KEY };
+        }
+
         async function loadStats() {
             try {
-                const response = await fetch(`/api/v1/admin/stats?admin_key=${encodeURIComponent(ADMIN_KEY)}`);
+                const response = await fetch('/api/v1/admin/stats', {
+                    headers: adminHeaders()
+                });
                 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
@@ -298,8 +302,6 @@
                 }
                 
                 const data = await response.json();
-                
-                // Update stats with actual data
                 document.getElementById('totalUsers').textContent = data.total_users ?? 0;
                 document.getElementById('pendingInvitations').textContent = data.pending_invitations ?? 0;
                 document.getElementById('totalAssessments').textContent = data.total_assessments ?? 0;
@@ -309,7 +311,6 @@
             }
         }
 
-        // Load stats on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadStats();
         });

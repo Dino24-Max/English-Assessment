@@ -469,11 +469,6 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Admin Key</label>
-                    <input type="password" id="admin_key" class="form-input" placeholder="Enter admin key" value="{{ admin_key }}" required>
-                </div>
-
                 <div style="margin-top: 25px;">
                     <button type="submit" class="btn btn-primary">Generate Invitation Code</button>
                 </div>
@@ -629,14 +624,11 @@
                 return;
             }
             const expires_days = parseInt(document.getElementById('expires_days').value);
-            const admin_key = document.getElementById('admin_key').value;
             
             try {
                 const response = await fetch('/api/v1/admin/invitation/create', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: adminHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({
                         email,
                         first_name,
@@ -644,15 +636,14 @@
                         nationality,
                         operation,
                         department: department || null,
-                        expires_in_days: expires_days,
-                        admin_key
+                        expires_in_days: expires_days
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to create invitation');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to create invitation');
                 }
                 
                 // Display result
@@ -719,8 +710,18 @@ Best regards,`;
             alert('Email content copied to clipboard! You can now paste it into your email client.');
         }
         
-        // Admin key from server
         const adminKey = '{{ admin_key }}';
+
+        function adminHeaders(extra) {
+            return Object.assign({ 'X-Admin-Key': adminKey }, extra || {});
+        }
+
+        function parseErrorDetail(detail) {
+            if (Array.isArray(detail)) {
+                return detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            }
+            return detail || 'Unknown error';
+        }
         
         // Load invitations list
         async function loadInvitations() {
@@ -728,18 +729,17 @@ Best regards,`;
             const showExpired = document.getElementById('showExpired').checked;
             const filterOperation = document.getElementById('filterOperation').value;
             
-            let url = `/api/v1/admin/invitations?admin_key=${adminKey}&show_used=${showUsed}&show_expired=${showExpired}`;
+            let url = `/api/v1/admin/invitations?show_used=${showUsed}&show_expired=${showExpired}`;
             if (filterOperation) {
                 url += `&operation=${filterOperation}`;
             }
             
             try {
-                const response = await fetch(url);
+                const response = await fetch(url, { headers: adminHeaders() });
                 const data = await response.json();
                 
-                // Handle API errors
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to load invitations');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to load invitations');
                 }
                 
                 // Ensure invitations array exists
@@ -808,12 +808,13 @@ Best regards,`;
         
         async function resendInvitationEmail(code) {
             try {
-                const response = await fetch(`/api/v1/admin/invitation/${code}/resend-email?admin_key=${adminKey}`, {
-                    method: 'POST'
+                const response = await fetch(`/api/v1/admin/invitation/${code}/resend-email`, {
+                    method: 'POST',
+                    headers: adminHeaders()
                 });
                 const data = await response.json();
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to send email');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to send email');
                 }
                 alert(data.email_sent ? '✅ Email sent successfully!' : '⚠️ ' + (data.message || 'Failed to send email'));
             } catch (error) {
@@ -826,18 +827,16 @@ Best regards,`;
                 return;
             }
             
-            const admin_key = prompt('Enter admin key to confirm:');
-            if (!admin_key) return;
-            
             try {
-                const response = await fetch(`/api/v1/admin/invitation/${code}?admin_key=${admin_key}`, {
-                    method: 'DELETE'
+                const response = await fetch(`/api/v1/admin/invitation/${code}`, {
+                    method: 'DELETE',
+                    headers: adminHeaders()
                 });
                 
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to revoke invitation');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to revoke invitation');
                 }
                 
                 alert('Invitation code revoked successfully');
@@ -862,19 +861,16 @@ Best regards,`;
                 return;
             }
             
-            // Second confirmation - prompt for admin key
-            const admin_key = prompt('Enter admin key to confirm deletion:');
-            if (!admin_key) return;
-
             try {
-                const response = await fetch(`/api/v1/admin/invitation/${encodeURIComponent(code)}/delete?admin_key=${encodeURIComponent(admin_key)}`, {
-                    method: 'DELETE'
+                const response = await fetch(`/api/v1/admin/invitation/${encodeURIComponent(code)}/delete`, {
+                    method: 'DELETE',
+                    headers: adminHeaders()
                 });
                 
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to delete invitation');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to delete invitation');
                 }
                 
                 // Show detailed deletion summary
@@ -909,12 +905,13 @@ Best regards,`;
                 exportBtn.textContent = '⏳ Exporting...';
                 exportBtn.disabled = true;
                 
-                // Fetch the Excel file
-                const response = await fetch('/api/v1/admin/users/export');
+                const response = await fetch('/api/v1/admin/users/export', {
+                    headers: adminHeaders()
+                });
                 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Failed to export users');
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(parseErrorDetail(errorData.detail) || 'Failed to export users');
                 }
                 
                 // Get the blob and download it

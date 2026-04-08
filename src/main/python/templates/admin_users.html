@@ -330,11 +330,7 @@
                 </div>
             </div>
 
-            <div class="admin-key-section">
-                <div class="filter-group">
-                    <label class="filter-label">Admin Key (Required)</label>
-                    <input type="password" id="adminKey" class="filter-input" placeholder="Enter admin key" value="{{ admin_key }}">
-                </div>
+            <div style="margin-top: 30px;">
                 <button class="btn btn-export" onclick="loadData()">🔍 Load Users</button>
             </div>
         </div>
@@ -348,6 +344,19 @@
     </div>
 
     <script>
+        const ADMIN_KEY = '{{ admin_key }}';
+
+        function adminHeaders(extra) {
+            return Object.assign({ 'X-Admin-Key': ADMIN_KEY }, extra || {});
+        }
+
+        function parseErrorDetail(detail) {
+            if (Array.isArray(detail)) {
+                return detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            }
+            return detail || 'Unknown error';
+        }
+
         const departmentMapping = {
             'hotel': [
                 'AUDIO/VISUAL MEDIA', 'AUX SERV', 'BEVERAGE GUEST SERV', 'CASINO',
@@ -390,12 +399,6 @@
         let sortOrder = 'desc';
 
         async function loadData() {
-            const adminKey = document.getElementById('adminKey').value;
-            if (!adminKey) {
-                alert('Please enter admin key');
-                return;
-            }
-
             const search = document.getElementById('searchInput').value.trim();
             const division = document.getElementById('filterDivision').value;
             const department = document.getElementById('filterDepartment').value;
@@ -404,16 +407,18 @@
             tableContainer.innerHTML = '<div class="loading">Loading users...</div>';
 
             try {
-                let url = `/api/v1/admin/users?admin_key=${encodeURIComponent(adminKey)}`;
-                if (search) url += `&search=${encodeURIComponent(search)}`;
-                if (division) url += `&division=${encodeURIComponent(division)}`;
-                if (department) url += `&department=${encodeURIComponent(department)}`;
+                let url = '/api/v1/admin/users?';
+                const params = [];
+                if (search) params.push(`search=${encodeURIComponent(search)}`);
+                if (division) params.push(`division=${encodeURIComponent(division)}`);
+                if (department) params.push(`department=${encodeURIComponent(department)}`);
+                url += params.join('&');
 
-                const response = await fetch(url);
+                const response = await fetch(url, { headers: adminHeaders() });
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to load users');
+                    throw new Error(parseErrorDetail(data.detail) || 'Failed to load users');
                 }
 
                 currentData = data.users || [];
@@ -513,14 +518,34 @@
             renderTable();
         }
 
-        function exportExcel() {
-            const adminKey = document.getElementById('adminKey').value;
-            if (!adminKey) {
-                alert('Please enter admin key');
-                return;
+        async function exportExcel() {
+            try {
+                const response = await fetch('/api/v1/admin/users/export', {
+                    headers: adminHeaders()
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(parseErrorDetail(errorData.detail) || 'Failed to export users');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'users_export.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Export failed: ' + error.message);
             }
-            window.location.href = `/api/v1/admin/users/export?admin_key=${encodeURIComponent(adminKey)}`;
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+        });
     </script>
 </body>
 </html>
