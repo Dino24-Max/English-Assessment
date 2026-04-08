@@ -71,6 +71,11 @@ temp/
 *.tmp
 *.bak
 
+# Test / coverage
+.coverage
+coverage.xml
+htmlcov/
+
 # Web application specific
 node_modules/
 *.env
