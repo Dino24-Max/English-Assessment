@@ -482,9 +482,11 @@ class AssessmentEngine:
             points = question.points if is_correct else 0
 
         elif question.question_type == _ma.QuestionType.CATEGORY_MATCH:
-            # Vocabulary module - match category terms
-            is_correct = self._score_category_match(user_answer, question.correct_answer)
-            points = question.points if is_correct else 0
+            is_correct, ratio = self._score_category_match(
+                user_answer, question.correct_answer,
+                question_metadata=question.question_metadata,
+            )
+            points = int(question.points * ratio)
 
         elif question.question_type == _ma.QuestionType.TITLE_SELECTION:
             # Reading module - select best title
@@ -701,39 +703,67 @@ class AssessmentEngine:
             return self._normalized_question_stem(text) + "|" + audio_text + "|" + kw_str
         return self._normalized_question_stem(text)
 
-    def _score_category_match(self, user_answer: str, correct_answer: str) -> bool:
+    def _score_category_match(
+        self, user_answer: str, correct_answer: str,
+        question_metadata: dict | None = None,
+    ) -> tuple[bool, float]:
         """
-        Score category matching questions (vocabulary module)
+        Score category matching questions (vocabulary module).
 
-        Format expected:
-        - user_answer: "A,B,C" or "category1:term1,term2"
-        - correct_answer: "A,B,C" or "category1:term1,term2"
+        Returns (is_correct, ratio) where *ratio* is the fraction of terms
+        matched correctly (0.0 – 1.0).  The caller converts this to points.
+
+        Resolution order for the ground truth:
+        1. question_metadata["correct_matches"] (authoritative dict)
+        2. correct_answer parsed as JSON dict
+        3. correct_answer parsed as comma-separated "term: definition" pairs
         """
         import json
 
-        # Try JSON format first (more structured)
+        meta = question_metadata or {}
+        correct_matches: dict | None = None
+
+        if isinstance(meta.get("correct_matches"), dict) and meta["correct_matches"]:
+            correct_matches = meta["correct_matches"]
+
+        if correct_matches is None:
+            try:
+                parsed = json.loads(correct_answer)
+                if isinstance(parsed, dict) and parsed:
+                    correct_matches = parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        if correct_matches is None and correct_answer:
+            tmp: dict[str, str] = {}
+            for pair in correct_answer.split(","):
+                if ":" in pair:
+                    k, v = pair.split(":", 1)
+                    tmp[k.strip()] = v.strip()
+            if tmp:
+                correct_matches = tmp
+
+        if not correct_matches:
+            return False, 0.0
+
         try:
             user_data = json.loads(user_answer)
-            correct_data = json.loads(correct_answer)
-
-            if isinstance(user_data, dict) and isinstance(correct_data, dict):
-                # Compare category assignments
-                return user_data == correct_data
         except (json.JSONDecodeError, TypeError):
-            pass
+            user_data = {}
 
-        # Fall back to comma-separated list
-        user_items = {item.strip().lower() for item in user_answer.split(",")}
-        correct_items = {item.strip().lower() for item in correct_answer.split(",")}
+        if not isinstance(user_data, dict):
+            user_data = {}
 
-        # Allow partial credit: at least 75% correct
-        if len(correct_items) == 0:
-            return False
+        correct_count = 0
+        total = len(correct_matches)
+        for term, correct_def in correct_matches.items():
+            user_def = user_data.get(term, "")
+            if str(user_def).strip().lower() == str(correct_def).strip().lower():
+                correct_count += 1
 
-        matches = len(user_items & correct_items)
-        accuracy = matches / len(correct_items)
-
-        return accuracy >= 0.75  # 75% threshold for partial credit
+        ratio = correct_count / total if total > 0 else 0.0
+        is_correct = correct_count == total
+        return is_correct, ratio
 
     def _flexible_text_match(self, user_answer: str, correct_answer: str) -> bool:
         """
@@ -1044,10 +1074,10 @@ class AssessmentEngine:
             ]
         elif module_type == _ma.ModuleType.VOCABULARY:
             samples = [
-                {"question_text": "Match the cruise ship terms with their meanings:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Bridge", "Gangway", "Tender", "Muster"], "definitions": ["Ship's walkway to shore", "Emergency assembly", "Small boat for shore trips", "Ship's control center"], "correct_matches": {"Bridge": "Ship's control center", "Gangway": "Ship's walkway to shore", "Tender": "Small boat for shore trips", "Muster": "Emergency assembly"}}},
-                {"question_text": "Match the hospitality terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Concierge", "Amenities", "Excursion", "Embark"], "definitions": ["To board the ship", "Guest services specialist", "Shore activities", "Hotel facilities"], "correct_matches": {"Concierge": "Guest services specialist", "Amenities": "Hotel facilities", "Excursion": "Shore activities", "Embark": "To board the ship"}}},
-                {"question_text": "Match the dining terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Buffet", "A la carte", "Galley", "Sommelier"], "definitions": ["Wine expert", "Self-service dining", "Ship's kitchen", "Menu with individual prices"], "correct_matches": {"Buffet": "Self-service dining", "A la carte": "Menu with individual prices", "Galley": "Ship's kitchen", "Sommelier": "Wine expert"}}},
-                {"question_text": "Match the safety terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": "{}", "points": 4, "question_metadata": {"terms": ["Muster drill", "Life jacket", "Assembly station", "All aboard"], "definitions": ["Final boarding call", "Safety meeting", "Personal flotation device", "Emergency meeting point"], "correct_matches": {"Muster drill": "Safety meeting", "Life jacket": "Personal flotation device", "Assembly station": "Emergency meeting point", "All aboard": "Final boarding call"}}},
+                {"question_text": "Match the cruise ship terms with their meanings:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": '{"Bridge": "Ship\'s control center", "Gangway": "Ship\'s walkway to shore", "Tender": "Small boat for shore trips", "Muster": "Emergency assembly"}', "points": 4, "question_metadata": {"terms": ["Bridge", "Gangway", "Tender", "Muster"], "definitions": ["Ship's walkway to shore", "Emergency assembly", "Small boat for shore trips", "Ship's control center"], "correct_matches": {"Bridge": "Ship's control center", "Gangway": "Ship's walkway to shore", "Tender": "Small boat for shore trips", "Muster": "Emergency assembly"}}},
+                {"question_text": "Match the hospitality terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": '{"Concierge": "Guest services specialist", "Amenities": "Hotel facilities", "Excursion": "Shore activities", "Embark": "To board the ship"}', "points": 4, "question_metadata": {"terms": ["Concierge", "Amenities", "Excursion", "Embark"], "definitions": ["To board the ship", "Guest services specialist", "Shore activities", "Hotel facilities"], "correct_matches": {"Concierge": "Guest services specialist", "Amenities": "Hotel facilities", "Excursion": "Shore activities", "Embark": "To board the ship"}}},
+                {"question_text": "Match the dining terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": '{"Buffet": "Self-service dining", "A la carte": "Menu with individual prices", "Galley": "Ship\'s kitchen", "Sommelier": "Wine expert"}', "points": 4, "question_metadata": {"terms": ["Buffet", "A la carte", "Galley", "Sommelier"], "definitions": ["Wine expert", "Self-service dining", "Ship's kitchen", "Menu with individual prices"], "correct_matches": {"Buffet": "Self-service dining", "A la carte": "Menu with individual prices", "Galley": "Ship's kitchen", "Sommelier": "Wine expert"}}},
+                {"question_text": "Match the safety terms:", "question_type": _ma.QuestionType.CATEGORY_MATCH, "options": None, "correct_answer": '{"Muster drill": "Safety meeting", "Life jacket": "Personal flotation device", "Assembly station": "Emergency meeting point", "All aboard": "Final boarding call"}', "points": 4, "question_metadata": {"terms": ["Muster drill", "Life jacket", "Assembly station", "All aboard"], "definitions": ["Final boarding call", "Safety meeting", "Personal flotation device", "Emergency meeting point"], "correct_matches": {"Muster drill": "Safety meeting", "Life jacket": "Personal flotation device", "Assembly station": "Emergency meeting point", "All aboard": "Final boarding call"}}},
             ]
         elif module_type == _ma.ModuleType.READING:
             samples = [
