@@ -1,0 +1,469 @@
+"""
+Role-context grammar scenarios keyed by content pool (from DEPARTMENT_TO_CONTENT_POOL).
+
+grammar_type is always "RoleContext"; grammar_topic matches GRAMMAR_BLUEPRINT RoleContext keys.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+
+def _r(
+    band: str,
+    topic: str,
+    question: str,
+    options: List[str],
+    correct: str,
+    explanation: str,
+) -> Dict[str, Any]:
+    return {
+        "cefr_band": band,
+        "grammar_type": "RoleContext",
+        "grammar_topic": topic,
+        "question": question,
+        "options": options,
+        "correct": correct,
+        "explanation": explanation,
+    }
+
+
+def build_role_context_pools() -> Dict[str, List[Dict[str, Any]]]:
+    """Return mapping content_pool_key -> list of role-context scenarios."""
+    pools: Dict[str, List[Dict[str, Any]]] = {}
+
+    def add(pool_key: str, items: List[Dict[str, Any]]) -> None:
+        pools.setdefault(pool_key, []).extend(items)
+
+    # Food & Beverage
+    add(
+        "Food & Beverage",
+        [
+            _r(
+                "basic",
+                "Polite Requests",
+                "Could you ___ bring us some water, please?",
+                ["kindly", "kind", "kinder", "kindest"],
+                "kindly",
+                "Polite request with adverb.",
+            ),
+            _r(
+                "basic",
+                "Polite Requests",
+                "Would you mind ___ the table for dessert?",
+                ["clearing", "clear", "cleared", "clears"],
+                "clearing",
+                "Would you mind + -ing.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "The special ___ available until 9 PM.",
+                ["is", "are", "am", "be"],
+                "is",
+                "Service announcement with correct agreement.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "We ___ happy to accommodate dietary restrictions.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Polite service phrase.",
+            ),
+            _r(
+                "intermediate",
+                "Polite Requests",
+                "I was wondering if you ___ extend breakfast hours.",
+                ["could", "can", "must", "shall"],
+                "could",
+                "Softened request.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "The buffet ___ replenished every thirty minutes.",
+                ["is", "are", "was", "were"],
+                "is",
+                "Passive for process.",
+            ),
+            _r(
+                "intermediate",
+                "Polite Requests",
+                "Would it be possible ___ a high chair?",
+                ["to get", "get", "getting", "got"],
+                "to get",
+                "Polite structure with infinitive.",
+            ),
+            _r(
+                "advanced",
+                "Polite Requests",
+                "We would appreciate it if you ___ the allergen card updated.",
+                ["kept", "keep", "keeping", "keeps"],
+                "kept",
+                "Formal conditional request pattern.",
+            ),
+            _r(
+                "advanced",
+                "Service Language",
+                "It is recommended that the chafing dishes ___ monitored continuously.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Subjunctive-style recommendation.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "Patrons are respectfully informed that substitutions ___ incur a surcharge.",
+                ["may", "must", "can", "shall"],
+                "may",
+                "Formal notice register.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "The sommelier suggested that the pairing ___ served slightly chilled.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal suggestion pattern.",
+            ),
+        ],
+    )
+
+    # Marine / Technical
+    add(
+        "Marine",
+        [
+            _r(
+                "basic",
+                "Technical Procedures",
+                "Before starting the pump, the engineer ___ isolate the line.",
+                ["must", "might", "could", "may"],
+                "must",
+                "Procedure obligation.",
+            ),
+            _r(
+                "basic",
+                "Technical Procedures",
+                "The valve ___ checked after every watch.",
+                ["is", "are", "was", "were"],
+                "is",
+                "Passive procedure.",
+            ),
+            _r(
+                "intermediate",
+                "Technical Procedures",
+                "The logbook ___ have been signed by the officer on watch.",
+                ["should", "can", "may", "might"],
+                "should",
+                "Expectation about documentation.",
+            ),
+            _r(
+                "intermediate",
+                "Technical Procedures",
+                "All personnel ___ wear PPE in the machinery space.",
+                ["must", "might", "could", "may"],
+                "must",
+                "Mandatory PPE rule.",
+            ),
+            _r(
+                "advanced",
+                "Technical Procedures",
+                "It is imperative that the checklist ___ completed before departure.",
+                ["be", "is", "was", "are"],
+                "be",
+                "Formal imperative pattern.",
+            ),
+            _r(
+                "advanced",
+                "Technical Procedures",
+                "The investigation concluded that the alarm ___ been tested weekly.",
+                ["should have", "must", "can", "may"],
+                "should have",
+                "Past obligation inference.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "The chief engineer requested that the readings ___ logged hourly.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal engineering register.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "It is mandatory that hot-work permits ___ obtained before welding.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Mandatory procedure wording.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "The bridge team ___ standing by on channel sixteen.",
+                ["is", "am", "are", "be"],
+                "is",
+                "Standard bridge communication tone.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "We ___ ready to assist with mooring operations when instructed.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Crew coordination phrase.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "The duty officer ___ pleased to confirm clearance has been received.",
+                ["is", "am", "are", "be"],
+                "is",
+                "Formal operational update.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "All stations ___ advised that the drill will begin at 10:30.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Ship-wide advisory pattern.",
+            ),
+        ],
+    )
+
+    # Casino
+    add(
+        "Casino",
+        [
+            _r(
+                "basic",
+                "Customer Interaction",
+                "Guests ___ show ID before entering the gaming floor.",
+                ["must", "might", "could", "may"],
+                "must",
+                "House rule.",
+            ),
+            _r(
+                "basic",
+                "Customer Interaction",
+                "Could you ___ explain the table minimum?",
+                ["please", "kindly", "quick", "slow"],
+                "please",
+                "Polite customer interaction.",
+            ),
+            _r(
+                "intermediate",
+                "Customer Interaction",
+                "The supervisor asked that disputes ___ handled calmly.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Requested passive pattern.",
+            ),
+            _r(
+                "intermediate",
+                "Customer Interaction",
+                "Players ___ not use phones at live tables.",
+                ["must", "might", "could", "may"],
+                "must",
+                "Prohibition at tables.",
+            ),
+            _r(
+                "advanced",
+                "Customer Interaction",
+                "It is essential that chip transfers ___ witnessed by two staff.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal compliance language.",
+            ),
+            _r(
+                "advanced",
+                "Customer Interaction",
+                "The audit suggested that the cage ___ tighten cash-count procedures.",
+                ["should", "might", "could", "may"],
+                "should",
+                "Recommendation after audit.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "Patrons are kindly requested ___ refrain from leaning on the table.",
+                ["to", "for", "of", "with"],
+                "to",
+                "Formal register with infinitive.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "The pit supervisor noted that the count ___ reconciled before shift handover.",
+                ["must be", "is", "are", "was"],
+                "must be",
+                "Formal passive obligation.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "It is imperative that surveillance logs ___ retained for ninety days.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Compliance-style subjunctive.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "The cage cashier ___ happy to verify your chip balance.",
+                ["is", "am", "are", "be"],
+                "is",
+                "Customer-facing casino tone.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "We ___ pleased to explain the tournament rules before you buy in.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Hospitality at tables.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "The floor supervisor ___ available to answer payout questions.",
+                ["is", "am", "are", "be"],
+                "is",
+                "Service availability statement.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "Guests ___ reminded that photography is not permitted at live tables.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Passive-style house policy.",
+            ),
+        ],
+    )
+
+    # Hotel / Guest Services (default pool for many hotel depts)
+    add(
+        "Hotel",
+        [
+            _r(
+                "basic",
+                "Guest Communication",
+                "We ___ happy to store your luggage until 6 PM.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Guest services phrase.",
+            ),
+            _r(
+                "basic",
+                "Guest Communication",
+                "Your room ___ ready in about twenty minutes.",
+                ["is", "are", "am", "be"],
+                "is",
+                "Status update.",
+            ),
+            _r(
+                "intermediate",
+                "Guest Communication",
+                "The guest requested that a crib ___ placed in the cabin.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Request with subjunctive-style verb.",
+            ),
+            _r(
+                "intermediate",
+                "Guest Communication",
+                "Housekeeping ___ finished turndown service by 8 PM.",
+                ["should have", "must", "can", "may"],
+                "should have",
+                "Expectation about completion.",
+            ),
+            _r(
+                "advanced",
+                "Guest Communication",
+                "It is recommended that all VIP arrivals ___ escorted privately.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal recommendation.",
+            ),
+            _r(
+                "advanced",
+                "Guest Communication",
+                "The manager insisted that the complaint ___ documented fully.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Insist + passive base form.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "The front desk team ___ pleased to offer a late checkout when available.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Service tone with agreement.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "Your message ___ forwarded to the duty manager immediately.",
+                ["is", "are", "was", "were"],
+                "is",
+                "Passive service update.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "The concierge desk ___ open until midnight for guest assistance.",
+                ["is", "am", "are", "be"],
+                "is",
+                "Hours and availability.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "Luggage ___ stored securely until your stateroom is ready.",
+                ["is", "are", "was", "were"],
+                "is",
+                "Passive service promise.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "Guests are advised that valuables ___ stored in the cabin safe.",
+                ["should be", "is", "are", "was"],
+                "should be",
+                "Formal advisory register.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "The hotel director requested that the roster ___ updated by noon.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal request pattern.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "It is essential that incident reports ___ submitted within twenty-four hours.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Policy procedure language.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "The policy stipulates that access cards ___ deactivated upon sign-off.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Stipulate + passive base form.",
+            ),
+        ],
+    )
+
+    return pools
+
+
+ROLE_CONTEXT_GRAMMAR_POOLS: Dict[str, List[Dict[str, Any]]] = build_role_context_pools()

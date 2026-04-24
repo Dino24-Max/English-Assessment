@@ -12,6 +12,14 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
+
+def _default_sqlite_database_url() -> str:
+    """Absolute SQLite URL under ``src/main/python/data/`` so app, tests, and Alembic share one DB regardless of cwd."""
+    pkg_root = Path(__file__).resolve().parent.parent  # .../src/main/python
+    db_path = (pkg_root / "data" / "assessment.db").resolve()
+    return f"sqlite+aiosqlite:///{db_path.as_posix()}"
+
+
 # Load .env file early so os.getenv can access values from it
 # config.py is at src/main/python/core/config.py, so .env is 5 levels up
 _env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
@@ -79,8 +87,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:8000", "http://127.0.0.1:8080"]
 
-    # Database - REQUIRED environment variable (no default for security)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/assessment.db")
+    # Database — override with DATABASE_URL; default is stable package-local SQLite (not cwd-relative).
+    DATABASE_URL: str = os.getenv("DATABASE_URL", _default_sqlite_database_url())
 
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> str:

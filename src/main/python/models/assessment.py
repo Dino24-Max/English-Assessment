@@ -2,7 +2,7 @@
 Assessment-related database models
 """
 
-from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, JSON, Enum, Index, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, JSON, Enum, Index, CheckConstraint, UniqueConstraint
 
 # DivisionType: Use DivisionTypeEnumType for all columns - DB stores lowercase values (hotel/marine/casino)
 from sqlalchemy.orm import relationship
@@ -150,6 +150,12 @@ class Question(BaseModel):
     # Question specific data
     question_metadata = Column(JSON, nullable=True)  # Additional question-specific data (renamed from 'metadata' to avoid SQLAlchemy reserved word)
 
+    # Semantic deduplication (nullable until backfilled on legacy DBs; unique when set)
+    semantic_hash = Column(String(64), nullable=True, index=True)
+    # Grammar classification (Grammar module only)
+    grammar_type = Column(String(50), nullable=True, index=True)  # "Core" or "RoleContext"
+    grammar_topic = Column(String(100), nullable=True, index=True)
+
     # Composite indexes for question selection queries
     __table_args__ = (
         Index('ix_questions_module_division', 'module_type', 'division'),
@@ -161,6 +167,8 @@ class Question(BaseModel):
         Index('ix_questions_division_dept', 'division', 'department'),
         Index('ix_questions_dept_cefr', 'department', 'cefr_level'),
         Index('ix_questions_dept_module_cefr', 'department', 'module_type', 'cefr_level'),
+        UniqueConstraint('semantic_hash', name='uq_questions_semantic_hash'),
+        Index('ix_questions_grammar_classification', 'grammar_type', 'grammar_topic', 'cefr_level'),
     )
 
 

@@ -7,10 +7,11 @@ Supports both legacy format and new 1600-question full bank
 import hashlib
 import json
 import re
-from typing import Dict, List, Any
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, update
+from sqlalchemy.exc import IntegrityError
 from models.assessment import Question, Assessment, ModuleType, DivisionType, QuestionType, AssessmentStatus
 from config.departments import normalize_department
 
@@ -74,6 +75,28 @@ def _speaking_keywords_from_audio(text: str, max_kw: int = 14) -> List[str]:
         if len(out) >= max_kw:
             break
     return out
+
+
+def _loader_semantic_hash(q_data: dict, department: Optional[str]) -> str:
+    """Match generator storage hash when JSON row omits semantic_hash."""
+    existing = q_data.get("semantic_hash")
+    if existing:
+        return str(existing)
+    qid = str(q_data.get("question_id") or q_data.get("id") or "")
+    opts = q_data.get("options")
+    if isinstance(opts, list):
+        options_sorted: Any = sorted(opts)
+    else:
+        options_sorted = json.dumps(opts or {}, sort_keys=True, default=str)
+    payload = {
+        "question_text": (q_data.get("question_text") or "").strip(),
+        "options": options_sorted,
+        "correct_answer": (q_data.get("correct_answer") or "").strip(),
+    }
+    fp = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+    dept = (department or "").strip()
+    raw = f"{fp}|{dept}|{qid}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _normalize_speaking_listen_repeat(q_data: dict, metadata: dict) -> dict:
@@ -174,10 +197,10 @@ class QuestionBankLoader:
         
         questions_data = bank_data.get("questions", [])
         print(f"Found {len(questions_data)} questions to load")
-        
-        # Batch insert for performance
-        questions_to_add = []
-        
+
+        added = 0
+        skipped_duplicates = 0
+
         for i, q_data in enumerate(questions_data, 1):
             # Map module to ModuleType enum (support both JSON and DB naming)
             module_map = {
@@ -248,6 +271,10 @@ class QuestionBankLoader:
             raw_dept = q_data.get("department")
             department = normalize_department(raw_dept) if raw_dept else None
 
+            semantic_hash = _loader_semantic_hash(q_data, department)
+            grammar_type = q_data.get("grammar_type")
+            grammar_topic = q_data.get("grammar_topic")
+
             question = Question(
                 module_type=module_map.get(q_data.get("module_type", q_data.get("module")), ModuleType.LISTENING),
                 division=division_map.get(q_data.get("division") or q_data.get("operation"), DivisionType.HOTEL),
@@ -263,26 +290,34 @@ class QuestionBankLoader:
                 scenario_id=q_data.get("scenario_id"),
                 scenario_description=q_data.get("scenario_description"),
                 cefr_level=q_data.get("cefr_level"),
-                question_metadata=metadata
+                question_metadata=metadata,
+                semantic_hash=semantic_hash,
+                grammar_type=grammar_type,
+                grammar_topic=grammar_topic,
             )
-            
-            questions_to_add.append(question)
-            
-            # Batch commit every 100 questions for progress
+
+            try:
+                async with self.db.begin_nested():
+                    self.db.add(question)
+                    await self.db.flush()
+                added += 1
+            except IntegrityError:
+                skipped_duplicates += 1
+
             if i % 100 == 0:
-                self.db.add_all(questions_to_add)
                 await self.db.commit()
-                print(f"  [OK] Loaded {i}/{len(questions_data)} questions")
-                questions_to_add = []
-        
-        # Commit remaining questions
-        if questions_to_add:
-            self.db.add_all(questions_to_add)
-            await self.db.commit()
-        
-        print(f"[OK] Successfully loaded {len(questions_data)} questions into database!")
-        
-        return len(questions_data)
+                print(
+                    f"  [OK] Committed progress {i}/{len(questions_data)} "
+                    f"(added={added}, skipped_duplicates={skipped_duplicates})"
+                )
+
+        await self.db.commit()
+        print(
+            f"[OK] Load complete: {added} questions inserted, "
+            f"{skipped_duplicates} skipped (duplicate semantic_hash)."
+        )
+
+        return added
 
     async def load_all_questions(self):
         """Load all question banks for all divisions (legacy method)"""

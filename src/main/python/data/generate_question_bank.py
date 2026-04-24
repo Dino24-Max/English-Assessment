@@ -7,12 +7,14 @@ Generates 3,000 questions across 30 departments:
 - Output format compatible with question_bank_loader.py
 """
 
+import hashlib
 import json
 import random
 import re
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from config.departments import (
     DEPARTMENTS,
@@ -21,7 +23,10 @@ from config.departments import (
     HOTEL_OPERATION,
     MARINE_OPERATION,
 )
+from config.question_blueprints import GRAMMAR_BLUEPRINT
 from data.cefr_spec import MODULE_CEFR_DISTRIBUTION, CEFR_LEVELS
+from data.grammar_core_pool import build_core_grammar_pool
+from data.grammar_role_context_pools import ROLE_CONTEXT_GRAMMAR_POOLS
 
 # Align with assessment_engine stopword filtering for keyword extraction from repeat audio
 _SPEAKING_KEYWORD_STOPWORDS = frozenset(
@@ -60,6 +65,23 @@ MODULE_TO_LOADER = {
     "Reading": "reading",
     "Speaking": "speaking",
 }
+
+
+def _role_context_grammar_pool_key(scenario_key: str) -> str:
+    """Map DEPARTMENT_TO_CONTENT_POOL value to role-context grammar bucket."""
+    marine = {
+        "Deck Department",
+        "Engine Department",
+        "Medical Department",
+        "Security Department",
+    }
+    if scenario_key in marine:
+        return "Marine"
+    if scenario_key in ("Food & Beverage", "Bar Service"):
+        return "Food & Beverage"
+    if scenario_key == "Table Games":
+        return "Casino"
+    return "Hotel"
 
 # Vocabulary term pools: 20 (band, term, definition) tuples per content area.
 # The generator builds unique 4-term matching sets from non-overlapping slices,
@@ -788,6 +810,116 @@ class QuestionBankGenerator:
         self.question_counter = 1
         self._scenario_idx: Dict[str, int] = {}
         self._scenario_order: Dict[str, List[Dict[str, Any]]] = {}
+        self._grammar_fingerprints_by_dept: Dict[str, set] = defaultdict(set)
+        self._core_grammar_pool: List[Dict[str, Any]] = build_core_grammar_pool()
+
+    def _content_fingerprint(self, question_text: str, options: Any, correct: str) -> str:
+        if isinstance(options, list):
+            options_sorted: Any = sorted(options)
+        else:
+            options_sorted = json.dumps(options or {}, sort_keys=True, default=str)
+        payload = {
+            "question_text": (question_text or "").strip(),
+            "options": options_sorted,
+            "correct_answer": (correct or "").strip(),
+        }
+        return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+    def _storage_semantic_hash(self, fingerprint: str, department: str, question_id: str) -> str:
+        raw = f"{fingerprint}|{(department or '').strip()}|{question_id}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def _attach_semantic_metadata(
+        self,
+        q: Dict[str, Any],
+        *,
+        department: str,
+        question_id: str,
+        question_text: str,
+        options: Any,
+        correct_answer: str,
+        grammar_type: Optional[str] = None,
+        grammar_topic: Optional[str] = None,
+        dedupe_grammar_content: bool = False,
+    ) -> bool:
+        """Set semantic_hash (and optional grammar fields). Returns False if grammar dedupe rejects duplicate."""
+        fp = self._content_fingerprint(question_text, options, correct_answer)
+        if dedupe_grammar_content:
+            bucket = self._grammar_fingerprints_by_dept[department]
+            if fp in bucket:
+                return False
+            bucket.add(fp)
+        q["semantic_hash"] = self._storage_semantic_hash(fp, department, question_id)
+        if grammar_type is not None:
+            q["grammar_type"] = grammar_type
+        if grammar_topic is not None:
+            q["grammar_topic"] = grammar_topic
+        return True
+
+    def _append_blueprint_grammar_questions(
+        self,
+        division: str,
+        dept_name: str,
+        dept_code: str,
+        scenario_key: str,
+    ) -> None:
+        """Blueprint-driven grammar: sample without replacement per topic bucket; intra-dept dedupe via fingerprint."""
+        for cefr_level, by_type in GRAMMAR_BLUEPRINT.items():
+            for grammar_type, topics in by_type.items():
+                for grammar_topic, count in topics.items():
+                    if count <= 0:
+                        continue
+                    pool = self._get_grammar_scenarios(
+                        scenario_key,
+                        cefr_level,
+                        grammar_type=grammar_type,
+                        grammar_topic=grammar_topic,
+                    )
+                    if not pool:
+                        continue
+                    shuffled = list(pool)
+                    random.shuffle(shuffled)
+                    added_here = 0
+                    for scenario in shuffled:
+                        if added_here >= count:
+                            break
+                        question_id = f"{division}_{dept_code}_G_{str(self.question_counter).zfill(3)}"
+                        self.question_counter += 1
+                        scenario_id = random.randint(1, 10)
+                        difficulty = random.choice(["easy", "medium", "hard"])
+                        points = {"easy": 3, "medium": 4, "hard": 5}[difficulty]
+                        q: Dict[str, Any] = {
+                            "question_id": question_id,
+                            "department": dept_name,
+                            "division": division,
+                            "module_type": "grammar",
+                            "cefr_level": cefr_level,
+                            "scenario_id": scenario_id,
+                            "module": "Grammar",
+                            "difficulty": difficulty,
+                            "points": points,
+                            "question_type": "multiple_choice",
+                            "question_text": scenario["question"],
+                            "options": scenario["options"],
+                            "correct_answer": scenario["correct"],
+                            "explanation": scenario["explanation"],
+                        }
+                        gt = scenario.get("grammar_type") or grammar_type
+                        gtop = scenario.get("grammar_topic") or grammar_topic
+                        if not self._attach_semantic_metadata(
+                            q,
+                            department=dept_name,
+                            question_id=question_id,
+                            question_text=scenario["question"],
+                            options=scenario["options"],
+                            correct_answer=scenario["correct"],
+                            grammar_type=gt,
+                            grammar_topic=gtop,
+                            dedupe_grammar_content=True,
+                        ):
+                            continue
+                        self.questions.append(q)
+                        added_here += 1
 
     def _pick_scenario(self, scenarios: List[Dict[str, Any]], tracker_key: str) -> Dict[str, Any]:
         """Round-robin selection: shuffles once, then cycles through all items before repeating."""
@@ -818,8 +950,10 @@ class QuestionBankGenerator:
         scenario_key = DEPARTMENT_TO_CONTENT_POOL[dept_name]
         dept_code = dept_name[:3].upper().replace(" ", "").replace("/", "") or "GEN"
 
-        # Build (module, cefr_level) pairs from MODULE_CEFR_DISTRIBUTION
+        # Build (module, cefr_level) pairs from MODULE_CEFR_DISTRIBUTION (Grammar handled via blueprint below)
         for module, cefr_counts in MODULE_CEFR_DISTRIBUTION.items():
+            if module == "Grammar":
+                continue
             for cefr_level, count in cefr_counts.items():
                 for i in range(count):
                     scenario_id = random.randint(1, 10)
@@ -830,10 +964,6 @@ class QuestionBankGenerator:
                         )
                     elif module == "TimeNumbers":
                         question = self._generate_time_numbers_question(
-                            division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
-                        )
-                    elif module == "Grammar":
-                        question = self._generate_grammar_question(
                             division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
                         )
                     elif module == "Vocabulary":
@@ -848,8 +978,12 @@ class QuestionBankGenerator:
                         question = self._generate_speaking_question(
                             division, dept_name, dept_code, scenario_key, scenario_id, cefr_level, i + 1
                         )
+                    else:
+                        continue
 
                     self.questions.append(question)
+
+        self._append_blueprint_grammar_questions(division, dept_name, dept_code, scenario_key)
 
     def _generate_listening_question(self, division: str, dept_name: str,
                                     dept_code: str, scenario_key: str, scenario_id: int,
@@ -860,12 +994,16 @@ class QuestionBankGenerator:
         self.question_counter += 1
 
         listening_scenarios = self._get_listening_scenarios(scenario_key, cefr_level)
-        scenario = random.choice(listening_scenarios)
+        if not listening_scenarios:
+            raise ValueError(f"No listening scenarios for {scenario_key} at {cefr_level}")
+        scenario = self._pick_scenario(
+            listening_scenarios, f"{scenario_key}|listening|{cefr_level}"
+        )
 
         difficulty = random.choice(["easy", "medium", "hard"])
         points = {"easy": 3, "medium": 4, "hard": 5}[difficulty]
 
-        return {
+        q: Dict[str, Any] = {
             "question_id": question_id,
             "department": dept_name,
             "division": division,
@@ -880,8 +1018,17 @@ class QuestionBankGenerator:
             "audio_text": scenario["audio"],
             "options": scenario["options"],
             "correct_answer": scenario["correct"],
-            "explanation": scenario["explanation"]
+            "explanation": scenario["explanation"],
         }
+        self._attach_semantic_metadata(
+            q,
+            department=dept_name,
+            question_id=question_id,
+            question_text=scenario["question"],
+            options=scenario["options"],
+            correct_answer=scenario["correct"],
+        )
+        return q
 
     def _generate_time_numbers_question(self, division: str, dept_name: str,
                                        dept_code: str, scenario_key: str, scenario_id: int,
@@ -892,9 +1039,13 @@ class QuestionBankGenerator:
         self.question_counter += 1
 
         time_number_scenarios = self._get_time_numbers_scenarios(scenario_key, cefr_level)
-        scenario = random.choice(time_number_scenarios)
+        if not time_number_scenarios:
+            raise ValueError(f"No time/numbers scenarios for {scenario_key} at {cefr_level}")
+        scenario = self._pick_scenario(
+            time_number_scenarios, f"{scenario_key}|time_numbers|{cefr_level}"
+        )
 
-        return {
+        q: Dict[str, Any] = {
             "question_id": question_id,
             "department": dept_name,
             "division": division,
@@ -908,39 +1059,17 @@ class QuestionBankGenerator:
             "question_text": scenario["question"],
             "context": scenario["context"],
             "correct_answer": scenario["answer"],
-            "explanation": scenario["explanation"]
+            "explanation": scenario["explanation"],
         }
-
-    def _generate_grammar_question(self, division: str, dept_name: str,
-                                  dept_code: str, scenario_key: str, scenario_id: int,
-                                  cefr_level: str, q_num: int) -> Dict[str, Any]:
-        """Generate grammar question"""
-
-        question_id = f"{division}_{dept_code}_G_{str(self.question_counter).zfill(3)}"
-        self.question_counter += 1
-
-        grammar_scenarios = self._get_grammar_scenarios(scenario_key, cefr_level)
-        scenario = random.choice(grammar_scenarios)
-
-        difficulty = random.choice(["easy", "medium", "hard"])
-        points = {"easy": 3, "medium": 4, "hard": 5}[difficulty]
-
-        return {
-            "question_id": question_id,
-            "department": dept_name,
-            "division": division,
-            "module_type": "grammar",
-            "cefr_level": cefr_level,
-            "scenario_id": scenario_id,
-            "module": "Grammar",
-            "difficulty": difficulty,
-            "points": points,
-            "question_type": "multiple_choice",
-            "question_text": scenario["question"],
-            "options": scenario["options"],
-            "correct_answer": scenario["correct"],
-            "explanation": scenario["explanation"]
-        }
+        self._attach_semantic_metadata(
+            q,
+            department=dept_name,
+            question_id=question_id,
+            question_text=scenario["question"],
+            options=[str(scenario.get("context", ""))],
+            correct_answer=scenario["answer"],
+        )
+        return q
 
     def _generate_vocabulary_question(self, division: str, dept_name: str,
                                      dept_code: str, scenario_key: str, scenario_id: int,
@@ -962,7 +1091,7 @@ class QuestionBankGenerator:
             f"{k}: {v}" for k, v in (scenario.get("matches", {}) or {}).items()
         )
 
-        return {
+        q: Dict[str, Any] = {
             "question_id": question_id,
             "department": dept_name,
             "division": division,
@@ -979,8 +1108,17 @@ class QuestionBankGenerator:
             "terms": scenario.get("terms"),
             "definitions": scenario.get("definitions"),
             "correct_matches": scenario.get("matches"),
-            "explanation": scenario.get("explanation")
+            "explanation": scenario.get("explanation"),
         }
+        self._attach_semantic_metadata(
+            q,
+            department=dept_name,
+            question_id=question_id,
+            question_text=scenario["question"],
+            options=options,
+            correct_answer=correct_answer,
+        )
+        return q
 
     def _generate_reading_question(self, division: str, dept_name: str,
                                   dept_code: str, scenario_key: str, scenario_id: int,
@@ -996,7 +1134,7 @@ class QuestionBankGenerator:
         difficulty = random.choice(["medium", "hard"])
         points = {"medium": 4, "hard": 5}[difficulty]
 
-        return {
+        q: Dict[str, Any] = {
             "question_id": question_id,
             "department": dept_name,
             "division": division,
@@ -1010,8 +1148,17 @@ class QuestionBankGenerator:
             "question_text": scenario["passage"],
             "options": scenario["options"],
             "correct_answer": scenario["correct"],
-            "explanation": scenario["explanation"]
+            "explanation": scenario["explanation"],
         }
+        self._attach_semantic_metadata(
+            q,
+            department=dept_name,
+            question_id=question_id,
+            question_text=scenario["passage"],
+            options=scenario["options"],
+            correct_answer=scenario["correct"],
+        )
+        return q
 
     def _generate_speaking_question(self, division: str, dept_name: str,
                                    dept_code: str, scenario_key: str, scenario_id: int,
@@ -1039,7 +1186,7 @@ class QuestionBankGenerator:
             "Your score is based on how many key words you say clearly."
         )
 
-        return {
+        q: Dict[str, Any] = {
             "question_id": question_id,
             "department": dept_name,
             "division": division,
@@ -1058,6 +1205,15 @@ class QuestionBankGenerator:
             "scenario_description": f"Listen-repeat phrase aligned with {scenario_key} listening content.",
             "explanation": "Repeat the played audio accurately; keywords in your response contribute to your score.",
         }
+        self._attach_semantic_metadata(
+            q,
+            department=dept_name,
+            question_id=question_id,
+            question_text=instruction,
+            options=sorted(expected_keywords),
+            correct_answer=audio_text,
+        )
+        return q
 
     # Scenario generators for each module type
 
@@ -2276,26 +2432,25 @@ class QuestionBankGenerator:
         raw = _require(scenarios, scenario_key, "time/numbers scenarios")
         return _filter_scenarios_by_band(raw, cefr_level)
 
-    def _get_grammar_scenarios(self, scenario_key: str, cefr_level: str) -> List[Dict[str, Any]]:
-        """Get grammar scenarios filtered by CEFR band"""
+    def _get_grammar_scenarios(
+        self,
+        scenario_key: str,
+        cefr_level: str,
+        grammar_type: Optional[str] = None,
+        grammar_topic: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Core + role-context grammar pools, optional type/topic filters, then CEFR band filter."""
+        role_key = _role_context_grammar_pool_key(scenario_key)
+        merged: List[Dict[str, Any]] = list(self._core_grammar_pool)
+        merged.extend(ROLE_CONTEXT_GRAMMAR_POOLS.get(role_key, []))
 
-        # Universal grammar questions applicable to all departments
-        grammar_pool = [
-            {"cefr_band": "basic", "question": "___ I help you with your luggage?", "options": ["May", "Do", "Will", "Am"], "correct": "May", "explanation": "Use 'May' for polite offers of assistance."},
-            {"cefr_band": "basic", "question": "The guest ___ arrived at the port this morning.", "options": ["have", "has", "had", "having"], "correct": "has", "explanation": "Use 'has' with singular subject 'guest'."},
-            {"cefr_band": "basic", "question": "The restaurant ___ open from 6 PM to 10 PM.", "options": ["is", "are", "was", "been"], "correct": "is", "explanation": "Use 'is' with singular subject 'restaurant'."},
-            {"cefr_band": "basic", "question": "We ___ serving dinner in the main dining room.", "options": ["is", "am", "are", "been"], "correct": "are", "explanation": "Use 'are' with plural subject 'we'."},
-            {"cefr_band": "intermediate", "question": "If you need anything, please ___ hesitate to call.", "options": ["not", "don't", "doesn't", "won't"], "correct": "don't", "explanation": "Use 'don't' in imperative negative sentences."},
-            {"cefr_band": "intermediate", "question": "___ you like to make a reservation?", "options": ["Would", "Will", "Are", "Do"], "correct": "Would", "explanation": "Use 'Would' for polite offers and requests."},
-            {"cefr_band": "intermediate", "question": "Could you please ___ me to the spa?", "options": ["direct", "directing", "directed", "direction"], "correct": "direct", "explanation": "Use base form verb after 'please' in requests."},
-            {"cefr_band": "intermediate", "question": "The ship ___ at the port tomorrow morning.", "options": ["arrive", "arrives", "arriving", "arrived"], "correct": "arrives", "explanation": "Use present tense for scheduled future events."},
-            {"cefr_band": "advanced", "question": "All crew members ___ attend the safety briefing.", "options": ["must", "can", "might", "could"], "correct": "must", "explanation": "Use 'must' for strong obligations and requirements."},
-            {"cefr_band": "advanced", "question": "The guests ___ enjoying the entertainment show.", "options": ["is", "am", "are", "be"], "correct": "are", "explanation": "Use 'are' with plural subject 'guests'."},
-            {"cefr_band": "advanced", "question": "I ___ be happy to assist you with that.", "options": ["will", "shall", "would", "should"], "correct": "would", "explanation": "Use 'would' to express willingness politely."},
-            {"cefr_band": "advanced", "question": "The captain ___ announced our arrival time.", "options": ["have", "has", "had", "having"], "correct": "has", "explanation": "Use 'has' with singular subject in present perfect."}
-        ]
+        filtered = merged
+        if grammar_type:
+            filtered = [s for s in filtered if s.get("grammar_type") == grammar_type]
+        if grammar_topic:
+            filtered = [s for s in filtered if s.get("grammar_topic") == grammar_topic]
 
-        return _filter_scenarios_by_band(grammar_pool, cefr_level)
+        return _filter_scenarios_by_band(filtered, cefr_level)
 
     def _get_vocabulary_scenarios(self, scenario_key: str, cefr_level: str) -> List[Dict[str, Any]]:
         """Build vocabulary matching scenarios programmatically from VOCAB_TERM_POOLS.
