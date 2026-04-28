@@ -89,6 +89,14 @@ def build_role_context_pools() -> Dict[str, List[Dict[str, Any]]]:
             ),
             _r(
                 "intermediate",
+                "Service Language",
+                "Allergen notices ___ posted at each station for guest review.",
+                ["is", "are", "was", "were"],
+                "are",
+                "Second B1 Service Language slot for blueprint parity.",
+            ),
+            _r(
+                "intermediate",
                 "Polite Requests",
                 "Would it be possible ___ a high chair?",
                 ["to get", "get", "getting", "got"],
@@ -110,6 +118,14 @@ def build_role_context_pools() -> Dict[str, List[Dict[str, Any]]]:
                 ["be", "is", "are", "was"],
                 "be",
                 "Subjunctive-style recommendation.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "It is required that kitchen staff ___ gloves changed between raw and cooked prep.",
+                ["have", "has", "having", "had"],
+                "have",
+                "C1 RoleContext Formal Procedures for F&B blueprint.",
             ),
             _r(
                 "intermediate",
@@ -189,6 +205,14 @@ def build_role_context_pools() -> Dict[str, List[Dict[str, Any]]]:
                 ["be", "is", "are", "was"],
                 "be",
                 "Formal engineering register.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "The master insisted that the mooring plan ___ reviewed before arrival.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Second B2 Professional Register slot for blueprint parity.",
             ),
             _r(
                 "advanced",
@@ -427,6 +451,14 @@ def build_role_context_pools() -> Dict[str, List[Dict[str, Any]]]:
                 ["is", "are", "was", "were"],
                 "is",
                 "Passive service promise.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "Wake-up calls ___ confirmed at the desk at least one hour in advance.",
+                ["is", "are", "was", "were"],
+                "are",
+                "Second B1 Service Language slot for blueprint parity.",
             ),
             _r(
                 "intermediate",

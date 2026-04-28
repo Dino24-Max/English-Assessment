@@ -255,6 +255,149 @@
             }
         }
 
+        /* CEFR Levels Reference */
+        .cefr-section {
+            background: white;
+            border-radius: 25px;
+            padding: 56px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            margin-bottom: 50px;
+        }
+
+        .cefr-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+        }
+
+        .cefr-card {
+            border-radius: 18px;
+            padding: 28px 24px;
+            border: 2px solid #e0e6ed;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cefr-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #d0d5dd;
+            transition: background 0.3s ease;
+        }
+
+        .cefr-card.cefr-active {
+            border-color: #667eea;
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
+            background: linear-gradient(135deg, #f0f3ff 0%, #ffffff 100%);
+        }
+
+        .cefr-card.cefr-active::before {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 5px;
+        }
+
+        .cefr-card-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .cefr-level-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #555;
+            background: #edf0f4;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .cefr-active .cefr-level-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .cefr-card-titles {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .cefr-level-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .cefr-score-range {
+            font-size: 0.85rem;
+            color: #888;
+            font-weight: 500;
+        }
+
+        .cefr-card-body p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #555;
+            margin: 0 0 8px;
+        }
+
+        .cefr-card-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .cefr-cruise-label {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .cefr-active-tag {
+            display: none;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 3px 10px;
+            border-radius: 6px;
+            margin-left: auto;
+        }
+
+        .cefr-active .cefr-active-tag {
+            display: inline-block;
+        }
+
+        @media (max-width: 992px) {
+            .cefr-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .cefr-grid {
+                grid-template-columns: 1fr;
+                gap: 18px;
+            }
+        }
+
         /* Info Section */
         .info-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -368,6 +511,10 @@
 
             .info-section {
                 padding: 52px 38px;
+            }
+
+            .cefr-section {
+                padding: 45px 30px;
             }
         }
     </style>
@@ -512,6 +659,30 @@
                     </div>
                     <div class="module-score">{{ speaking_score }}/20</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- CEFR Levels Reference -->
+        <div class="cefr-section">
+            <div class="section-title">CEFR Proficiency Levels</div>
+            <div class="cefr-grid">
+                {% for lvl in cefr_levels %}
+                <div class="cefr-card {% if lvl.level == cefr_level %}cefr-active{% endif %}">
+                    <div class="cefr-card-head">
+                        <div class="cefr-level-badge">{{ lvl.level }}</div>
+                        <div class="cefr-card-titles">
+                            <div class="cefr-level-name">{{ lvl.name }}</div>
+                            <div class="cefr-score-range">{{ lvl.score_range }}</div>
+                        </div>
+                        <span class="cefr-active-tag">Your Level</span>
+                    </div>
+                    <div class="cefr-card-body">
+                        <p>{{ lvl.description }}</p>
+                        <span class="cefr-cruise-label">Cruise Operations</span>
+                        <p>{{ lvl.cruise_description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
 

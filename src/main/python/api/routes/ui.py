@@ -21,7 +21,7 @@ import sqlalchemy
 from core.database import get_db
 from core.config import settings
 from core.security import get_csrf_token
-from utils.cefr import get_cefr_display
+from utils.cefr import get_cefr_display, get_all_cefr_levels
 from utils.scoring import compute_overall_pass
 from models.assessment import AssessmentStatus, Question, User, DivisionType
 import models.assessment as _models_assessment
@@ -1523,6 +1523,7 @@ def _render_results_page(request: Request, modules: list, operation: str = "HOTE
             "cefr_level": cefr_level,
             "cefr_name": cefr_name,
             "cefr_description": cefr_description,
+            "cefr_levels": get_all_cefr_levels(),
             "score_gradient": score_gradient,
             "listening_score": listening_score,
             "listening_percentage": listening_percentage,
@@ -2320,7 +2321,10 @@ async def debug_session(request: Request):
         return {
             "assessment_id": assessment_id,
             "total_answers": len(answers),
-            "answers": answers
+            "answers": answers,
+            "csrf_token": session.get("csrf_token"),
+            "user_id": session.get("user_id"),
+            "authenticated": bool(session.get("user_id")),
         }
     except Exception as e:
         logger.error(f"Error in debug_session: {e}", exc_info=True)

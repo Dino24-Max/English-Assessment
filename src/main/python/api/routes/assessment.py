@@ -79,7 +79,7 @@ async def create_assessment(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Check for existing incomplete assessments
+        # Auto-expire any existing incomplete assessments for this user
         existing = await db.execute(
             select(Assessment).where(
                 and_(
@@ -88,16 +88,18 @@ async def create_assessment(
                 )
             )
         )
-
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="User has incomplete assessment")
+        stale = existing.scalars().all()
+        for old_assessment in stale:
+            old_assessment.status = AssessmentStatus.EXPIRED
+        if stale:
+            await db.flush()
 
         # Create assessment using engine (department for department-based question pool)
         engine = AssessmentEngine(db)
         assessment = await engine.create_assessment(user_id, division_enum, department=department)
 
         # Record anti-cheating data
-        anti_cheat = AntiCheatingService()
+        anti_cheat = AntiCheatingService(db)
         await anti_cheat.record_session_start(assessment.id, request)
 
         return {
