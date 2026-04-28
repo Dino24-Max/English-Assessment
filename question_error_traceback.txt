@@ -1,0 +1,7 @@
+Error: cannot access local variable 'assessment' where it is not associated with a value
+
+Traceback (most recent call last):
+  File "C:\Users\szh2051\OneDrive - Carnival Corporation\Desktop\Python\Claude Demo\src\main\python\api\routes\ui.py", line 877, in question_page
+    if assessment and getattr(assessment, "department", None):
+       ^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'assessment' where it is not associated with a value
