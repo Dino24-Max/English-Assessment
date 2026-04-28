@@ -81,6 +81,8 @@ def _role_context_grammar_pool_key(scenario_key: str) -> str:
         return "Food & Beverage"
     if scenario_key == "Table Games":
         return "Casino"
+    if scenario_key == "Musicians":
+        return "Entertainment"
     return "Hotel"
 
 # Vocabulary term pools: 20 (band, term, definition) tuples per content area.

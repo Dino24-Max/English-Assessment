@@ -368,6 +368,117 @@ def build_role_context_pools() -> Dict[str, List[Dict[str, Any]]]:
         ],
     )
 
+    # Entertainment / Musicians
+    add(
+        "Entertainment",
+        [
+            _r(
+                "basic",
+                "Guest Communication",
+                "The live band ___ performing in the Sky Lounge tonight.",
+                ["is", "am", "are", "be"],
+                "is",
+                "Subject-verb agreement with singular noun.",
+            ),
+            _r(
+                "basic",
+                "Guest Communication",
+                "We ___ happy to take song requests from the audience.",
+                ["is", "am", "are", "be"],
+                "are",
+                "Polite offer to guests.",
+            ),
+            _r(
+                "intermediate",
+                "Guest Communication",
+                "The guest requested that the band ___ a waltz for the anniversary dance.",
+                ["play", "plays", "played", "playing"],
+                "play",
+                "Subjunctive after request.",
+            ),
+            _r(
+                "intermediate",
+                "Guest Communication",
+                "The musical director asked that all performers ___ backstage thirty minutes early.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Subjunctive after asked that.",
+            ),
+            _r(
+                "advanced",
+                "Guest Communication",
+                "It is recommended that volume levels ___ checked before each performance.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal recommendation with subjunctive.",
+            ),
+            _r(
+                "advanced",
+                "Guest Communication",
+                "The entertainment manager insisted that the setlist ___ finalised by noon.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Insist + passive base form.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "The sound check ___ scheduled for three o'clock this afternoon.",
+                ["is", "are", "was", "were"],
+                "is",
+                "Passive schedule announcement.",
+            ),
+            _r(
+                "basic",
+                "Service Language",
+                "All instruments ___ tuned and ready before doors open.",
+                ["is", "are", "was", "were"],
+                "are",
+                "Plural subject agreement.",
+            ),
+            _r(
+                "intermediate",
+                "Service Language",
+                "The rehearsal ___ moved to the main theatre due to a scheduling conflict.",
+                ["has been", "have been", "is been", "was been"],
+                "has been",
+                "Present perfect passive for recent change.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "Performers are reminded that costumes ___ returned to wardrobe after each show.",
+                ["must be", "is", "are", "was"],
+                "must be",
+                "Formal obligation in professional register.",
+            ),
+            _r(
+                "intermediate",
+                "Professional Register",
+                "The stage manager recommended that lighting cues ___ tested during the dress rehearsal.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Formal recommendation pattern.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "It is mandatory that pyrotechnic effects ___ approved by the safety officer.",
+                ["be", "is", "are", "was"],
+                "be",
+                "Mandatory procedure with subjunctive.",
+            ),
+            _r(
+                "advanced",
+                "Formal Procedures",
+                "The policy requires that all guest-facing performers ___ their ID badges visible at all times.",
+                ["keep", "keeps", "keeping", "kept"],
+                "keep",
+                "Require + base form for formal policy.",
+            ),
+        ],
+    )
+
     # Hotel / Guest Services (default pool for many hotel depts)
     add(
         "Hotel",
