@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     
     # Speech Recognition - Local Whisper Configuration
     USE_LOCAL_WHISPER: bool = True  # Use local Whisper model (free, high accuracy)
-    WHISPER_MODEL_SIZE: str = "base"  # Model size: tiny, base, small, medium, large-v3
+    WHISPER_MODEL_SIZE: str = "small"  # Model size: tiny, base, small, medium, large-v3
     WHISPER_DEVICE: str = "cpu"  # Device: cpu, cuda (GPU)
     WHISPER_LANGUAGE: str = "en"  # Target language
     

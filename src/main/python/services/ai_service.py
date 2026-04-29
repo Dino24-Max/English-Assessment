@@ -25,49 +25,56 @@ logger = logging.getLogger(__name__)
 # Thread pool for CPU-intensive tasks (Whisper transcription)
 _executor = ThreadPoolExecutor(max_workers=2)
 
-# Global Whisper model cache (load once, reuse)
+# Global faster-whisper model cache (load once, reuse)
 _whisper_model = None
 _whisper_model_size = None
 
 
 def _get_whisper_model(model_size: str = None):
     """
-    Get or load Whisper model (cached for reuse).
-    
+    Get or load faster-whisper model (cached for reuse).
+
     Args:
         model_size: Model size (tiny, base, small, medium, large-v3)
-        
+
     Returns:
-        Loaded Whisper model
+        Loaded WhisperModel instance
     """
     global _whisper_model, _whisper_model_size
-    
+
     target_size = model_size or settings.WHISPER_MODEL_SIZE
-    
-    # Return cached model if same size
+
     if _whisper_model is not None and _whisper_model_size == target_size:
         return _whisper_model
-    
+
     try:
-        import whisper
-        logger.info(f"Loading Whisper model: {target_size}")
-        _whisper_model = whisper.load_model(target_size, device=settings.WHISPER_DEVICE)
+        from faster_whisper import WhisperModel
+
+        device = settings.WHISPER_DEVICE
+        compute_type = "int8" if device == "cpu" else "float16"
+
+        logger.info(f"Loading faster-whisper model: {target_size} (device={device}, compute_type={compute_type})")
+        _whisper_model = WhisperModel(
+            target_size,
+            device=device,
+            compute_type=compute_type,
+        )
         _whisper_model_size = target_size
-        logger.info(f"Whisper model {target_size} loaded successfully")
+        logger.info(f"faster-whisper model {target_size} loaded successfully")
         return _whisper_model
     except Exception as e:
-        logger.error(f"Failed to load Whisper model: {e}")
+        logger.error(f"Failed to load faster-whisper model: {e}")
         return None
 
 
 def _transcribe_sync(audio_path: str, prompt: str = None) -> Tuple[str, float]:
     """
-    Synchronous Whisper transcription (runs in thread pool).
-    
+    Synchronous faster-whisper transcription (runs in thread pool).
+
     Args:
         audio_path: Path to audio file
-        prompt: Optional prompt for context
-        
+        prompt: Optional initial_prompt for context (improves domain vocabulary recognition)
+
     Returns:
         Tuple of (transcript, confidence)
     """
@@ -75,39 +82,43 @@ def _transcribe_sync(audio_path: str, prompt: str = None) -> Tuple[str, float]:
         model = _get_whisper_model()
         if model is None:
             return "[Whisper model not available]", 0.0
-        
-        # Build transcribe options
-        options = {
-            "language": settings.WHISPER_LANGUAGE,
-            "temperature": 0.0,  # Deterministic for consistency
-            "word_timestamps": False,
-            "fp16": False if settings.WHISPER_DEVICE == "cpu" else True,
-        }
-        
-        # Add prompt if provided (helps with domain-specific vocabulary)
-        if prompt:
-            options["initial_prompt"] = prompt
-        
-        result = model.transcribe(audio_path, **options)
-        
-        # Calculate average confidence from segments
-        confidence = 1.0
-        if result.get("segments"):
-            confidences = [
-                seg.get("no_speech_prob", 0) 
-                for seg in result["segments"]
-            ]
-            # Convert no_speech_prob to confidence (1 - no_speech_prob)
-            if confidences:
-                confidence = 1.0 - (sum(confidences) / len(confidences))
-        
-        transcript = result.get("text", "").strip()
-        logger.info(f"Whisper transcription completed: {len(transcript)} chars, confidence: {confidence:.2f}")
-        
+
+        segments_iter, info = model.transcribe(
+            audio_path,
+            language=settings.WHISPER_LANGUAGE,
+            beam_size=5,
+            temperature=0.0,
+            initial_prompt=prompt or None,
+            vad_filter=True,
+            word_timestamps=False,
+        )
+
+        text_parts: list = []
+        log_probs: list = []
+
+        for segment in segments_iter:
+            text_parts.append(segment.text)
+            if segment.avg_logprob is not None:
+                log_probs.append(segment.avg_logprob)
+
+        transcript = "".join(text_parts).strip()
+
+        # Derive confidence from avg_logprob (typical range: -1.0 to 0.0)
+        if log_probs:
+            avg_lp = sum(log_probs) / len(log_probs)
+            confidence = max(0.0, min(1.0, 1.0 + avg_lp))
+        else:
+            confidence = 0.5
+
+        logger.info(
+            f"faster-whisper transcription completed: {len(transcript)} chars, "
+            f"confidence: {confidence:.2f}, language: {info.language}"
+        )
+
         return transcript, confidence
-        
+
     except Exception as e:
-        logger.error(f"Whisper transcription error: {e}")
+        logger.error(f"faster-whisper transcription error: {e}")
         return f"[Transcription error: {str(e)}]", 0.0
 
 
@@ -282,40 +293,34 @@ class AIService:
                                      question_context: str = None) -> str:
         """
         Build a context prompt to improve Whisper accuracy.
-        
-        Uses expected keywords and question context to help Whisper
-        recognize domain-specific vocabulary (cruise, hospitality).
-        
+
+        For listen-and-repeat questions, the expected_response IS the exact
+        phrase the user should say. Passing it directly as initial_prompt
+        dramatically improves recognition of short cruise-specific phrases.
+
         Args:
-            expected_response: Expected answer text
+            expected_response: Expected answer text (the exact phrase for repeat questions)
             question_context: Question context
-            
+
         Returns:
-            Prompt string for Whisper
+            Prompt string for Whisper initial_prompt
         """
         prompt_parts = [
-            "This is a cruise ship employee speaking English in a customer service scenario."
+            "This is a cruise ship employee speaking English."
         ]
-        
-        # Add question context
-        if question_context:
-            # Extract key terms from context
-            prompt_parts.append(f"Scenario: {question_context[:200]}")
-        
-        # Add expected vocabulary hints
+
+        # For listen-and-repeat, pass the full expected phrase directly
         if expected_response:
-            # Extract keywords from expected response
-            keywords = self._extract_keywords(expected_response)
-            if keywords:
-                prompt_parts.append(f"Expected vocabulary: {', '.join(keywords)}")
-        
-        # Domain-specific vocabulary hints
+            prompt_parts.append(f"The speaker should say: {expected_response.strip()}")
+
+        if question_context:
+            prompt_parts.append(f"Context: {question_context[:150]}")
+
         prompt_parts.append(
-            "Common terms: guest, cabin, deck, dining, reservation, "
-            "apologize, assist, service, maintenance, housekeeping, "
-            "captain, safety, emergency, lifeboat, muster station."
+            "Vocabulary: guest, cabin, deck, dining, reservation, "
+            "muster station, lifeboat, housekeeping, embarkation."
         )
-        
+
         return " ".join(prompt_parts)
     
     def _extract_keywords(self, text: str) -> List[str]:
