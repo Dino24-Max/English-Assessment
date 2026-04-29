@@ -753,8 +753,14 @@
                             formData.append('question_context', {{ question_data.question|tojson if question_data.question else '""' }});
                             
                             const assessmentId = '{{ (session.get("assessment_id", "") if session else "")|e }}';
+                            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                            const transcribeHeaders = {};
+                            if (csrfMeta) {
+                                transcribeHeaders['X-CSRF-Token'] = csrfMeta.content;
+                            }
                             const response = await fetch(`/api/v1/assessment/${assessmentId}/speaking-transcribe`, {
                                 method: 'POST',
+                                headers: transcribeHeaders,
                                 body: formData
                             });
                             
