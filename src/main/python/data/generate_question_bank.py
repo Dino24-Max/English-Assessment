@@ -1165,18 +1165,18 @@ class QuestionBankGenerator:
     def _generate_speaking_question(self, division: str, dept_name: str,
                                    dept_code: str, scenario_key: str, scenario_id: int,
                                    cefr_level: str, q_num: int) -> Dict[str, Any]:
-        """Generate listen-and-repeat speaking item: same audio line as listening pool; keyword scoring."""
+        """Generate listen-and-repeat speaking item using dedicated short phrases; keyword scoring."""
 
         question_id = f"{division}_{dept_code}_S_{str(self.question_counter).zfill(3)}"
         self.question_counter += 1
 
-        listening_scenarios = self._get_listening_scenarios(scenario_key, cefr_level)
-        scenario = self._pick_scenario(
-            listening_scenarios, f"{scenario_key}|speaking_repeat|{cefr_level}"
+        repeat_phrases = self._get_speaking_repeat_phrases(scenario_key, cefr_level)
+        phrase_item = self._pick_scenario(
+            repeat_phrases, f"{scenario_key}|speaking_repeat|{cefr_level}"
         )
-        audio_text = (scenario.get("audio") or "").strip()
+        audio_text = (phrase_item.get("phrase") or "").strip()
         if not audio_text:
-            raise ValueError(f"Listening scenario for {scenario_key} missing audio for speaking repeat")
+            raise ValueError(f"No speaking repeat phrase for {scenario_key} at {cefr_level}")
 
         expected_keywords = _keywords_from_repeat_audio(audio_text)
         # Match assessment: 3 speaking items → 7 + 7 + 6 = 20 points
@@ -1204,7 +1204,7 @@ class QuestionBankGenerator:
             "audio_text": audio_text,
             "expected_keywords": expected_keywords,
             "min_duration": 3,
-            "scenario_description": f"Listen-repeat phrase aligned with {scenario_key} listening content.",
+            "scenario_description": f"Listen-and-repeat phrase for {scenario_key} department context.",
             "explanation": "Repeat the played audio accurately; keywords in your response contribute to your score.",
         }
         self._attach_semantic_metadata(
@@ -2735,201 +2735,485 @@ class QuestionBankGenerator:
         raw = _require(readings, scenario_key, "reading scenarios")
         return _filter_scenarios_by_band(raw, cefr_level)
 
-    def _get_speaking_scenarios(self, scenario_key: str, cefr_level: str) -> List[Dict[str, Any]]:
-        """Get speaking response scenarios — 4+ unique prompts per content pool."""
+    def _get_speaking_repeat_phrases(self, scenario_key: str, cefr_level: str) -> List[Dict[str, Any]]:
+        """Return department-relevant listen-and-repeat phrases keyed by CEFR band.
 
-        speaking_prompts = {
+        Each phrase is a complete, natural sentence appropriate for the department
+        context on a cruise ship.  Word-count targets per band:
+            basic (A1-A2):        5-8 words
+            intermediate (B1-B2): 8-12 words
+            advanced (C1-C2):     12-18 words
+        """
+
+        phrases: Dict[str, List[Dict[str, Any]]] = {
+            # ── 1. Front Desk ──────────────────────────────────────────
             "Front Desk": [
-                {"cefr_band": "basic", "prompt": "A guest complains: 'My room is too noisy and I can't sleep.' Respond professionally.", "context": "Guest complaint about room noise", "keywords": ["apologize", "sorry", "understand", "move", "change room", "quiet", "comfortable", "resolve"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should apologize, show empathy, and offer solution like room change."},
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What time is breakfast and where is it served?' Give the information.", "context": "Guest asking about dining schedule", "keywords": ["breakfast", "time", "restaurant", "buffet", "deck", "open", "morning"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should provide clear time and location details."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'What shore excursions do you recommend for families?' Provide helpful suggestions.", "context": "Shore excursion recommendation request", "keywords": ["family-friendly", "children", "kids", "recommend", "popular", "beach", "tour", "activities"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should suggest appropriate family activities and explain options clearly."},
-                {"cefr_band": "advanced", "prompt": "A guest says: 'I booked a balcony cabin online but was given an inside cabin. I want a resolution now.' Handle the escalation.", "context": "Booking discrepancy escalation", "keywords": ["apologize", "investigate", "booking", "confirmation", "upgrade", "resolve", "compensation", "supervisor"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should acknowledge the error, investigate, and offer resolution or escalation."}
+                {"cefr_band": "basic", "phrase": "Your cabin is on deck seven."},
+                {"cefr_band": "basic", "phrase": "Check-in starts at noon today."},
+                {"cefr_band": "basic", "phrase": "Please sign the registration form here."},
+                {"cefr_band": "basic", "phrase": "The gangway closes at five thirty."},
+                {"cefr_band": "intermediate", "phrase": "I will arrange a late checkout for you this morning."},
+                {"cefr_band": "intermediate", "phrase": "Your reservation has been confirmed for the main dining room."},
+                {"cefr_band": "intermediate", "phrase": "Please bring your passport to the front desk before departure."},
+                {"cefr_band": "intermediate", "phrase": "The shore excursion desk is located on deck three forward."},
+                {"cefr_band": "advanced", "phrase": "I would be happy to upgrade your cabin to a balcony suite if one becomes available."},
+                {"cefr_band": "advanced", "phrase": "Please allow me to review your account and resolve this billing concern right away."},
+                {"cefr_band": "advanced", "phrase": "Our concierge team can arrange private dining reservations and special celebration packages for your group."},
+                {"cefr_band": "advanced", "phrase": "We offer complimentary room service breakfast for all guests staying in our premium suite categories."},
             ],
+            # ── 2. Housekeeping ────────────────────────────────────────
             "Housekeeping": [
-                {"cefr_band": "basic", "prompt": "A guest says: 'I need extra towels and pillows.' Respond appropriately.", "context": "Guest request for additional items", "keywords": ["certainly", "right away", "deliver", "bring", "how many", "anything else", "happy to help"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should acknowledge request and confirm delivery timeframe."},
-                {"cefr_band": "basic", "prompt": "A guest asks: 'Can I get my cabin cleaned now instead of this afternoon?' Respond helpfully.", "context": "Schedule change request", "keywords": ["of course", "available", "shortly", "priority", "happy to", "cabin", "clean"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should accommodate request or explain timing."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The bathroom hasn't been cleaned properly. There are stains on the floor.' Respond professionally.", "context": "Cleaning quality complaint", "keywords": ["apologize", "immediately", "send", "re-clean", "standard", "sorry", "unacceptable", "resolve"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize and arrange immediate re-cleaning."},
-                {"cefr_band": "advanced", "prompt": "Your supervisor asks you to explain the turndown service procedures to a new team member. Describe the full process.", "context": "Training a new employee", "keywords": ["turndown", "evening", "towels", "amenities", "curtains", "lights", "chocolate", "schedule", "steps"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should describe the complete turndown procedure clearly for training."}
+                {"cefr_band": "basic", "phrase": "Your cabin has been cleaned today."},
+                {"cefr_band": "basic", "phrase": "Fresh towels are in the bathroom."},
+                {"cefr_band": "basic", "phrase": "Turndown service begins at eight tonight."},
+                {"cefr_band": "basic", "phrase": "I will bring extra pillows right away."},
+                {"cefr_band": "intermediate", "phrase": "The minibar will be restocked by your cabin steward this evening."},
+                {"cefr_band": "intermediate", "phrase": "Please place your laundry bag outside the door before nine."},
+                {"cefr_band": "intermediate", "phrase": "We provide a deep cleaning service once during each cruise voyage."},
+                {"cefr_band": "intermediate", "phrase": "Your cabin steward is available for any special housekeeping requests."},
+                {"cefr_band": "advanced", "phrase": "All guest cabins are thoroughly sanitized between voyages using hospital-grade cleaning products and protocols."},
+                {"cefr_band": "advanced", "phrase": "Please notify housekeeping immediately if you need hypoallergenic bedding or any special pillow arrangements."},
+                {"cefr_band": "advanced", "phrase": "Our team follows a detailed checklist to ensure consistent cabin preparation standards across every deck."},
+                {"cefr_band": "advanced", "phrase": "The supervisor conducts random quality inspections of completed cabins to maintain our high service standards."},
             ],
+            # ── 3. Food & Beverage ─────────────────────────────────────
             "Food & Beverage": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What is today's soup of the day?' Tell them about the menu item.", "context": "Menu inquiry", "keywords": ["today", "soup", "ingredients", "recommend", "enjoy", "special"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should describe the dish clearly and pleasantly."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'I'm allergic to shellfish. What can I order?' Explain options.", "context": "Food allergy inquiry", "keywords": ["allergy", "safe", "alternative", "recommend", "chef", "accommodate", "notify", "careful"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should reassure guest and explain safe menu options."},
-                {"cefr_band": "intermediate", "prompt": "A guest says: 'The steak I ordered is overcooked. I asked for medium-rare.' Handle the complaint.", "context": "Food quality complaint", "keywords": ["apologize", "replace", "kitchen", "medium-rare", "right away", "sorry", "new one", "chef"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize and arrange replacement promptly."},
-                {"cefr_band": "advanced", "prompt": "Describe the specialty restaurant's tasting menu to a guest who is considering making a reservation.", "context": "Upselling specialty dining", "keywords": ["courses", "chef", "curated", "wine pairing", "seasonal", "reservation", "experience", "recommend"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present the menu enticingly with details about courses."}
+                {"cefr_band": "basic", "phrase": "The buffet opens at seven thirty."},
+                {"cefr_band": "basic", "phrase": "Today's special is the grilled salmon."},
+                {"cefr_band": "basic", "phrase": "Dinner is served in the main restaurant."},
+                {"cefr_band": "basic", "phrase": "Would you like still or sparkling water?"},
+                {"cefr_band": "intermediate", "phrase": "The chef can prepare a special meal for your dietary needs."},
+                {"cefr_band": "intermediate", "phrase": "Our specialty restaurant requires a reservation for dinner service tonight."},
+                {"cefr_band": "intermediate", "phrase": "Please let your server know about any food allergies in advance."},
+                {"cefr_band": "intermediate", "phrase": "We recommend the wine pairing option with the tasting menu tonight."},
+                {"cefr_band": "advanced", "phrase": "The head chef has prepared a seasonal tasting menu featuring locally sourced ingredients from our port today."},
+                {"cefr_band": "advanced", "phrase": "All food preparation areas are inspected daily to ensure compliance with international maritime health standards."},
+                {"cefr_band": "advanced", "phrase": "Guests with severe allergies should inform the dining room manager before ordering any meal onboard."},
+                {"cefr_band": "advanced", "phrase": "Our beverage team has created exclusive cocktails inspired by the destinations we visit during this voyage."},
             ],
+            # ── 4. Bar Service ─────────────────────────────────────────
             "Bar Service": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'Can I get a non-alcoholic drink?' Suggest some options.", "context": "Non-alcoholic beverage request", "keywords": ["mocktail", "juice", "soda", "water", "coffee", "tea", "recommend"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should offer several non-alcoholic options pleasantly."},
-                {"cefr_band": "intermediate", "prompt": "A guest says: 'What signature cocktails do you recommend?' Make suggestions.", "context": "Beverage recommendation request", "keywords": ["recommend", "popular", "signature", "special", "flavor", "ingredients", "try", "favorite"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should describe signature drinks and match to guest preferences."},
-                {"cefr_band": "intermediate", "prompt": "A guest appears intoxicated and orders another drink. How do you handle the situation?", "context": "Responsible service situation", "keywords": ["water", "food", "policy", "safety", "concerned", "alternative", "care", "responsible"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should decline politely and offer alternatives while following responsible service policy."},
-                {"cefr_band": "advanced", "prompt": "A guest asks you to explain the wine pairing for tonight's dinner menu. Describe appropriate pairings for three courses.", "context": "Wine pairing consultation", "keywords": ["pairing", "white", "red", "complement", "flavor", "body", "course", "recommend", "tasting notes"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should describe wine pairings with relevant tasting vocabulary."}
+                {"cefr_band": "basic", "phrase": "What would you like to drink today?"},
+                {"cefr_band": "basic", "phrase": "Happy hour starts at five today."},
+                {"cefr_band": "basic", "phrase": "We have fresh juice available now."},
+                {"cefr_band": "basic", "phrase": "The pool bar closes at sunset tonight."},
+                {"cefr_band": "intermediate", "phrase": "Our signature cocktail is made with fresh tropical fruit and rum."},
+                {"cefr_band": "intermediate", "phrase": "We offer a premium drink package that covers the entire voyage."},
+                {"cefr_band": "intermediate", "phrase": "I recommend the aged rum paired with our homemade ginger syrup."},
+                {"cefr_band": "intermediate", "phrase": "Non-alcoholic beverages are included with every dining package purchased onboard."},
+                {"cefr_band": "advanced", "phrase": "The bartender has prepared a selection of craft cocktails inspired by tonight's Caribbean port of call."},
+                {"cefr_band": "advanced", "phrase": "All bar staff are trained in responsible alcohol service and must follow strict company beverage guidelines."},
+                {"cefr_band": "advanced", "phrase": "We feature a curated wine list that includes selections from vineyards across the Mediterranean and beyond."},
+                {"cefr_band": "advanced", "phrase": "Please inform the bar manager if a guest appears intoxicated so we can handle the situation appropriately."},
             ],
+            # ── 5. Guest Services ──────────────────────────────────────
             "Guest Services": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'Where is the shore excursion desk?' Give directions.", "context": "Direction request", "keywords": ["deck", "forward", "aft", "near", "next to", "between", "location"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should give clear, simple directions."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'I want to send a birthday cake to my friend's cabin.' Help them arrange it.", "context": "Special arrangement request", "keywords": ["cake", "order", "cabin", "delivery", "special", "arrange", "time"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain how to arrange the delivery."},
-                {"cefr_band": "intermediate", "prompt": "A guest says: 'I lost my room key. What do I do?' Respond helpfully.", "context": "Lost key scenario", "keywords": ["replacement", "front desk", "identify", "photo", "ID", "assist", "immediately"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain replacement procedure calmly."},
-                {"cefr_band": "advanced", "prompt": "A guest is upset about multiple issues during the cruise—delayed luggage, wrong dining time, and a noisy cabin. Address all concerns.", "context": "Multiple complaint resolution", "keywords": ["understand", "frustrating", "resolve", "each", "luggage", "dining", "cabin", "compensation", "follow up"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should systematically address each issue and offer resolution."}
+                {"cefr_band": "basic", "phrase": "Guest services is open all day."},
+                {"cefr_band": "basic", "phrase": "Lost items are kept at the desk."},
+                {"cefr_band": "basic", "phrase": "Your luggage will arrive very soon."},
+                {"cefr_band": "basic", "phrase": "I can help you find your way."},
+                {"cefr_band": "intermediate", "phrase": "I can arrange a special birthday celebration in your cabin tonight."},
+                {"cefr_band": "intermediate", "phrase": "We will deliver a replacement key card to your cabin shortly."},
+                {"cefr_band": "intermediate", "phrase": "Please contact guest services for any concerns during your cruise voyage."},
+                {"cefr_band": "intermediate", "phrase": "Our team can help you book restaurant reservations at any time."},
+                {"cefr_band": "advanced", "phrase": "Our guest services team is available around the clock to assist with any questions or special requests."},
+                {"cefr_band": "advanced", "phrase": "We can coordinate with the spa and dining teams to create a personalized anniversary package for you."},
+                {"cefr_band": "advanced", "phrase": "All guest feedback is documented and shared with department managers to continuously improve our onboard services."},
+                {"cefr_band": "advanced", "phrase": "Please visit the guest services desk on deck three if you need assistance with your onboard account."},
             ],
+            # ── 6. Cabin Service ───────────────────────────────────────
+            "Cabin Service": [
+                {"cefr_band": "basic", "phrase": "Room service is available all night."},
+                {"cefr_band": "basic", "phrase": "Your breakfast order is confirmed now."},
+                {"cefr_band": "basic", "phrase": "I will deliver your meal shortly."},
+                {"cefr_band": "basic", "phrase": "The room service menu is on your desk."},
+                {"cefr_band": "intermediate", "phrase": "Your room service order will be delivered within thirty minutes today."},
+                {"cefr_band": "intermediate", "phrase": "We offer a continental breakfast package delivered to your cabin daily."},
+                {"cefr_band": "intermediate", "phrase": "Please hang the breakfast order card on your door before midnight."},
+                {"cefr_band": "intermediate", "phrase": "Late night snacks are available from the cabin service menu until two."},
+                {"cefr_band": "advanced", "phrase": "Our cabin service team ensures that all dietary preferences are carefully noted and followed for every delivery."},
+                {"cefr_band": "advanced", "phrase": "Guests in suite categories enjoy an expanded room service menu with premium selections available throughout the day."},
+                {"cefr_band": "advanced", "phrase": "Please indicate any food allergies on the order card so our kitchen team can prepare your meal safely."},
+                {"cefr_band": "advanced", "phrase": "We recommend ordering breakfast the night before to ensure prompt delivery at your preferred morning time."},
+            ],
+            # ── 7. Auxiliary Service ───────────────────────────────────
             "Auxiliary Service": [
-                {"cefr_band": "basic", "prompt": "A performer asks: 'Where can I find a microphone for tonight's show?' Help them.", "context": "Equipment location request", "keywords": ["microphone", "equipment", "room", "stage", "setup", "available", "check out"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should direct them to equipment or offer to retrieve it."},
-                {"cefr_band": "intermediate", "prompt": "A team leader asks: 'Can we have the projector and screen set up in the conference room by 2 PM?' Respond professionally.", "context": "A/V setup request", "keywords": ["confirm", "2 PM", "conference", "projector", "screen", "setup", "ready"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should confirm request and timeline."},
-                {"cefr_band": "intermediate", "prompt": "During an event, the speaker's microphone stops working. The event host asks you to fix it quickly. Respond and act.", "context": "Technical issue during live event", "keywords": ["backup", "replace", "check", "battery", "connection", "moment", "apologize", "working"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should troubleshoot quickly and communicate clearly."},
-                {"cefr_band": "advanced", "prompt": "You need to coordinate a large outdoor deck party with lighting, sound, and live entertainment. Explain your setup plan to the entertainment director.", "context": "Large event planning discussion", "keywords": ["stage", "lighting", "speakers", "power", "timeline", "backup", "weather", "crew", "schedule"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a comprehensive and organized setup plan."}
+                {"cefr_band": "basic", "phrase": "The equipment room is on deck two."},
+                {"cefr_band": "basic", "phrase": "All radios must be returned tonight."},
+                {"cefr_band": "basic", "phrase": "The storage area is locked after ten."},
+                {"cefr_band": "basic", "phrase": "Please report any broken equipment immediately."},
+                {"cefr_band": "intermediate", "phrase": "The projector and screen will be set up before the afternoon meeting."},
+                {"cefr_band": "intermediate", "phrase": "All event equipment must be tested at least two hours before showtime."},
+                {"cefr_band": "intermediate", "phrase": "We need extra chairs and tables for the deck party this evening."},
+                {"cefr_band": "intermediate", "phrase": "Please confirm the setup requirements with the event coordinator by noon today."},
+                {"cefr_band": "advanced", "phrase": "The auxiliary team is responsible for coordinating all equipment logistics for onboard events and guest activities."},
+                {"cefr_band": "advanced", "phrase": "All portable staging must be inspected and certified before each use according to our maritime safety regulations."},
+                {"cefr_band": "advanced", "phrase": "We maintain a detailed inventory of all event supplies and equipment to prevent shortages between voyages."},
+                {"cefr_band": "advanced", "phrase": "Please coordinate with the entertainment and food teams when planning any large outdoor deck events this week."},
             ],
+            # ── 8. Laundry ─────────────────────────────────────────────
             "Laundry": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'When will my laundry be ready?' Respond appropriately.", "context": "Laundry status inquiry", "keywords": ["express", "standard", "hours", "ready", "tomorrow", "delivery"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should state turnaround time clearly."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'I need this shirt cleaned for tonight's formal dinner.' Handle the urgent request.", "context": "Express laundry request", "keywords": ["express", "tonight", "ready", "hours", "rush", "formal", "clean", "iron"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain express service availability and timeline."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'My dress was damaged during dry cleaning. What will you do about it?' Handle the complaint.", "context": "Damage complaint", "keywords": ["apologize", "investigate", "compensation", "report", "supervisor", "damage", "sorry", "resolve"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize, document the damage, and explain compensation process."},
-                {"cefr_band": "advanced", "prompt": "Explain the full laundry process from collection to delivery to a new crew member you are training.", "context": "Training new staff", "keywords": ["collect", "sort", "wash", "dry", "press", "fold", "label", "deliver", "inspect", "quality"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should describe the complete process step by step."}
+                {"cefr_band": "basic", "phrase": "Your laundry will be ready tomorrow."},
+                {"cefr_band": "basic", "phrase": "Express service takes only four hours."},
+                {"cefr_band": "basic", "phrase": "Please fill out the laundry form."},
+                {"cefr_band": "basic", "phrase": "We offer dry cleaning every weekday."},
+                {"cefr_band": "intermediate", "phrase": "Your garments will be pressed and returned to your cabin by evening."},
+                {"cefr_band": "intermediate", "phrase": "Please separate dark and light items before placing them in the bag."},
+                {"cefr_band": "intermediate", "phrase": "Express laundry is available for an additional charge on formal nights."},
+                {"cefr_band": "intermediate", "phrase": "We inspect every garment for stains and damage before starting the wash."},
+                {"cefr_band": "advanced", "phrase": "All laundry equipment is maintained on a strict preventive schedule to avoid breakdowns during peak voyage periods."},
+                {"cefr_band": "advanced", "phrase": "Guests should report any damage to clothing within twenty-four hours so we can process a compensation claim."},
+                {"cefr_band": "advanced", "phrase": "Our laundry team processes over two thousand garments per day while maintaining the highest quality control standards."},
+                {"cefr_band": "advanced", "phrase": "Delicate fabrics such as silk and cashmere require special handling and are cleaned using a gentle solvent process."},
             ],
+            # ── 9. Photo ──────────────────────────────────────────────
             "Photo": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'Where can I find my embarkation photo?' Help them locate it.", "context": "Photo location inquiry", "keywords": ["gallery", "deck", "display", "day", "find", "name", "help"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should direct guest to the photo gallery and explain how to find their photo."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'Do you offer family portrait packages?' Explain the options.", "context": "Photo package inquiry", "keywords": ["package", "family", "portrait", "prints", "digital", "price", "session"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should describe portrait package options."},
-                {"cefr_band": "intermediate", "prompt": "A guest is unhappy with their formal night photos and wants a retake. Respond professionally.", "context": "Photo retake request", "keywords": ["retake", "happy to", "schedule", "tonight", "lighting", "pose", "better", "no charge"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should offer retake and reassure guest."},
-                {"cefr_band": "advanced", "prompt": "A guest couple wants a special sunset photo session on the top deck for their anniversary. Plan and describe the session.", "context": "Custom photo session planning", "keywords": ["sunset", "anniversary", "location", "time", "poses", "lighting", "special", "memorable", "package"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should plan the session with specific details about timing and location."}
+                {"cefr_band": "basic", "phrase": "Your embarkation photos are now ready."},
+                {"cefr_band": "basic", "phrase": "The photo gallery is on deck five."},
+                {"cefr_band": "basic", "phrase": "We take formal photos every evening."},
+                {"cefr_band": "basic", "phrase": "Digital photo packages are available here."},
+                {"cefr_band": "intermediate", "phrase": "You can view and purchase your cruise photos at the gallery."},
+                {"cefr_band": "intermediate", "phrase": "Our photographers are stationed near the main staircase every formal evening."},
+                {"cefr_band": "intermediate", "phrase": "We offer a family portrait session that includes five professional prints."},
+                {"cefr_band": "intermediate", "phrase": "All digital photo packages include unlimited downloads for the entire voyage."},
+                {"cefr_band": "advanced", "phrase": "The photo team can arrange a private sunset portrait session on the upper deck for special celebrations."},
+                {"cefr_band": "advanced", "phrase": "All cruise photos are stored securely on our server and can be accessed through the ship's mobile application."},
+                {"cefr_band": "advanced", "phrase": "We use professional lighting equipment and backdrops to ensure the highest quality portraits for every guest."},
+                {"cefr_band": "advanced", "phrase": "Guests who purchase the premium photo package receive all formal and candid images taken throughout the voyage."},
             ],
+            # ── 10. Provisions ─────────────────────────────────────────
             "Provisions": [
-                {"cefr_band": "basic", "prompt": "A delivery driver arrives and says: 'I have 50 cases of produce. Where do they go?' Direct them.", "context": "Delivery receiving directions", "keywords": ["dock", "cold storage", "refrigerator", "follow", "sign", "log", "temperature"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should give clear directions to the appropriate storage area."},
-                {"cefr_band": "intermediate", "prompt": "A chef asks: 'When is the produce delivery due?' Provide the information.", "context": "Delivery schedule inquiry", "keywords": ["delivery", "ETA", "produce", "schedule", "morning", "dock"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should give delivery timing clearly."},
-                {"cefr_band": "intermediate", "prompt": "You discover that a delivery of chicken is above the safe temperature. Explain what you will do.", "context": "Food safety issue", "keywords": ["reject", "temperature", "unsafe", "document", "report", "supplier", "log", "discard"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain rejection and documentation procedures."},
-                {"cefr_band": "advanced", "prompt": "The provisions manager asks you to brief the team on the inventory situation for the next 7-day voyage. Present the status.", "context": "Inventory briefing", "keywords": ["stock levels", "shortage", "order", "par level", "supplier", "lead time", "menu", "contingency"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present inventory status comprehensively."}
+                {"cefr_band": "basic", "phrase": "The delivery truck arrives at seven."},
+                {"cefr_band": "basic", "phrase": "All produce must be refrigerated immediately."},
+                {"cefr_band": "basic", "phrase": "Check the expiration dates on all items."},
+                {"cefr_band": "basic", "phrase": "The cold storage is on deck one."},
+                {"cefr_band": "intermediate", "phrase": "All incoming deliveries must be logged and inspected before going into storage."},
+                {"cefr_band": "intermediate", "phrase": "The chicken delivery arrived above the safe holding temperature this morning."},
+                {"cefr_band": "intermediate", "phrase": "We need to reorder fresh produce before the ship departs tomorrow afternoon."},
+                {"cefr_band": "intermediate", "phrase": "The inventory count must be completed and submitted before noon."},
+                {"cefr_band": "advanced", "phrase": "All perishable goods must be stored at the correct temperature within thirty minutes of receiving the delivery."},
+                {"cefr_band": "advanced", "phrase": "The provisions team coordinates with the head chef to ensure sufficient stock levels for every menu item onboard."},
+                {"cefr_band": "advanced", "phrase": "We follow strict first-in first-out rotation for all stored items to minimize food waste and maintain freshness."},
+                {"cefr_band": "advanced", "phrase": "Each supplier delivery is verified against the original purchase order to confirm quantities, quality, and pricing."},
             ],
+            # ── 11. Deck Department ────────────────────────────────────
             "Deck Department": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'Where is my muster station?' Help them find it.", "context": "Muster station directions", "keywords": ["muster", "station", "deck", "number", "key card", "follow", "signs"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain how to find their assigned muster station."},
-                {"cefr_band": "intermediate", "prompt": "A guest wants to know why they cannot swim in the pool during rough weather. Explain the safety reason.", "context": "Weather safety explanation", "keywords": ["safety", "weather", "waves", "closed", "conditions", "risk", "reopen", "announcement"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain the safety reasoning clearly and politely."},
-                {"cefr_band": "advanced", "prompt": "Report to bridge: 'Equipment issue spotted during deck inspection.' Make proper report.", "context": "Safety equipment report to bridge", "keywords": ["report", "spotted", "equipment", "location", "inspection", "require", "maintenance", "safety"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should report clearly with location and nature of issue."},
-                {"cefr_band": "advanced", "prompt": "During a lifeboat drill, explain to junior crew members the correct procedure for launching a lifeboat.", "context": "Emergency drill training", "keywords": ["lifeboat", "davit", "lower", "capacity", "procedure", "safety", "crew", "passengers", "order"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should describe the launch procedure accurately and completely."}
+                {"cefr_band": "basic", "phrase": "Your muster station is on deck seven."},
+                {"cefr_band": "basic", "phrase": "The pool is closed due to weather."},
+                {"cefr_band": "basic", "phrase": "Life jackets are stored under your bed."},
+                {"cefr_band": "basic", "phrase": "Please stay behind the safety line today."},
+                {"cefr_band": "intermediate", "phrase": "The captain has reduced speed due to rough sea conditions ahead."},
+                {"cefr_band": "intermediate", "phrase": "All exterior decks are closed until the severe weather warning passes."},
+                {"cefr_band": "intermediate", "phrase": "The lifeboat drill is mandatory for every guest and crew member onboard."},
+                {"cefr_band": "intermediate", "phrase": "Please proceed to your assigned muster station when you hear the alarm."},
+                {"cefr_band": "advanced", "phrase": "All navigation officers must complete their bridge watch checklist before the start of every scheduled shift rotation."},
+                {"cefr_band": "advanced", "phrase": "The deck crew performs daily safety inspections of all lifesaving equipment including lifeboats, rafts, and rescue boats."},
+                {"cefr_band": "advanced", "phrase": "Mooring operations require close coordination between the bridge team and the forward and aft line handling crews."},
+                {"cefr_band": "advanced", "phrase": "The officer on watch must immediately report any changes in visibility, traffic, or weather conditions to the captain."},
             ],
+            # ── 12. Engine Department ──────────────────────────────────
             "Engine Department": [
-                {"cefr_band": "basic", "prompt": "A new crew member asks: 'What safety equipment do I need in the engine room?' Explain the requirements.", "context": "PPE requirements explanation", "keywords": ["hard hat", "boots", "glasses", "gloves", "ear protection", "safety", "required"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should list all required PPE clearly."},
-                {"cefr_band": "intermediate", "prompt": "A colleague asks: 'The auxiliary engine oil pressure is dropping slowly. What should we do?' Advise them.", "context": "Engine diagnostics discussion", "keywords": ["pressure", "check", "monitor", "report", "chief engineer", "level", "leak", "log"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should advise on diagnostic steps and reporting."},
-                {"cefr_band": "advanced", "prompt": "Inform chief engineer: 'Unusual temperature reading in main engine.' Report the situation.", "context": "Equipment anomaly report", "keywords": ["temperature", "unusual", "reading", "engine", "monitoring", "check", "normal range", "investigate"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should provide specific details and current status."},
-                {"cefr_band": "advanced", "prompt": "Explain the procedure for switching from heavy fuel oil to marine diesel oil when entering an emission control area.", "context": "Fuel changeover procedure", "keywords": ["switchover", "emission", "control area", "diesel", "heavy fuel", "temperature", "viscosity", "timeline", "log"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should describe the technical fuel changeover procedure."}
+                {"cefr_band": "basic", "phrase": "Wear your safety helmet at all times."},
+                {"cefr_band": "basic", "phrase": "The engine room temperature is very high."},
+                {"cefr_band": "basic", "phrase": "Report all oil leaks to the supervisor."},
+                {"cefr_band": "basic", "phrase": "Ear protection is required in this area."},
+                {"cefr_band": "intermediate", "phrase": "The main engine oil pressure reading has dropped below the normal range."},
+                {"cefr_band": "intermediate", "phrase": "All fuel transfers must be logged in the oil record book immediately."},
+                {"cefr_band": "intermediate", "phrase": "The auxiliary generator will be taken offline for scheduled maintenance tonight."},
+                {"cefr_band": "intermediate", "phrase": "Please check the cooling water temperature on the port side engine now."},
+                {"cefr_band": "advanced", "phrase": "The chief engineer requires a detailed report on the fuel consumption variance before we reach the next port."},
+                {"cefr_band": "advanced", "phrase": "All engine room personnel must complete confined space entry procedures before working inside any tank or void space."},
+                {"cefr_band": "advanced", "phrase": "We are switching from heavy fuel oil to marine diesel before entering the designated emission control area tomorrow."},
+                {"cefr_band": "advanced", "phrase": "The planned maintenance system tracks every piece of critical machinery to ensure compliance with classification society requirements."},
             ],
+            # ── 13. Medical Department ─────────────────────────────────
             "Medical Department": [
-                {"cefr_band": "basic", "prompt": "A guest says: 'I have a headache and need some medicine.' Help them.", "context": "Basic medical request", "keywords": ["medical center", "painkiller", "rest", "water", "visit", "help", "doctor"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should offer immediate guidance and direct to medical center."},
-                {"cefr_band": "intermediate", "prompt": "A guest says: 'I feel unwell and need to see a nurse.' Respond appropriately.", "context": "Guest requests medical attention", "keywords": ["medical center", "sick call", "nurse", "doctor", "assist", "location", "urgent", "help"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should direct guest to medical center and offer assistance."},
-                {"cefr_band": "intermediate", "prompt": "A parent asks: 'My child fell and cut their knee. Where can they get first aid?' Respond calmly.", "context": "Child injury response", "keywords": ["medical center", "first aid", "nurse", "clean", "bandage", "deck 1", "accompany", "calm"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should provide calm guidance and direct to medical center."},
-                {"cefr_band": "advanced", "prompt": "Explain to a guest why they need to be medically evacuated at the next port and what the process involves.", "context": "Medical evacuation explanation", "keywords": ["condition", "beyond", "capabilities", "hospital", "helicopter", "coast guard", "insurance", "documentation", "safe"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should explain the medical reasoning and process sensitively."}
+                {"cefr_band": "basic", "phrase": "The medical center is on deck one."},
+                {"cefr_band": "basic", "phrase": "The doctor is available until ten tonight."},
+                {"cefr_band": "basic", "phrase": "Please take this medication with water."},
+                {"cefr_band": "basic", "phrase": "Sick call hours begin at nine daily."},
+                {"cefr_band": "intermediate", "phrase": "The nurse will take your blood pressure and temperature before the consultation."},
+                {"cefr_band": "intermediate", "phrase": "Please inform the medical team of all medications you are currently taking."},
+                {"cefr_band": "intermediate", "phrase": "The medical center has basic laboratory and diagnostic equipment available onboard."},
+                {"cefr_band": "intermediate", "phrase": "Seasickness medication is available at the reception desk without an appointment today."},
+                {"cefr_band": "advanced", "phrase": "The doctor must complete a detailed medical report for any guest requiring evacuation at port."},
+                {"cefr_band": "advanced", "phrase": "All crew members are required to pass a pre-employment medical examination before joining the vessel for service."},
+                {"cefr_band": "advanced", "phrase": "The medical team follows strict international maritime health regulations for the treatment and reporting of communicable diseases."},
+                {"cefr_band": "advanced", "phrase": "Guests requiring ongoing medical care should bring sufficient prescription medication to last the entire duration of their voyage."},
             ],
+            # ── 14. Security Department ────────────────────────────────
             "Security Department": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'I forgot my key card. Can I still get back to my room?' Help them.", "context": "Access without key card", "keywords": ["Guest Services", "ID", "verify", "replacement", "deck", "escort", "help"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain verification and replacement process."},
-                {"cefr_band": "intermediate", "prompt": "A guest says: 'Someone stole my watch from the pool area.' Take the report.", "context": "Theft report at pool", "keywords": ["report", "describe", "when", "where", "details", "investigate", "CCTV", "form"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should collect details and explain investigation process."},
-                {"cefr_band": "advanced", "prompt": "A guest reports: 'I saw someone acting suspiciously near the pool.' Respond professionally.", "context": "Security concern reported by guest", "keywords": ["thank you", "report", "investigate", "describe", "location", "safety", "patrol", "monitor"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should acknowledge concern and explain action to be taken."},
-                {"cefr_band": "advanced", "prompt": "Brief your security team on enhanced screening procedures for a high-profile event onboard tonight.", "context": "Security team briefing", "keywords": ["enhanced", "screening", "VIP", "access", "checkpoints", "protocol", "communication", "perimeter", "alert"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present clear security protocol for the event."}
+                {"cefr_band": "basic", "phrase": "Please show your key card here."},
+                {"cefr_band": "basic", "phrase": "The security office is on deck three."},
+                {"cefr_band": "basic", "phrase": "All bags are screened at the gangway."},
+                {"cefr_band": "basic", "phrase": "Report any suspicious activity to security."},
+                {"cefr_band": "intermediate", "phrase": "All guests must pass through the screening checkpoint before boarding the vessel."},
+                {"cefr_band": "intermediate", "phrase": "The security team monitors all public areas using closed circuit television cameras."},
+                {"cefr_band": "intermediate", "phrase": "Please keep your key card with you at all times while onboard."},
+                {"cefr_band": "intermediate", "phrase": "A security officer will escort you to your cabin for identification verification."},
+                {"cefr_band": "advanced", "phrase": "The security team conducts regular patrols of all passenger and crew areas throughout every twenty-four hour period."},
+                {"cefr_band": "advanced", "phrase": "All security personnel must complete mandatory training on emergency response procedures and crowd management techniques annually."},
+                {"cefr_band": "advanced", "phrase": "The ship security plan is reviewed and updated before every voyage in compliance with international maritime regulations."},
+                {"cefr_band": "advanced", "phrase": "Enhanced screening procedures are implemented whenever the vessel operates at an elevated maritime security threat level."},
             ],
+            # ── 15. Table Games ────────────────────────────────────────
             "Table Games": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'How do I buy chips to play?' Explain the process.", "context": "Chip purchase inquiry", "keywords": ["cashier", "cage", "cash", "chips", "exchange", "table", "minimum"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the chip exchange process simply."},
-                {"cefr_band": "intermediate", "prompt": "A new guest asks: 'I've never played blackjack. Can you explain?' Teach the basics.", "context": "Teaching game rules to new player", "keywords": ["objective", "21", "cards", "dealer", "hit", "stand", "rules", "simple", "try"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain basic rules clearly and encourage participation."},
-                {"cefr_band": "intermediate", "prompt": "A guest disputes a hand result at the poker table and says: 'That's not right, I should have won.' Handle it.", "context": "Gaming dispute resolution", "keywords": ["understand", "review", "camera", "supervisor", "rules", "fair", "resolve", "policy"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should remain calm, explain the ruling, and offer supervisor review."},
-                {"cefr_band": "advanced", "prompt": "A pit supervisor asks you to explain the proper procedure for handling a suspected card counter at the blackjack table.", "context": "Surveillance and compliance discussion", "keywords": ["observation", "betting pattern", "notify", "surveillance", "shuffle", "procedure", "discretion", "policy"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should describe the identification and handling procedure professionally."}
+                {"cefr_band": "basic", "phrase": "The minimum bet is ten dollars."},
+                {"cefr_band": "basic", "phrase": "Please place your chips on the table."},
+                {"cefr_band": "basic", "phrase": "Cards must remain visible at all times."},
+                {"cefr_band": "basic", "phrase": "The casino opens at noon every day."},
+                {"cefr_band": "intermediate", "phrase": "We offer free blackjack lessons for beginners every afternoon at two."},
+                {"cefr_band": "intermediate", "phrase": "The poker tournament registration closes one hour before the event starts."},
+                {"cefr_band": "intermediate", "phrase": "All gaming disputes are reviewed by the pit supervisor and recorded officially."},
+                {"cefr_band": "intermediate", "phrase": "Please exchange your cash for chips at the cashier cage before playing."},
+                {"cefr_band": "advanced", "phrase": "The dealer must follow strict procedures when shuffling, dealing, and settling each hand."},
+                {"cefr_band": "advanced", "phrase": "All table game results are monitored by surveillance cameras for fair play and compliance."},
+                {"cefr_band": "advanced", "phrase": "The pit supervisor is responsible for managing table limits, dealer rotations, and resolving any player disputes promptly."},
+                {"cefr_band": "advanced", "phrase": "Guests participating in the high-stakes tournament must register at the casino host desk and present valid identification."},
             ],
+            # ── 16. Slot Machines ──────────────────────────────────────
+            "Slot Machines": [
+                {"cefr_band": "basic", "phrase": "Insert your player card before playing."},
+                {"cefr_band": "basic", "phrase": "Press the spin button to start."},
+                {"cefr_band": "basic", "phrase": "This machine accepts bills and coins."},
+                {"cefr_band": "basic", "phrase": "The jackpot amount is shown above."},
+                {"cefr_band": "intermediate", "phrase": "You can adjust your bet amount by pressing the arrows on screen."},
+                {"cefr_band": "intermediate", "phrase": "Please call an attendant if the machine displays an error message today."},
+                {"cefr_band": "intermediate", "phrase": "The progressive jackpot increases every time a guest plays this machine."},
+                {"cefr_band": "intermediate", "phrase": "Your player card tracks points that can be redeemed for onboard rewards."},
+                {"cefr_band": "advanced", "phrase": "All slot machines are tested and certified to operate within strict payout percentages required by gaming regulations."},
+                {"cefr_band": "advanced", "phrase": "The slot technician performs daily diagnostic checks on every machine to ensure proper function and accurate payouts."},
+                {"cefr_band": "advanced", "phrase": "Guests who experience a machine malfunction should not leave the area until a slot attendant verifies the situation."},
+                {"cefr_band": "advanced", "phrase": "Our newest machines feature touchscreen technology with multiple game options and bonus rounds for enhanced guest entertainment."},
+            ],
+            # ── 17. Casino Services ────────────────────────────────────
             "Casino Services": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'How do I use this slot machine?' Show them how to play.", "context": "Slot machine instruction", "keywords": ["insert", "card", "cash", "button", "spin", "pay table", "win", "lines"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain slot machine basics clearly."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'What are the benefits of joining your loyalty program?' Explain the program.", "context": "Loyalty program explanation", "keywords": ["benefits", "points", "rewards", "tiers", "complimentary", "exclusive", "earn", "redeem"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should highlight benefits and explain how to earn rewards."},
-                {"cefr_band": "intermediate", "prompt": "A guest says: 'This slot machine took my money but didn't credit my play.' Help resolve the issue.", "context": "Machine malfunction complaint", "keywords": ["sorry", "technician", "check", "refund", "log", "receipt", "resolve", "machine number"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize and explain the resolution process."},
-                {"cefr_band": "advanced", "prompt": "A guest shows signs of problem gambling—chasing losses and becoming agitated. How do you approach the situation?", "context": "Responsible gaming intervention", "keywords": ["concern", "break", "limit", "self-exclusion", "support", "helpline", "private", "respectful", "policy"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should approach with sensitivity and follow responsible gaming procedures."}
+                {"cefr_band": "basic", "phrase": "The casino cashier is open now."},
+                {"cefr_band": "basic", "phrase": "Join our loyalty program for free."},
+                {"cefr_band": "basic", "phrase": "You can redeem your points at reception."},
+                {"cefr_band": "basic", "phrase": "The casino is located on deck four."},
+                {"cefr_band": "intermediate", "phrase": "Our loyalty program members receive exclusive invitations to special gaming events onboard."},
+                {"cefr_band": "intermediate", "phrase": "Check your rewards balance at any kiosk on the casino floor."},
+                {"cefr_band": "intermediate", "phrase": "The casino host can help you with complimentary dining reservations tonight."},
+                {"cefr_band": "intermediate", "phrase": "Please set a personal spending limit before you begin your gaming session."},
+                {"cefr_band": "advanced", "phrase": "The casino services team is trained to identify signs of problem gambling and offer responsible gaming resources discreetly."},
+                {"cefr_band": "advanced", "phrase": "All cash transactions at the casino cage are documented and reported in compliance with international anti-money laundering regulations."},
+                {"cefr_band": "advanced", "phrase": "Our premium loyalty members enjoy priority reservations, complimentary beverages, and invitations to exclusive onboard gaming tournaments."},
+                {"cefr_band": "advanced", "phrase": "The casino manager reviews daily revenue reports and player activity data to optimize staffing and table game offerings."},
             ],
+            # ── 18. Spa & Wellness ─────────────────────────────────────
             "Spa & Wellness": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What spa treatments do you offer today?' Describe the available services.", "context": "Spa services inquiry", "keywords": ["massage", "facial", "sauna", "appointment", "available", "menu", "today"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should list available treatments clearly."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'I'd like to book a massage for this afternoon.' Help them make the appointment.", "context": "Spa booking request", "keywords": ["appointment", "time", "available", "therapist", "duration", "book", "confirm"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should check availability and confirm the booking."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'I have sensitive skin. Which facial treatment would you recommend?' Advise them.", "context": "Treatment recommendation for sensitive skin", "keywords": ["sensitive", "gentle", "hypoallergenic", "recommend", "ingredients", "soothing", "consultation", "patch test"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should recommend appropriate treatments and explain why they suit sensitive skin."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The hot stone massage was too rough and I have bruises.' Handle the complaint.", "context": "Treatment complaint", "keywords": ["apologize", "sorry", "medical", "report", "manager", "compensation", "document", "follow up"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize sincerely, offer medical attention, and escalate."},
-                {"cefr_band": "advanced", "prompt": "A couple wants to plan a full-day wellness package including spa, fitness, and healthy dining. Create a personalized itinerary for them.", "context": "Comprehensive wellness package planning", "keywords": ["itinerary", "couples", "treatment", "yoga", "nutrition", "schedule", "relaxation", "customized", "wellness"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should create a detailed and appealing day-long wellness plan."}
+                {"cefr_band": "basic", "phrase": "The spa is located on deck nine."},
+                {"cefr_band": "basic", "phrase": "We offer massage and facial treatments."},
+                {"cefr_band": "basic", "phrase": "The sauna is open until ten tonight."},
+                {"cefr_band": "basic", "phrase": "Your appointment is confirmed for three."},
+                {"cefr_band": "intermediate", "phrase": "We recommend arriving fifteen minutes before your scheduled spa appointment time."},
+                {"cefr_band": "intermediate", "phrase": "Our therapists can customize the massage pressure to match your personal preference."},
+                {"cefr_band": "intermediate", "phrase": "The fitness center offers complimentary yoga classes every morning at seven thirty."},
+                {"cefr_band": "intermediate", "phrase": "Please inform your therapist about any medical conditions before the treatment begins."},
+                {"cefr_band": "advanced", "phrase": "The spa team can create a personalized wellness itinerary that includes treatments, fitness classes, and healthy dining options."},
+                {"cefr_band": "advanced", "phrase": "All spa products used during treatments are available for purchase at the retail boutique located next to reception."},
+                {"cefr_band": "advanced", "phrase": "Couples booking the premium relaxation package receive a private suite with ocean views, champagne, and extended treatment time."},
+                {"cefr_band": "advanced", "phrase": "Our wellness program combines physical fitness, nutritional guidance, and mindfulness practices for a holistic approach to guest health."},
             ],
+            # ── 19. Entertainment Technical ────────────────────────────
             "Entertainment Technical": [
-                {"cefr_band": "basic", "prompt": "A performer says: 'The stage lights are flickering during my act.' Respond and offer to fix the issue.", "context": "Stage lighting malfunction", "keywords": ["lights", "check", "fix", "replace", "moment", "apologies", "technician", "resolve"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should acknowledge the problem and explain immediate steps."},
-                {"cefr_band": "basic", "prompt": "The cruise director asks: 'Is the sound system ready for tonight's show?' Confirm the status.", "context": "Sound system readiness check", "keywords": ["ready", "tested", "microphones", "speakers", "levels", "confirmed", "set up"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should confirm readiness with specific details."},
-                {"cefr_band": "intermediate", "prompt": "During a live performance, the main speaker blows out. Explain to the stage manager what happened and your backup plan.", "context": "Emergency audio failure during show", "keywords": ["speaker", "blown", "backup", "redirect", "monitor", "channel", "temporary", "replace"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain the failure and present a quick contingency solution."},
-                {"cefr_band": "intermediate", "prompt": "A guest performer requests a specific lighting setup for their act. Discuss the requirements and feasibility.", "context": "Custom lighting request from performer", "keywords": ["spotlight", "color", "cue", "dimmer", "position", "feasible", "rehearsal", "program"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should discuss technical capabilities and agree on a workable plan."},
-                {"cefr_band": "advanced", "prompt": "Brief your technical crew on the setup requirements for a multi-act variety show including live band, dancers, and aerial performers.", "context": "Complex show technical briefing", "keywords": ["rigging", "cues", "transitions", "safety", "lighting plot", "sound check", "aerial", "coordination", "timeline"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a comprehensive technical plan covering all acts."}
+                {"cefr_band": "basic", "phrase": "The stage lights need new batteries."},
+                {"cefr_band": "basic", "phrase": "Sound check starts at four today."},
+                {"cefr_band": "basic", "phrase": "All microphones must be tested before showtime."},
+                {"cefr_band": "basic", "phrase": "The spotlight is ready for tonight."},
+                {"cefr_band": "intermediate", "phrase": "The main speaker on stage left stopped working during the last performance."},
+                {"cefr_band": "intermediate", "phrase": "We need to program the lighting cues before the dress rehearsal."},
+                {"cefr_band": "intermediate", "phrase": "The backup audio system is connected and ready for tonight."},
+                {"cefr_band": "intermediate", "phrase": "Please run a complete sound and lighting test before every show."},
+                {"cefr_band": "advanced", "phrase": "The technical crew must coordinate lighting, sound, and video cues for smooth transitions between show segments."},
+                {"cefr_band": "advanced", "phrase": "All rigging and overhead equipment is inspected before each performance for maritime safety compliance."},
+                {"cefr_band": "advanced", "phrase": "The show director has requested a custom lighting design that requires additional fixtures and programming."},
+                {"cefr_band": "advanced", "phrase": "We maintain a full inventory of spare parts for all critical technical equipment on the ship."},
             ],
+            # ── 20. Entertainment ──────────────────────────────────────
             "Entertainment": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What shows are on tonight?' Tell them about the evening entertainment.", "context": "Entertainment schedule inquiry", "keywords": ["show", "tonight", "theater", "time", "comedy", "music", "deck", "schedule"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should describe the evening's entertainment options clearly."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'How do I sign up for the karaoke night?' Help them register.", "context": "Activity registration", "keywords": ["sign up", "list", "name", "song", "time", "location", "tonight", "register"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the registration process simply."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The show started late and we missed the beginning because of wrong information.' Respond professionally.", "context": "Schedule misinformation complaint", "keywords": ["apologize", "schedule", "change", "notify", "sorry", "inconvenience", "make up", "feedback"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize and explain what happened while offering a remedy."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'Can you recommend activities for a rainy sea day?' Suggest indoor entertainment options.", "context": "Rainy day activity recommendations", "keywords": ["indoor", "trivia", "movie", "spa", "game show", "workshop", "lounge", "recommend"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should suggest a variety of engaging indoor activities."},
-                {"cefr_band": "advanced", "prompt": "Present to the entertainment team your proposal for a new themed deck party that combines live music, interactive games, and dining.", "context": "New event concept proposal", "keywords": ["theme", "concept", "budget", "logistics", "timeline", "music", "interactive", "catering", "promotion"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a creative and well-organized event proposal."}
+                {"cefr_band": "basic", "phrase": "The comedy show starts at nine tonight."},
+                {"cefr_band": "basic", "phrase": "Trivia begins in the lounge at three."},
+                {"cefr_band": "basic", "phrase": "Sign up for karaoke at the desk."},
+                {"cefr_band": "basic", "phrase": "Tonight's show is in the main theater."},
+                {"cefr_band": "intermediate", "phrase": "The entertainment schedule is available on the ship's mobile app daily."},
+                {"cefr_band": "intermediate", "phrase": "We have live music at the pool deck every afternoon."},
+                {"cefr_band": "intermediate", "phrase": "The magic show is recommended for families with children of all ages."},
+                {"cefr_band": "intermediate", "phrase": "Guests can reserve front row seats for the main show tonight."},
+                {"cefr_band": "advanced", "phrase": "The cruise director coordinates with all entertainment teams to deliver a diverse daily activity program."},
+                {"cefr_band": "advanced", "phrase": "Tonight's production show features original choreography, live vocals, and a spectacular light display."},
+                {"cefr_band": "advanced", "phrase": "The entertainment team plans special themed events on sea days to keep every guest engaged."},
+                {"cefr_band": "advanced", "phrase": "All performers and activity hosts attend a daily briefing to review the schedule and coordinate logistics."},
             ],
+            # ── 21. Fleet Finance ──────────────────────────────────────
             "Fleet Finance": [
-                {"cefr_band": "basic", "prompt": "A crew member asks: 'How do I check my onboard account balance?' Explain the process.", "context": "Account balance inquiry", "keywords": ["account", "balance", "kiosk", "reception", "statement", "check", "card"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain how to access account information."},
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What currencies do you accept at the front desk?' Provide the information.", "context": "Currency acceptance inquiry", "keywords": ["US dollars", "euros", "credit card", "exchange", "accept", "currency", "cash"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should list accepted currencies and payment methods."},
-                {"cefr_band": "intermediate", "prompt": "A department head asks: 'Why is our bar revenue below target this month?' Discuss possible reasons and actions.", "context": "Revenue analysis discussion", "keywords": ["revenue", "target", "variance", "occupancy", "pricing", "promotion", "analysis", "trend"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should analyze the shortfall and suggest corrective actions."},
-                {"cefr_band": "intermediate", "prompt": "A vendor invoice has discrepancies. Explain to the supplier what needs to be corrected before payment.", "context": "Invoice discrepancy resolution", "keywords": ["invoice", "discrepancy", "quantity", "price", "correct", "reconcile", "purchase order", "payment"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should identify discrepancies and request corrections professionally."},
-                {"cefr_band": "advanced", "prompt": "Present the monthly financial summary to the ship's senior officers, highlighting key variances and recommending budget adjustments.", "context": "Monthly financial review presentation", "keywords": ["budget", "variance", "forecast", "cost control", "revenue", "EBITDA", "savings", "recommendation", "quarter"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present financial data clearly with actionable recommendations."}
+                {"cefr_band": "basic", "phrase": "The daily account statement is ready."},
+                {"cefr_band": "basic", "phrase": "We accept all major credit cards onboard."},
+                {"cefr_band": "basic", "phrase": "Cash payments are processed at reception."},
+                {"cefr_band": "basic", "phrase": "Your account balance is printed here."},
+                {"cefr_band": "intermediate", "phrase": "The monthly revenue report must be submitted to headquarters before the fifth."},
+                {"cefr_band": "intermediate", "phrase": "All vendor invoices require approval from the department head before payment processing."},
+                {"cefr_band": "intermediate", "phrase": "We track onboard spending by department to identify cost saving opportunities quickly."},
+                {"cefr_band": "intermediate", "phrase": "The foreign currency exchange rate is updated every port day."},
+                {"cefr_band": "advanced", "phrase": "The finance team prepares a detailed variance analysis comparing actual revenue and expenses against the budget."},
+                {"cefr_band": "advanced", "phrase": "All onboard purchase transactions are reconciled nightly to ensure accuracy in guest folio accounting."},
+                {"cefr_band": "advanced", "phrase": "Fleet finance officers must ensure that every vessel complies with international tax regulations at each port."},
+                {"cefr_band": "advanced", "phrase": "The quarterly financial review includes a forecast adjustment based on current booking trends and cost data."},
             ],
+            # ── 22. Guest Technology ───────────────────────────────────
             "Guest Technology": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'How do I connect to the ship's Wi-Fi?' Walk them through the steps.", "context": "Wi-Fi connection assistance", "keywords": ["Wi-Fi", "connect", "password", "network", "settings", "device", "login"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should give simple step-by-step Wi-Fi connection instructions."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'The TV in my cabin is not working.' Help them troubleshoot.", "context": "In-cabin TV troubleshooting", "keywords": ["TV", "remote", "power", "channel", "reset", "working", "technician"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should suggest basic troubleshooting steps."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'Which internet package should I buy? I need to video call my family.' Recommend the right plan.", "context": "Internet package recommendation", "keywords": ["package", "streaming", "video call", "bandwidth", "premium", "basic", "speed", "upgrade"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should match the guest's needs to the appropriate package."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The internet is extremely slow and I paid for premium.' Address their concern.", "context": "Internet speed complaint", "keywords": ["apologize", "speed", "congestion", "troubleshoot", "reset", "refund", "premium", "technical team"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should acknowledge the issue and offer solutions or compensation."},
-                {"cefr_band": "advanced", "prompt": "The IT manager asks you to explain to the guest services team how the new digital concierge app works so they can assist guests.", "context": "Technology training for staff", "keywords": ["app", "features", "navigation", "booking", "itinerary", "notifications", "troubleshoot", "FAQ", "demo"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should deliver a clear and comprehensive app walkthrough for non-technical staff."}
+                {"cefr_band": "basic", "phrase": "The Wi-Fi password is on your card."},
+                {"cefr_band": "basic", "phrase": "Connect to the ship network first."},
+                {"cefr_band": "basic", "phrase": "Restart your device and try again now."},
+                {"cefr_band": "basic", "phrase": "The internet cafe is on deck five."},
+                {"cefr_band": "intermediate", "phrase": "The premium internet package supports video calling and streaming services onboard."},
+                {"cefr_band": "intermediate", "phrase": "You can upgrade your internet plan through the ship's mobile app."},
+                {"cefr_band": "intermediate", "phrase": "Our technical support team is available at the help desk daily."},
+                {"cefr_band": "intermediate", "phrase": "The cabin television system offers on-demand movies and live satellite news channels."},
+                {"cefr_band": "advanced", "phrase": "The guest technology team manages all digital touchpoints including the mobile application, cabin televisions, and interactive kiosks."},
+                {"cefr_band": "advanced", "phrase": "Satellite bandwidth is shared among all connected guests, so speeds may vary during peak periods."},
+                {"cefr_band": "advanced", "phrase": "The new digital concierge platform allows guests to book activities and services from their personal devices."},
+                {"cefr_band": "advanced", "phrase": "All guest technology systems are backed up daily and monitored remotely by the shoreside information technology support team."},
             ],
+            # ── 23. Human Resources ────────────────────────────────────
             "Human Resources": [
-                {"cefr_band": "basic", "prompt": "A new crew member asks: 'Where do I go for my safety orientation?' Direct them.", "context": "New crew orientation directions", "keywords": ["orientation", "deck", "room", "time", "report", "training", "safety"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should give clear directions and timing for orientation."},
-                {"cefr_band": "basic", "prompt": "A crew member asks: 'How do I apply for shore leave?' Explain the procedure.", "context": "Shore leave application", "keywords": ["form", "submit", "supervisor", "approval", "schedule", "advance", "shore leave"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the application steps simply."},
-                {"cefr_band": "intermediate", "prompt": "A crew member says: 'I'm having a conflict with my cabin mate. Can HR help?' Listen and advise.", "context": "Crew conflict mediation", "keywords": ["understand", "mediation", "discuss", "solution", "respectful", "transfer", "report", "confidential"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should show empathy and explain the mediation process."},
-                {"cefr_band": "intermediate", "prompt": "A department head asks: 'We need additional staff for the busy holiday season. How do we request that?' Explain the process.", "context": "Staffing request procedure", "keywords": ["request", "headcount", "approval", "budget", "justification", "recruitment", "timeline", "form"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain the staffing request procedure clearly."},
-                {"cefr_band": "advanced", "prompt": "Conduct a briefing for department heads on the new crew performance evaluation system, including timelines and criteria.", "context": "Performance evaluation system rollout", "keywords": ["evaluation", "criteria", "timeline", "feedback", "KPIs", "development plan", "rating", "calibration", "deadline"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present the evaluation system comprehensively with clear expectations."}
+                {"cefr_band": "basic", "phrase": "Safety orientation is at nine tomorrow."},
+                {"cefr_band": "basic", "phrase": "Submit your leave request form today."},
+                {"cefr_band": "basic", "phrase": "Your crew identification card is ready."},
+                {"cefr_band": "basic", "phrase": "The training room is on deck two."},
+                {"cefr_band": "intermediate", "phrase": "All new crew members must complete the safety familiarization program before starting."},
+                {"cefr_band": "intermediate", "phrase": "Performance evaluations are conducted by your direct supervisor every three months."},
+                {"cefr_band": "intermediate", "phrase": "The human resources office handles all questions about contracts, benefits, and payroll."},
+                {"cefr_band": "intermediate", "phrase": "Shore leave requests must be approved by your department head in advance."},
+                {"cefr_band": "advanced", "phrase": "The onboard human resources team coordinates crew welfare activities, conflict resolution, and development programs."},
+                {"cefr_band": "advanced", "phrase": "All crew members may use the recreational facilities during designated off-duty hours per company policy."},
+                {"cefr_band": "advanced", "phrase": "The new performance system includes objective setting, mid-contract reviews, and a final evaluation for promotions."},
+                {"cefr_band": "advanced", "phrase": "Department heads must submit their quarterly staffing assessment to human resources before the manning deadline."},
             ],
+            # ── 24. Info Technology ────────────────────────────────────
             "Info Technology": [
-                {"cefr_band": "basic", "prompt": "A crew member says: 'My work computer won't turn on.' Help them troubleshoot.", "context": "Computer power issue", "keywords": ["power", "cable", "plug", "restart", "button", "check", "IT support"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should suggest basic power troubleshooting steps."},
-                {"cefr_band": "basic", "prompt": "A crew member asks: 'I forgot my login password. How do I reset it?' Explain the process.", "context": "Password reset request", "keywords": ["reset", "password", "IT desk", "email", "verify", "temporary", "new password"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the password reset procedure."},
-                {"cefr_band": "intermediate", "prompt": "A department reports: 'Our point-of-sale system has been down for 30 minutes.' Explain what actions you are taking.", "context": "POS system outage response", "keywords": ["investigating", "server", "network", "restart", "backup", "ETA", "workaround", "escalate"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain current actions and provide a timeline for resolution."},
-                {"cefr_band": "intermediate", "prompt": "A crew member received a suspicious phishing email. Explain to them what to do and why it matters.", "context": "Cybersecurity awareness", "keywords": ["phishing", "delete", "click", "report", "suspicious", "security", "link", "IT team"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should explain safe actions and the importance of reporting."},
-                {"cefr_band": "advanced", "prompt": "Present to the ship's management team a proposal for upgrading the onboard network infrastructure, including costs, benefits, and timeline.", "context": "Network upgrade proposal", "keywords": ["bandwidth", "infrastructure", "upgrade", "ROI", "downtime", "phases", "budget", "capacity", "implementation"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a structured technical proposal with business justification."}
+                {"cefr_band": "basic", "phrase": "Please restart your computer and try again."},
+                {"cefr_band": "basic", "phrase": "The IT help desk is on deck three."},
+                {"cefr_band": "basic", "phrase": "Your password has been reset successfully."},
+                {"cefr_band": "basic", "phrase": "Never share your login credentials with others."},
+                {"cefr_band": "intermediate", "phrase": "The point of sale system is back online after scheduled maintenance."},
+                {"cefr_band": "intermediate", "phrase": "Please report any suspicious emails to the information technology team immediately."},
+                {"cefr_band": "intermediate", "phrase": "We are upgrading the server tonight so some systems will be unavailable."},
+                {"cefr_band": "intermediate", "phrase": "All crew devices must have the latest security software updates installed."},
+                {"cefr_band": "advanced", "phrase": "The information technology team monitors network traffic continuously to detect and prevent cybersecurity threats."},
+                {"cefr_band": "advanced", "phrase": "All critical shipboard systems have redundant backup servers that activate automatically during a failure."},
+                {"cefr_band": "advanced", "phrase": "The network infrastructure upgrade will increase bandwidth capacity and improve connectivity for guests and crew."},
+                {"cefr_band": "advanced", "phrase": "Every crew member must complete annual cybersecurity training to protect sensitive guest data and company systems."},
             ],
+            # ── 25. Infotainment ───────────────────────────────────────
             "Infotainment": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'How do I use the interactive map on the cabin TV?' Show them.", "context": "Interactive TV navigation help", "keywords": ["remote", "menu", "map", "select", "screen", "channel", "navigate"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the TV navigation steps simply."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'I want to watch a movie on the cabin TV. How do I find the movie list?' Help them.", "context": "On-demand movie access", "keywords": ["movie", "on-demand", "menu", "select", "remote", "list", "play"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain how to access the movie library."},
-                {"cefr_band": "intermediate", "prompt": "A guest reports: 'The interactive screen in the atrium is frozen and not responding.' Explain what you will do.", "context": "Public display malfunction", "keywords": ["restart", "technician", "apologize", "report", "fix", "shortly", "system", "reboot"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should acknowledge the issue and explain the fix process."},
-                {"cefr_band": "intermediate", "prompt": "The cruise director asks: 'Can we add a daily quiz game to the interactive TV system?' Discuss feasibility.", "context": "New content feature discussion", "keywords": ["content", "system", "programming", "schedule", "feasible", "format", "upload", "timeline"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should assess feasibility and outline implementation steps."},
-                {"cefr_band": "advanced", "prompt": "Present a plan to your team for rolling out a new interactive wayfinding kiosk system across all guest decks, covering installation, testing, and crew training.", "context": "New system rollout planning", "keywords": ["kiosk", "installation", "testing", "training", "rollout", "schedule", "locations", "maintenance", "user experience"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a detailed rollout plan with clear phases and responsibilities."}
+                {"cefr_band": "basic", "phrase": "Use the remote to access the menu."},
+                {"cefr_band": "basic", "phrase": "The interactive map shows your ship location."},
+                {"cefr_band": "basic", "phrase": "Movies are available on the cabin screen."},
+                {"cefr_band": "basic", "phrase": "Select your language from the settings menu."},
+                {"cefr_band": "intermediate", "phrase": "The cabin television system includes a port guide with local attraction information."},
+                {"cefr_band": "intermediate", "phrase": "Guests can order room service directly through the interactive television menu system."},
+                {"cefr_band": "intermediate", "phrase": "The digital signage displays are updated every morning with event details."},
+                {"cefr_band": "intermediate", "phrase": "Please restart the cabin television if the interactive features stop responding."},
+                {"cefr_band": "advanced", "phrase": "The infotainment platform integrates with the booking system so guests can reserve activities from their cabin."},
+                {"cefr_band": "advanced", "phrase": "All interactive kiosk content is managed through a central server that pushes automatic updates overnight."},
+                {"cefr_band": "advanced", "phrase": "We are adding multilingual support to all digital displays so guests can navigate in their language."},
+                {"cefr_band": "advanced", "phrase": "The wayfinding kiosks on guest decks provide interactive maps with turn-by-turn directions to restaurants, venues, and public areas."},
             ],
+            # ── 26. Musicians ──────────────────────────────────────────
             "Musicians": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What time does the live music start at the pool deck?' Provide the information.", "context": "Live music schedule inquiry", "keywords": ["music", "pool", "time", "today", "afternoon", "evening", "schedule"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should give the performance time and location."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'Can you play Happy Birthday for my wife?' Respond warmly.", "context": "Song request from guest", "keywords": ["of course", "happy to", "birthday", "congratulations", "song", "dedicate", "name"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should accept the request warmly and confirm details."},
-                {"cefr_band": "intermediate", "prompt": "The entertainment manager asks: 'Can you adjust your set list for the formal night? We need more jazz and standards.' Discuss the change.", "context": "Set list adjustment request", "keywords": ["set list", "jazz", "standards", "adjust", "repertoire", "formal", "appropriate", "rehearse"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should discuss repertoire options and confirm adjustments."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The band is too loud in the lounge. We can't have a conversation.' Respond diplomatically.", "context": "Volume complaint from guest", "keywords": ["apologize", "volume", "adjust", "lower", "comfortable", "enjoy", "feedback", "balance"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should acknowledge the concern and offer to adjust the volume."},
-                {"cefr_band": "advanced", "prompt": "You are rehearsing with a new band member who is unfamiliar with the ship's show format. Explain the performance protocols, cue system, and audience interaction expectations.", "context": "New musician onboarding", "keywords": ["cue", "setlist", "transitions", "audience", "interaction", "protocol", "sound check", "attire", "timing"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should explain performance expectations and logistics comprehensively."}
+                {"cefr_band": "basic", "phrase": "Live music starts at seven tonight."},
+                {"cefr_band": "basic", "phrase": "The band plays on the pool deck."},
+                {"cefr_band": "basic", "phrase": "We take song requests from every guest."},
+                {"cefr_band": "basic", "phrase": "Our next set begins in ten minutes."},
+                {"cefr_band": "intermediate", "phrase": "The entertainment manager asked us to add more jazz tonight."},
+                {"cefr_band": "intermediate", "phrase": "We will adjust the volume if guests find the music too loud."},
+                {"cefr_band": "intermediate", "phrase": "The rehearsal schedule has changed so please check the notice board."},
+                {"cefr_band": "intermediate", "phrase": "All musicians must attend the sound check one hour before performing."},
+                {"cefr_band": "advanced", "phrase": "The band leader selects set lists that match the venue atmosphere and the audience demographic."},
+                {"cefr_band": "advanced", "phrase": "All musicians must maintain a professional appearance and follow the dress code for each venue."},
+                {"cefr_band": "advanced", "phrase": "We coordinate with the technical team to ensure all instruments and amplification are properly balanced."},
+                {"cefr_band": "advanced", "phrase": "Guest feedback on the musical entertainment is collected weekly and reviewed to improve our repertoire and performance quality."},
             ],
+            # ── 27. Production Staff ───────────────────────────────────
             "Production Staff": [
-                {"cefr_band": "basic", "prompt": "A performer asks: 'Where is the costume storage room?' Direct them.", "context": "Backstage directions", "keywords": ["costume", "storage", "backstage", "deck", "room", "follow", "stairs"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should give clear directions to the costume area."},
-                {"cefr_band": "basic", "prompt": "The stage manager says: 'We need the fog machine refilled before the 8 PM show.' Confirm you will handle it.", "context": "Equipment preparation request", "keywords": ["fog machine", "refill", "ready", "before", "show", "confirm", "done"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should confirm the task and timeline."},
-                {"cefr_band": "intermediate", "prompt": "During rehearsal, a dancer reports that part of the stage floor is slippery. Explain how you will address the safety concern.", "context": "Stage safety issue", "keywords": ["safety", "slippery", "tape", "clean", "report", "inspect", "fix", "rehearsal"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should address the hazard immediately and explain preventive measures."},
-                {"cefr_band": "intermediate", "prompt": "The production manager asks: 'Can we change the backdrop between acts in under two minutes?' Discuss logistics.", "context": "Quick scene change planning", "keywords": ["backdrop", "change", "crew", "timing", "rehearse", "positions", "smooth", "transition"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should assess feasibility and propose a crew plan for quick changes."},
-                {"cefr_band": "advanced", "prompt": "Lead the pre-show production meeting for a new Broadway-style revue, covering technical cues, cast positions, safety protocols, and contingency plans.", "context": "Pre-show production meeting", "keywords": ["cues", "blocking", "safety", "contingency", "run sheet", "crew", "communication", "pyrotechnics", "timeline"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should conduct a thorough and organized pre-show briefing."}
+                {"cefr_band": "basic", "phrase": "The costume storage room is backstage."},
+                {"cefr_band": "basic", "phrase": "The fog machine needs to be refilled."},
+                {"cefr_band": "basic", "phrase": "All props are checked before every show."},
+                {"cefr_band": "basic", "phrase": "Curtain call is at nine thirty tonight."},
+                {"cefr_band": "intermediate", "phrase": "The stage manager needs all cast members in position before curtain."},
+                {"cefr_band": "intermediate", "phrase": "We must complete the backdrop change in under two minutes between acts."},
+                {"cefr_band": "intermediate", "phrase": "The rehearsal schedule for the new production show starts tomorrow morning."},
+                {"cefr_band": "intermediate", "phrase": "Please report any slippery areas on the stage floor immediately."},
+                {"cefr_band": "advanced", "phrase": "The production team holds a pre-show meeting to review technical cues, positions, and safety protocols."},
+                {"cefr_band": "advanced", "phrase": "All pyrotechnic effects must be approved by the safety officer and tested during the afternoon rehearsal."},
+                {"cefr_band": "advanced", "phrase": "The wardrobe department maintains a complete inventory of costumes that are inspected after each performance."},
+                {"cefr_band": "advanced", "phrase": "Quick costume changes require a dedicated backstage team who follow precise timing cues during the show."},
             ],
+            # ── 28. Shore Excursions ───────────────────────────────────
             "Shore Excursions": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'What shore excursions are available at the next port?' Describe some options.", "context": "Excursion options inquiry", "keywords": ["tour", "beach", "city", "available", "price", "duration", "book"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should describe a few excursion options clearly."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'I booked a snorkeling tour but I can't swim well. Is it still safe?' Reassure and advise them.", "context": "Safety concern about excursion", "keywords": ["life jacket", "guide", "safe", "shallow", "alternative", "comfortable", "instructor"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should reassure the guest and explain safety measures or alternatives."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The tour bus left without us and we were only five minutes late.' Handle the complaint.", "context": "Missed excursion complaint", "keywords": ["apologize", "policy", "departure time", "refund", "rebook", "alternative", "understand", "sorry"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should empathize, explain policy, and offer alternatives."},
-                {"cefr_band": "intermediate", "prompt": "A guest asks: 'Which excursion is best for elderly parents who cannot walk long distances?' Recommend appropriately.", "context": "Accessibility-focused recommendation", "keywords": ["accessible", "wheelchair", "gentle", "scenic", "seated", "comfortable", "recommend", "pace"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should recommend suitable low-mobility excursions with sensitivity."},
-                {"cefr_band": "advanced", "prompt": "Brief the shore excursion team on a new port of call, covering available tours, local risks, emergency contacts, and guest communication plans.", "context": "New port briefing for team", "keywords": ["port", "tours", "safety", "emergency", "contacts", "communication", "logistics", "vendors", "briefing"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should deliver a comprehensive port briefing covering all operational aspects."}
+                {"cefr_band": "basic", "phrase": "The tour bus departs at nine sharp."},
+                {"cefr_band": "basic", "phrase": "Please bring water and comfortable shoes."},
+                {"cefr_band": "basic", "phrase": "The beach excursion lasts about four hours."},
+                {"cefr_band": "basic", "phrase": "All excursion tickets are sold at reception."},
+                {"cefr_band": "intermediate", "phrase": "We recommend booking popular shore excursions early because they sell out quickly."},
+                {"cefr_band": "intermediate", "phrase": "The walking tour covers the historic old town and includes lunch."},
+                {"cefr_band": "intermediate", "phrase": "Guests with mobility concerns should consider the scenic bus tour instead."},
+                {"cefr_band": "intermediate", "phrase": "Please return to the meeting point thirty minutes before departure time."},
+                {"cefr_band": "advanced", "phrase": "The shore excursion team coordinates with local operators to ensure every activity meets our safety standards."},
+                {"cefr_band": "advanced", "phrase": "All tour guides carry emergency contact information and a first aid kit during every excursion."},
+                {"cefr_band": "advanced", "phrase": "Guests who miss the departure time for an organized excursion must arrange their own return transport."},
+                {"cefr_band": "advanced", "phrase": "We provide detailed port information sheets that include local customs, currency, and safety tips."},
             ],
+            # ── 29. Youth Programs ─────────────────────────────────────
             "Youth Programs": [
-                {"cefr_band": "basic", "prompt": "A parent asks: 'What activities are available for my 6-year-old today?' Describe the kids' program.", "context": "Children's program inquiry", "keywords": ["kids club", "activities", "crafts", "games", "time", "age group", "fun"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should describe age-appropriate activities clearly."},
-                {"cefr_band": "basic", "prompt": "A parent says: 'I need to pick up my child from the kids' club. What's the procedure?' Explain.", "context": "Child pickup procedure", "keywords": ["sign out", "ID", "wristband", "parent", "verify", "pickup", "card"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the safe pickup procedure."},
-                {"cefr_band": "intermediate", "prompt": "A parent says: 'My daughter is feeling left out in the group activities. Can you help?' Address the concern.", "context": "Child inclusion concern", "keywords": ["understand", "attention", "include", "activities", "buddy", "comfortable", "check in", "support"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should show empathy and explain steps to ensure inclusion."},
-                {"cefr_band": "intermediate", "prompt": "A teenager asks: 'The teen club is boring. There's nothing cool to do.' Engage them and suggest activities.", "context": "Teen engagement challenge", "keywords": ["understand", "activities", "gaming", "pool party", "DJ night", "suggestions", "interested", "try"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should engage positively and present appealing options."},
-                {"cefr_band": "advanced", "prompt": "Present to the youth programs team your plan for a themed adventure day for children ages 7-12, including activities, staffing, safety measures, and schedule.", "context": "Themed event planning for children", "keywords": ["theme", "activities", "schedule", "staffing", "safety", "ratios", "materials", "backup plan", "engagement"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a detailed, safety-conscious, and engaging event plan."}
+                {"cefr_band": "basic", "phrase": "The kids club opens at nine today."},
+                {"cefr_band": "basic", "phrase": "Children must wear their wristbands always."},
+                {"cefr_band": "basic", "phrase": "Arts and crafts start after lunch today."},
+                {"cefr_band": "basic", "phrase": "Parents sign out their children at reception."},
+                {"cefr_band": "intermediate", "phrase": "The teen program includes gaming, sports, and a special movie night tonight."},
+                {"cefr_band": "intermediate", "phrase": "All children must be registered by a parent or guardian before attending."},
+                {"cefr_band": "intermediate", "phrase": "The youth staff maintains a safe ratio for all supervised activities."},
+                {"cefr_band": "intermediate", "phrase": "We offer separate age groups for toddlers, children, and teenagers onboard."},
+                {"cefr_band": "advanced", "phrase": "The youth programs team creates a daily schedule of age-appropriate activities that are educational and fun."},
+                {"cefr_band": "advanced", "phrase": "All youth staff hold valid first aid certifications and complete background checks before working with children."},
+                {"cefr_band": "advanced", "phrase": "Parents can track their children's location and activity status through the ship's mobile application."},
+                {"cefr_band": "advanced", "phrase": "The late night babysitting service is available for a fee and must be reserved four hours ahead."},
             ],
+            # ── 30. Audio Visual Media ─────────────────────────────────
             "Audio Visual Media": [
-                {"cefr_band": "basic", "prompt": "A colleague asks: 'How do I play the safety video on the main screen?' Walk them through it.", "context": "Video playback assistance", "keywords": ["screen", "play", "remote", "input", "video", "source", "start"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain the playback steps clearly."},
-                {"cefr_band": "basic", "prompt": "The event coordinator says: 'We need a microphone and speaker for the pool deck announcement.' Confirm availability.", "context": "AV equipment request", "keywords": ["microphone", "speaker", "available", "pool deck", "setup", "portable", "ready"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should confirm equipment availability and setup timing."},
-                {"cefr_band": "intermediate", "prompt": "During a conference at sea, the presenter's laptop won't connect to the projector. Troubleshoot and explain the steps to the presenter.", "context": "Projector connectivity troubleshooting", "keywords": ["HDMI", "adapter", "resolution", "input", "display", "settings", "cable", "restart"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should troubleshoot methodically and communicate clearly."},
-                {"cefr_band": "intermediate", "prompt": "The cruise director wants to livestream the deck party to cabin TVs. Discuss what equipment and setup you need.", "context": "Live streaming setup discussion", "keywords": ["camera", "encoder", "stream", "bandwidth", "channel", "feed", "test", "monitor"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should outline the technical requirements for the livestream."},
-                {"cefr_band": "advanced", "prompt": "Propose a complete AV upgrade plan for the ship's main theater, including new projection, sound, and lighting systems with budget estimates and installation timeline.", "context": "Theater AV upgrade proposal", "keywords": ["projection", "surround sound", "LED", "budget", "installation", "downtime", "phases", "specifications", "ROI"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present a comprehensive and well-justified upgrade proposal."}
+                {"cefr_band": "basic", "phrase": "The projector is set up and ready."},
+                {"cefr_band": "basic", "phrase": "Please connect the cable to the laptop."},
+                {"cefr_band": "basic", "phrase": "The screen displays the correct video source."},
+                {"cefr_band": "basic", "phrase": "We have portable speakers available for events."},
+                {"cefr_band": "intermediate", "phrase": "The live stream feed from the deck party is broadcasting to cabins."},
+                {"cefr_band": "intermediate", "phrase": "Please check the HDMI connection if the projector shows no image."},
+                {"cefr_band": "intermediate", "phrase": "We need an additional wireless microphone for the guest speaker today."},
+                {"cefr_band": "intermediate", "phrase": "All audio visual equipment must be returned to the storage room after."},
+                {"cefr_band": "advanced", "phrase": "The media team records and edits highlight videos of onboard events for cabin televisions and signage."},
+                {"cefr_band": "advanced", "phrase": "All conference center equipment is tested weekly to ensure reliable performance for corporate events."},
+                {"cefr_band": "advanced", "phrase": "We are installing a new surround sound system in the main theater to improve audio quality."},
+                {"cefr_band": "advanced", "phrase": "The audio visual technician creates a detailed equipment list and setup diagram for every scheduled event."},
             ],
+            # ── 31. Onboard Media ──────────────────────────────────────
             "Onboard Media": [
-                {"cefr_band": "basic", "prompt": "A guest asks: 'Where can I find the daily newsletter with today's activities?' Help them.", "context": "Daily program inquiry", "keywords": ["newsletter", "daily", "cabin", "app", "activities", "schedule", "copy"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should explain where to find the daily program."},
-                {"cefr_band": "basic", "prompt": "A guest says: 'I'd like a printed copy of my cruise photos. Where do I go?' Direct them.", "context": "Photo printing request", "keywords": ["photo", "gallery", "print", "deck", "digital", "order", "pick up"], "rubric": {"fluency": 2, "vocabulary": 2, "grammar": 2, "content": 4}, "explanation": "Should direct the guest to the appropriate location."},
-                {"cefr_band": "intermediate", "prompt": "The marketing manager asks: 'Can you create a short promotional video for the spa's new treatment?' Discuss the plan.", "context": "Promotional content creation", "keywords": ["video", "script", "footage", "editing", "deadline", "approval", "format", "channels"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should outline the video production steps and timeline."},
-                {"cefr_band": "intermediate", "prompt": "A guest complains: 'The digital signage near the restaurant shows the wrong menu times.' Report and fix the issue.", "context": "Digital signage error", "keywords": ["signage", "update", "correct", "apologize", "content management", "fix", "verify", "menu"], "rubric": {"fluency": 3, "vocabulary": 3, "grammar": 2, "content": 2}, "explanation": "Should apologize, fix the content, and verify the correction."},
-                {"cefr_band": "advanced", "prompt": "Present a content strategy for all onboard media channels—cabin TV, digital signage, app notifications, and printed materials—for an upcoming themed cruise week.", "context": "Multi-channel content strategy", "keywords": ["strategy", "channels", "content calendar", "branding", "messaging", "coordination", "assets", "approval", "distribution"], "rubric": {"fluency": 3, "vocabulary": 2, "grammar": 2, "content": 3}, "explanation": "Should present an integrated, multi-channel content plan with clear timelines."}
-            ]
+                {"cefr_band": "basic", "phrase": "The daily newsletter is in your cabin."},
+                {"cefr_band": "basic", "phrase": "Today's schedule is posted near the elevator."},
+                {"cefr_band": "basic", "phrase": "Photos from last night are now available."},
+                {"cefr_band": "basic", "phrase": "The ship's magazine is free for guests."},
+                {"cefr_band": "intermediate", "phrase": "The onboard media team publishes the daily program with all activities listed."},
+                {"cefr_band": "intermediate", "phrase": "Digital signage content is updated every morning to reflect today's events."},
+                {"cefr_band": "intermediate", "phrase": "We create short promotional videos to highlight special dining and entertainment options."},
+                {"cefr_band": "intermediate", "phrase": "All printed materials are reviewed for accuracy before distribution to guests."},
+                {"cefr_band": "advanced", "phrase": "The media coordinator manages content across multiple channels including print, digital signage, television, and the mobile application."},
+                {"cefr_band": "advanced", "phrase": "All external communications must be approved by the corporate public relations team before being released from the vessel."},
+                {"cefr_band": "advanced", "phrase": "The onboard media strategy aligns editorial content with seasonal marketing themes to promote revenue generating activities and experiences."},
+                {"cefr_band": "advanced", "phrase": "We collect guest engagement metrics from all media channels to measure content effectiveness and plan improvements."},
+            ],
         }
 
-        raw = _require(speaking_prompts, scenario_key, "speaking prompts")
+        raw = _require(phrases, scenario_key, "speaking repeat phrases")
         return _filter_scenarios_by_band(raw, cefr_level)
 
     def save_to_json(self, output_path: str):

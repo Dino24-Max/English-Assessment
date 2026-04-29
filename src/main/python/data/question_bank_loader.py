@@ -30,12 +30,15 @@ def _time_numbers_audio_sentence(question_text: str, context: str = None, correc
 
 # Listen-and-repeat phrases (2–3 sentences). Used when bank rows are legacy "scenario" items.
 _SPEAKING_LISTEN_REPEAT_PHRASES = [
-    "Good morning! Welcome aboard. My name is Maria and I will be your cabin steward during this voyage.",
-    "The pool deck is located on deck twelve. Please remember to bring your cruise card for towel service.",
-    "The spa is on deck twelve, forward. Take the midship elevators up two levels, then follow the signs to the wellness center.",
-    "Tonight we have a comedy show in the main theater at eight PM. The musical revue starts at nine thirty in the lounge.",
-    "Your muster station is on deck four, starboard side. Please follow the signs and wear your life jacket only if instructed.",
-    "The buffet is open until eleven PM. For specialty dining, please confirm your reservation at the guest services desk.",
+    "Welcome aboard the ship.",
+    "Your cabin is ready now.",
+    "The pool deck closes at ten tonight.",
+    "Please bring your cruise card for towel service.",
+    "The buffet is open until eleven PM on deck nine.",
+    "Your muster station is located on deck four, starboard side.",
+    "Tonight we have a comedy show in the main theater starting at eight PM.",
+    "Please confirm your specialty dining reservation at the guest services desk before six PM this evening.",
+    "The spa offers a variety of relaxing treatments including massages and facials for guests of all ages.",
 ]
 
 _SPEAKING_KW_STOPWORDS = frozenset(
