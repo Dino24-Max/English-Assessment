@@ -46,6 +46,32 @@ QUESTIONS_PER_MODULE = {
 }
 TOTAL_QUESTIONS = sum(QUESTIONS_PER_MODULE.values())  # 21
 
+MODULE_TARGET_SCORES = {
+    _ma.ModuleType.LISTENING: 16,
+    _ma.ModuleType.TIME_NUMBERS: 16,
+    _ma.ModuleType.GRAMMAR: 16,
+    _ma.ModuleType.VOCABULARY: 16,
+    _ma.ModuleType.READING: 16,
+    _ma.ModuleType.SPEAKING: 20,
+}
+
+MODULE_ORDER = [
+    _ma.ModuleType.LISTENING, _ma.ModuleType.TIME_NUMBERS, _ma.ModuleType.GRAMMAR,
+    _ma.ModuleType.VOCABULARY, _ma.ModuleType.READING, _ma.ModuleType.SPEAKING,
+]
+
+
+def _distribute_points(total: int, n: int) -> list:
+    """Distribute total points across n questions with rounding (extras go to last)."""
+    if n <= 0:
+        return []
+    base = total // n
+    remainder = total % n
+    points = [base] * n
+    for i in range(n - remainder, n):
+        points[i] += 1
+    return points
+
 
 class AssessmentEngine:
     """Core assessment engine managing test flow and scoring"""
@@ -439,8 +465,15 @@ class AssessmentEngine:
         if existing:
             raise ValueError("Question already answered")
 
-        # Score the response
-        is_correct, points_earned = await self._score_response(question, user_answer)
+        # Compute redistributed points for this question
+        adjusted_points = self._get_adjusted_points(
+            assessment, question, question_id
+        )
+
+        # Score the response using adjusted points
+        is_correct, points_earned = await self._score_response(
+            question, user_answer, points_override=adjusted_points
+        )
 
         # Create response record
         response = _ma.AssessmentResponse(
@@ -449,7 +482,7 @@ class AssessmentEngine:
             user_answer=user_answer,
             is_correct=is_correct,
             points_earned=points_earned,
-            points_possible=question.points,
+            points_possible=adjusted_points,
             time_spent_seconds=time_spent
         )
 
@@ -459,11 +492,47 @@ class AssessmentEngine:
         return {
             "is_correct": is_correct,
             "points_earned": points_earned,
-            "points_possible": question.points,
+            "points_possible": adjusted_points,
             "feedback": await self._generate_feedback(question, user_answer, is_correct)
         }
 
-    async def _score_response(self, question: _ma.Question, user_answer: str) -> Tuple[bool, float]:
+    def _get_adjusted_points(
+        self, assessment: _ma.Assessment, question: _ma.Question, question_id: int
+    ) -> int:
+        """Compute redistributed points for a question based on module target scores.
+
+        question_order is built as consecutive module blocks following MODULE_ORDER,
+        each block having QUESTIONS_PER_MODULE[module] entries.
+        """
+        module_type = question.module_type
+        target = MODULE_TARGET_SCORES.get(module_type)
+        n_questions = QUESTIONS_PER_MODULE.get(module_type)
+
+        if target is None or n_questions is None:
+            return question.points
+
+        question_order = assessment.question_order or []
+        if question_id not in question_order:
+            return question.points
+
+        distribution = _distribute_points(target, n_questions)
+
+        offset = 0
+        for mod in MODULE_ORDER:
+            count = QUESTIONS_PER_MODULE.get(mod, 0)
+            if mod == module_type:
+                module_slice = question_order[offset:offset + count]
+                if question_id in module_slice:
+                    idx = module_slice.index(question_id)
+                    if idx < len(distribution):
+                        return distribution[idx]
+                return question.points
+            offset += count
+
+        return question.points
+
+    async def _score_response(self, question: _ma.Question, user_answer: str,
+                              points_override: int = None) -> Tuple[bool, float]:
         """
         Score a user's response to a question
 
@@ -471,31 +540,28 @@ class AssessmentEngine:
         - CATEGORY_MATCH (vocabulary module)
         - TITLE_SELECTION (reading module)
         """
+        qp = points_override if points_override is not None else question.points
 
         if question.question_type == _ma.QuestionType.MULTIPLE_CHOICE:
             is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
-            points = question.points if is_correct else 0
+            points = qp if is_correct else 0
 
         elif question.question_type == _ma.QuestionType.FILL_BLANK:
-            # More flexible matching for fill-in-the-blank (time & numbers)
             is_correct = self._flexible_text_match(user_answer, question.correct_answer)
-            points = question.points if is_correct else 0
+            points = qp if is_correct else 0
 
         elif question.question_type == _ma.QuestionType.CATEGORY_MATCH:
             is_correct, ratio = self._score_category_match(
                 user_answer, question.correct_answer,
                 question_metadata=question.question_metadata,
             )
-            points = int(question.points * ratio)
+            points = int(qp * ratio)
 
         elif question.question_type == _ma.QuestionType.TITLE_SELECTION:
-            # Reading module - select best title
             is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
-            points = question.points if is_correct else 0
+            points = qp if is_correct else 0
 
         elif question.question_type == _ma.QuestionType.SPEAKING_RESPONSE:
-            # Default: deterministic keyword + fluency scoring (listen-repeat and scenario with expected_keywords).
-            # Opt-in LLM: set question_metadata.use_llm_scoring to true.
             transcript, recording_duration = self._parse_speaking_user_answer(user_answer)
             if self._transcript_is_invalid_speaking(transcript):
                 return False, 0.0
@@ -512,12 +578,11 @@ class AssessmentEngine:
                     expected_keywords=keywords,
                     question_context=question.question_text or "",
                     recording_duration=recording_duration,
-                    base_points=float(question.points),
+                    base_points=float(qp),
                 )
-                points = round(min(float(question.points), max(0.0, sr.total_points)), 2)
+                points = round(min(float(qp), max(0.0, sr.total_points)), 2)
                 is_correct = sr.percentage >= 60.0
             else:
-                # Legacy LLM path (explicit opt-in only)
                 if user_answer and "|" in user_answer and user_answer.strip().startswith("recorded_"):
                     parts = user_answer.split("|", 1)
                     tr = parts[1].strip() if len(parts) > 1 else ""
@@ -534,13 +599,12 @@ class AssessmentEngine:
                     )
                 is_correct = analysis["overall_score"] >= 0.6
                 raw_points = float(analysis.get("total_points", 0))
-                points = round((raw_points / 20.0) * question.points, 2)
-                points = min(question.points, max(0, points))
+                points = round((raw_points / 20.0) * qp, 2)
+                points = min(qp, max(0, points))
 
         else:
-            # Default exact match for any other type
             is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
-            points = question.points if is_correct else 0
+            points = qp if is_correct else 0
 
         return is_correct, points
 
@@ -822,6 +886,11 @@ class AssessmentEngine:
             m = re.match(r'(\d{2})(\d{2})$', text)
             if m and len(text) == 4:
                 return (int(m.group(1)), int(m.group(2)), None)
+
+            # Bare number: "1", "7", "12" → treat as hour with 0 minutes
+            m = re.match(r'(\d{1,2})$', text)
+            if m:
+                return (int(m.group(1)), 0, None)
 
             return None
 
