@@ -30,7 +30,8 @@
     <p class="speaking-instruction">🎤 Click the button below to record your response (minimum {{ question_data.min_duration or 3 }} seconds):</p>
     {% endif %}
     <div class="recording-controls">
-        <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+        <button class="record-btn" id="recordBtn" onclick="toggleRecording()"
+            {% if question_data.speaking_type == "repeat" %}disabled style="opacity:0.5; cursor:not-allowed;"{% endif %}>
             <span class="record-icon">⏺</span> Start Recording
         </button>
         <div class="recording-timer" id="timer">0:00</div>
